@@ -87,11 +87,14 @@ export default function PerdiemRequestWizard() {
   >(null);
   const [distance, setDistance] = useState<number | null>(null);
   const { toast } = useToast();
-  const { latitude, longitude, error: geoError, getPosition, loading: geoLoading } = useGeolocation({
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 0,
-  });
+  
+  const geoOptions = useMemo(() => ({
+    enableHighAccuracy: true,
+    timeout: 10000,
+    maximumAge: 0,
+  }), []);
+
+  const { latitude, longitude, error: geoError, getPosition, loading: geoLoading } = useGeolocation(geoOptions);
 
   const form = useForm<RequestFormValues>({
     resolver: zodResolver(requestSchema),

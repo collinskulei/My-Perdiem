@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 
 type GeolocationState = {
   loading: boolean;
@@ -17,7 +17,7 @@ type GeolocationState = {
 
 export const useGeolocation = (options: PositionOptions = {}) => {
   const [state, setState] = useState<GeolocationState>({
-    loading: false,
+    loading: true,
     accuracy: null,
     altitude: null,
     altitudeAccuracy: null,
@@ -28,42 +28,51 @@ export const useGeolocation = (options: PositionOptions = {}) => {
     timestamp: null,
     error: null,
   });
+  const optionsRef = useRef(options);
+
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
+
+  const onEvent = useCallback((event: GeolocationPosition) => {
+    setState({
+      loading: false,
+      accuracy: event.coords.accuracy,
+      altitude: event.coords.altitude,
+      altitudeAccuracy: event.coords.altitudeAccuracy,
+      heading: event.coords.heading,
+      latitude: event.coords.latitude,
+      longitude: event.coords.longitude,
+      speed: event.coords.speed,
+      timestamp: event.timestamp,
+      error: null,
+    });
+  }, []);
+
+  const onEventError = useCallback((error: GeolocationPositionError) => {
+    setState((s) => ({
+      ...s,
+      loading: false,
+      error,
+    }));
+  }, []);
 
   const getPosition = useCallback(() => {
     if (!navigator.geolocation) {
-      setState((s) => ({
-        ...s,
-        error: {
-          code: 0,
-          message: "Geolocation is not supported.",
-        } as GeolocationPositionError,
-      }));
+      onEventError({
+        code: 0,
+        message: "Geolocation is not supported.",
+      } as GeolocationPositionError);
       return;
     }
 
     setState((s) => ({ ...s, loading: true }));
-
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setState({
-          loading: false,
-          accuracy: position.coords.accuracy,
-          altitude: position.coords.altitude,
-          altitudeAccuracy: position.coords.altitudeAccuracy,
-          heading: position.coords.heading,
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          speed: position.coords.speed,
-          timestamp: position.timestamp,
-          error: null,
-        });
-      },
-      (error) => {
-        setState((s) => ({ ...s, loading: false, error }));
-      },
-      options
+      onEvent,
+      onEventError,
+      optionsRef.current
     );
-  }, [options]);
+  }, [onEvent, onEventError]);
 
   return { ...state, getPosition };
 };
