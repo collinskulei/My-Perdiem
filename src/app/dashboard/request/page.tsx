@@ -9,7 +9,9 @@ import {
   Calendar as CalendarIcon,
   MapPin,
   Loader2,
-  LocateFixed
+  LocateFixed,
+  Check,
+  ChevronsUpDown,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -30,14 +32,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { cn } from "@/lib/utils";
@@ -106,6 +109,7 @@ export default function PerdiemRequestWizard() {
     control,
     handleSubmit,
     watch,
+    setValue,
     getValues,
     formState: { errors },
   } = form;
@@ -200,25 +204,61 @@ export default function PerdiemRequestWizard() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="hotel">Venue / Hotel</Label>
-                 <Controller
+                <Controller
                   name="hotelId"
                   control={control}
                   render={({ field }) => (
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a hotel" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {hotels.map(hotel => (
-                          <SelectItem key={hotel.id} value={hotel.id}>
-                            {hotel.name}, {hotel.city}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className={cn(
+                            "w-full justify-between",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value
+                            ? hotels.find(
+                                (hotel) => hotel.id === field.value
+                              )?.name
+                            : "Select hotel"}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                        <Command>
+                          <CommandInput placeholder="Search hotel..." />
+                          <CommandEmpty>No hotel found.</CommandEmpty>
+                          <CommandList>
+                            <CommandGroup>
+                              {hotels.map((hotel) => (
+                                <CommandItem
+                                  value={hotel.name}
+                                  key={hotel.id}
+                                  onSelect={() => {
+                                    setValue("hotelId", hotel.id);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      hotel.id === field.value
+                                        ? "opacity-100"
+                                        : "opacity-0"
+                                    )}
+                                  />
+                                  {hotel.name}, {hotel.city}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   )}
                 />
-                 {errors.hotelId && <p className="text-sm text-destructive">{errors.hotelId.message}</p>}
+                {errors.hotelId && <p className="text-sm text-destructive">{errors.hotelId.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="date">Date</Label>
