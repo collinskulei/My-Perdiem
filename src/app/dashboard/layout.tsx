@@ -5,7 +5,7 @@ import {
   FilePlus2,
   Home,
   LogOut,
-  PocketKnife,
+  Landmark,
   User,
 } from "lucide-react";
 
@@ -34,9 +34,9 @@ export default function DashboardLayout({
       <Sidebar>
         <SidebarHeader>
           <div className="flex items-center gap-2">
-            <PocketKnife className="h-7 w-7 text-sidebar-primary" />
+            <Landmark className="h-7 w-7 text-sidebar-primary" />
             <h1 className="text-xl font-semibold text-sidebar-primary">
-              PerdiemPro
+              My Perdiem
             </h1>
           </div>
         </SidebarHeader>

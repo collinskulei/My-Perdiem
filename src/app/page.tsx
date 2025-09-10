@@ -30,7 +30,7 @@ export default function LoginPage() {
           <div className="mb-4 flex justify-center">
             <Logo />
           </div>
-          <CardTitle className="text-2xl">Welcome to PerdiemPro</CardTitle>
+          <CardTitle className="text-2xl">Welcome to My Perdiem</CardTitle>
           <CardDescription>
             Enter your credentials to access your account.
           </CardDescription>

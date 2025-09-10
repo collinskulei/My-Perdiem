@@ -6,7 +6,7 @@ import { Toaster } from '@/components/ui/toaster';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'PerdiemPro',
+  title: 'My Perdiem',
   description: 'Simplify how employees request and manage per diem allowances.',
 };
 
