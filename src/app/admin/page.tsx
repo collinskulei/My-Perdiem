@@ -1,4 +1,7 @@
-import { Download, MoreHorizontal } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import { Download, MoreHorizontal, PlusCircle } from "lucide-react";
 import Image from "next/image";
 
 import { Badge } from "@/components/ui/badge";
@@ -11,12 +14,23 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -26,9 +40,26 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { employees, perdiemRequests, hotels } from "@/lib/data";
+import { employees, perdiemRequests, venues as initialVenues } from "@/lib/data";
+import type { Venue } from "@/lib/data";
 
 export default function AdminDashboard() {
+  const [venues, setVenues] = useState<Venue[]>(initialVenues);
+  const [isAddVenueOpen, setIsAddVenueOpen] = useState(false);
+  const [newVenue, setNewVenue] = useState({ name: "", city: "", latitude: "", longitude: "" });
+
+  const handleAddVenue = () => {
+    const venueToAdd = {
+      id: `${venues.length + 1}`,
+      ...newVenue,
+      latitude: parseFloat(newVenue.latitude) || 0,
+      longitude: parseFloat(newVenue.longitude) || 0,
+    };
+    setVenues([...venues, venueToAdd]);
+    setNewVenue({ name: "", city: "", latitude: "", longitude: "" });
+    setIsAddVenueOpen(false);
+  };
+
   return (
     <div className="grid flex-1 items-start gap-4">
       <div className="flex items-center justify-between">
@@ -42,7 +73,7 @@ export default function AdminDashboard() {
         <TabsList>
           <TabsTrigger value="requests">Perdiem Requests</TabsTrigger>
           <TabsTrigger value="employees">Employees</TabsTrigger>
-          <TabsTrigger value="hotels">Hotels</TabsTrigger>
+          <TabsTrigger value="venues">Venues</TabsTrigger>
         </TabsList>
         <TabsContent value="requests">
           <Card>
@@ -196,19 +227,88 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         </TabsContent>
-        <TabsContent value="hotels">
+        <TabsContent value="venues">
           <Card>
-            <CardHeader>
-              <CardTitle>Hotels</CardTitle>
-              <CardDescription>
-                A list of all registered hotels.
-              </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Venues</CardTitle>
+                <CardDescription>
+                  A list of all registered venues.
+                </CardDescription>
+              </div>
+               <Dialog open={isAddVenueOpen} onOpenChange={setIsAddVenueOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add Venue
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Venue</DialogTitle>
+                    <DialogDescription>
+                      Enter the details for the new venue.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="venue-name" className="text-right">
+                        Name
+                      </Label>
+                      <Input
+                        id="venue-name"
+                        value={newVenue.name}
+                        onChange={(e) => setNewVenue({ ...newVenue, name: e.target.value })}
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="venue-city" className="text-right">
+                        City
+                      </Label>
+                      <Input
+                        id="venue-city"
+                        value={newVenue.city}
+                        onChange={(e) => setNewVenue({ ...newVenue, city: e.target.value })}
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="venue-lat" className="text-right">
+                        Latitude
+                      </Label>
+                      <Input
+                        id="venue-lat"
+                        type="number"
+                        value={newVenue.latitude}
+                        onChange={(e) => setNewVenue({ ...newVenue, latitude: e.target.value })}
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="venue-lon" className="text-right">
+                        Longitude
+                      </Label>
+                      <Input
+                        id="venue-lon"
+                        type="number"
+                        value={newVenue.longitude}
+                        onChange={(e) => setNewVenue({ ...newVenue, longitude: e.target.value })}
+                        className="col-span-3"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button type="submit" onClick={handleAddVenue}>Save Venue</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Hotel Name</TableHead>
+                    <TableHead>Venue Name</TableHead>
                     <TableHead>City</TableHead>
                     <TableHead>Coordinates</TableHead>
                     <TableHead>
@@ -217,12 +317,12 @@ export default function AdminDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {hotels.map((hotel) => (
-                    <TableRow key={hotel.id}>
-                      <TableCell className="font-medium">{hotel.name}</TableCell>
-                      <TableCell>{hotel.city}</TableCell>
+                  {venues.map((venue) => (
+                    <TableRow key={venue.id}>
+                      <TableCell className="font-medium">{venue.name}</TableCell>
+                      <TableCell>{venue.city}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {hotel.latitude.toFixed(4)}, {hotel.longitude.toFixed(4)}
+                        {venue.latitude.toFixed(4)}, {venue.longitude.toFixed(4)}
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>

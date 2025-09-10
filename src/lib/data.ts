@@ -9,7 +9,7 @@ export type Employee = {
   avatarUrl: string;
 };
 
-export type Hotel = {
+export type Venue = {
   id: string;
   name: string;
   city: string;
@@ -137,7 +137,7 @@ export const perdiemRequests: PerdiemRequest[] = [
   },
 ];
 
-export const hotels: Hotel[] = [
+export const venues: Venue[] = [
     { id: '1', name: 'Sarova Stanley', city: 'Nairobi', latitude: -1.2833, longitude: 36.8167 },
     { id: '2', name: 'Serena Beach Resort & Spa', city: 'Mombasa', latitude: -4.0435, longitude: 39.6682 },
     { id: '3', name: 'Acacia Premier Hotel', city: 'Kisumu', latitude: -0.0917, longitude: 34.7680 },

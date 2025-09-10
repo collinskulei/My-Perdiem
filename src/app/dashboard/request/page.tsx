@@ -44,14 +44,14 @@ import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { cn } from "@/lib/utils";
-import { hotels } from "@/lib/data";
+import { venues } from "@/lib/data";
 
 const MILEAGE_RATE_KSH = 45;
 const DAILY_ALLOWANCE = 5000;
 
 const requestSchema = z.object({
   eventName: z.string().min(3, "Event name is required"),
-  hotelId: z.string({ required_error: "Please select a hotel." }),
+  venueId: z.string({ required_error: "Please select a venue." }),
   facilitator: z.string().min(3, "Facilitator name is required"),
   date: z.date({ required_error: "Event date is required" }),
   mileage: z.coerce.number().min(0).default(0),
@@ -86,6 +86,7 @@ export default function PerdiemRequestWizard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [distance, setDistance] = useState<number | null>(null);
   const { toast } = useToast();
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   
   const geoOptions = useMemo(() => ({
     enableHighAccuracy: true,
@@ -102,7 +103,7 @@ export default function PerdiemRequestWizard() {
       facilitator: "Jane Doe",
       mileage: 0,
       airTicketCosts: 0,
-      hotelId: hotels[0].id,
+      venueId: venues[0].id,
     },
   });
   const {
@@ -115,9 +116,9 @@ export default function PerdiemRequestWizard() {
   } = form;
   const watchedValues = watch();
 
-  const selectedHotel = useMemo(() => {
-    return hotels.find(h => h.id === watchedValues.hotelId) ?? hotels[0];
-  }, [watchedValues.hotelId]);
+  const selectedVenue = useMemo(() => {
+    return venues.find(h => h.id === watchedValues.venueId) ?? venues[0];
+  }, [watchedValues.venueId]);
 
   const totalPerdiem = useMemo(() => {
     const mileageCost = (watchedValues.mileage || 0) * MILEAGE_RATE_KSH;
@@ -128,22 +129,28 @@ export default function PerdiemRequestWizard() {
   const canCheckIn = useMemo(() => distance !== null && distance <= 1, [distance]);
   
   const updateDistance = useCallback(() => {
-      if (latitude && longitude && selectedHotel) {
+      if (latitude && longitude && selectedVenue) {
         const dist = getDistance(
           latitude,
           longitude,
-          selectedHotel.latitude,
-          selectedHotel.longitude
+          selectedVenue.latitude,
+          selectedVenue.longitude
         );
         setDistance(dist);
       }
-  }, [latitude, longitude, selectedHotel]);
+  }, [latitude, longitude, selectedVenue]);
   
   useEffect(() => {
     getPosition();
-    const intervalId = setInterval(getPosition, 5000); 
-    return () => clearInterval(intervalId);
   }, [getPosition]);
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      getPosition();
+      updateDistance();
+    }, 5000); 
+    return () => clearInterval(intervalId);
+  }, [getPosition, updateDistance]);
 
 
   useEffect(() => {
@@ -152,7 +159,7 @@ export default function PerdiemRequestWizard() {
 
 
   const handleNext = async () => {
-    const isValid = await form.trigger(["eventName", "hotelId", "facilitator", "date"]);
+    const isValid = await form.trigger(["eventName", "venueId", "facilitator", "date"]);
     if (isValid) setStep(2);
   };
   const handleBack = () => setStep(1);
@@ -161,7 +168,7 @@ export default function PerdiemRequestWizard() {
     setIsSubmitting(true);
     const submittedData = {
         ...getValues(),
-        location: selectedHotel.city,
+        location: selectedVenue.city,
         checkInTimestamp: Date.now(),
     };
     
@@ -203,52 +210,54 @@ export default function PerdiemRequestWizard() {
                 {errors.eventName && <p className="text-sm text-destructive">{errors.eventName.message}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="hotel">Venue / Hotel</Label>
+                <Label htmlFor="venue">Venue / Hotel</Label>
                 <Controller
-                  name="hotelId"
+                  name="venueId"
                   control={control}
                   render={({ field }) => (
-                    <Popover>
+                    <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
                           role="combobox"
+                          aria-expanded={isPopoverOpen}
                           className={cn(
                             "w-full justify-between",
                             !field.value && "text-muted-foreground"
                           )}
                         >
                           {field.value
-                            ? hotels.find(
-                                (hotel) => hotel.id === field.value
+                            ? venues.find(
+                                (venue) => venue.id === field.value
                               )?.name
-                            : "Select hotel"}
+                            : "Select venue"}
                           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                         <Command>
-                          <CommandInput placeholder="Search hotel..." />
-                          <CommandEmpty>No hotel found.</CommandEmpty>
+                          <CommandInput placeholder="Search venue..." />
                           <CommandList>
+                            <CommandEmpty>No venue found.</CommandEmpty>
                             <CommandGroup>
-                              {hotels.map((hotel) => (
+                              {venues.map((venue) => (
                                 <CommandItem
-                                  value={hotel.name}
-                                  key={hotel.id}
+                                  value={venue.name}
+                                  key={venue.id}
                                   onSelect={() => {
-                                    form.setValue("hotelId", hotel.id);
+                                    setValue("venueId", venue.id);
+                                    setIsPopoverOpen(false);
                                   }}
                                 >
                                   <Check
                                     className={cn(
                                       "mr-2 h-4 w-4",
-                                      hotel.id === field.value
+                                      venue.id === field.value
                                         ? "opacity-100"
                                         : "opacity-0"
                                     )}
                                   />
-                                  {hotel.name}, {hotel.city}
+                                  {venue.name}, {venue.city}
                                 </CommandItem>
                               ))}
                             </CommandGroup>
@@ -258,7 +267,7 @@ export default function PerdiemRequestWizard() {
                     </Popover>
                   )}
                 />
-                {errors.hotelId && <p className="text-sm text-destructive">{errors.hotelId.message}</p>}
+                {errors.venueId && <p className="text-sm text-destructive">{errors.venueId.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="date">Date</Label>
@@ -345,7 +354,7 @@ export default function PerdiemRequestWizard() {
                             <p className="text-sm text-destructive">{geoError.message}</p>
                         ) : distance !== null ? (
                              <p className="text-lg font-semibold">
-                                You are <span className={cn(canCheckIn ? "text-green-500" : "text-amber-500")}>{distance.toFixed(2)} km</span> away from {selectedHotel.name}.
+                                You are <span className={cn(canCheckIn ? "text-green-500" : "text-amber-500")}>{distance.toFixed(2)} km</span> away from {selectedVenue.name}.
                             </p>
                         ) : (
                             <p className="text-muted-foreground">Acquiring your location...</p>
