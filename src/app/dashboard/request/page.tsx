@@ -237,7 +237,7 @@ export default function PerdiemRequestWizard() {
                                   value={hotel.name}
                                   key={hotel.id}
                                   onSelect={() => {
-                                    setValue("hotelId", hotel.id);
+                                    form.setValue("hotelId", hotel.id);
                                   }}
                                 >
                                   <Check
