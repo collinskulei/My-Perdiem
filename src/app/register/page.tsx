@@ -1,0 +1,108 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import { Logo } from "@/components/logo";
+
+export default function RegistrationWizard() {
+  const [step, setStep] = useState(1);
+  const router = useRouter();
+
+  const handleNext = () => setStep(step + 1);
+  const handleBack = () => setStep(step - 1);
+  
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    router.push("/dashboard");
+  };
+
+  const progressValue = (step / 2) * 100;
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <div className="mb-4 flex justify-center">
+            <Logo />
+          </div>
+          <CardTitle className="text-2xl">New Employee Registration</CardTitle>
+          <CardDescription>
+            Step {step} of 2: {step === 1 ? "Personal Details" : "Employment Details"}
+          </CardDescription>
+          <Progress value={progressValue} className="mt-2" />
+        </CardHeader>
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4">
+            {step === 1 && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Full Name</Label>
+                  <Input id="name" placeholder="e.g., John Doe" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <Input id="phone" type="tel" placeholder="e.g., 0712345678" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="id-number">ID Number</Label>
+                  <Input id="id-number" placeholder="e.g., 12345678" required />
+                </div>
+              </div>
+            )}
+            {step === 2 && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="employee-number">Employee Number</Label>
+                  <Input id="employee-number" placeholder="e.g., EMP123" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="role">Role</Label>
+                  <Input id="role" placeholder="e.g., Software Engineer" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="duty-station">Duty Station</Label>
+                  <Input id="duty-station" placeholder="e.g., Nairobi" required />
+                </div>
+              </div>
+            )}
+          </CardContent>
+          <CardFooter className="flex justify-between">
+            {step > 1 ? (
+              <Button type="button" variant="outline" onClick={handleBack}>
+                <ArrowLeft className="mr-2 h-4 w-4" /> Back
+              </Button>
+            ) : (
+                <Button variant="ghost" asChild>
+                    <Link href="/">Cancel</Link>
+                </Button>
+            )}
+            {step < 2 ? (
+              <Button type="button" onClick={handleNext}>
+                Next
+              </Button>
+            ) : (
+              <Button type="submit">
+                Submit Registration
+              </Button>
+            )}
+          </CardFooter>
+        </form>
+      </Card>
+    </div>
+  );
+}
