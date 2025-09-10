@@ -119,20 +119,33 @@ export default function PerdiemRequestWizard() {
   }, [watchedValues]);
 
   const canCheckIn = useMemo(() => distance !== null && distance <= 1, [distance]);
-
-  const updateDistance = useCallback(() => {
-    if (latitude && longitude) {
-      const dist = getDistance(latitude, longitude, MOCK_EVENT_LOCATION.latitude, MOCK_EVENT_LOCATION.longitude);
-      setDistance(dist);
-    }
-  }, [latitude, longitude]);
-
-  useEffect(() => {
-    getPosition();
-    const interval = setInterval(getPosition, 5000); // Refresh position every 5 seconds
-    return () => clearInterval(interval);
-  }, [getPosition]);
   
+  const updateDistance = useCallback(() => {
+      if (latitude && longitude) {
+        const dist = getDistance(
+          latitude,
+          longitude,
+          MOCK_EVENT_LOCATION.latitude,
+          MOCK_EVENT_LOCATION.longitude
+        );
+        setDistance(dist);
+      }
+  }, [latitude, longitude]);
+  
+  useEffect(() => {
+    // Initial position fetch
+    getPosition();
+
+    // Set up interval to refresh position
+    const intervalId = setInterval(() => {
+      getPosition();
+    }, 5000); // Refresh position every 5 seconds
+
+    // Clear interval on component unmount
+    return () => clearInterval(intervalId);
+  }, [getPosition]);
+
+
   useEffect(() => {
     updateDistance();
   }, [latitude, longitude, updateDistance]);
