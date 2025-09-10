@@ -7,10 +7,8 @@ import * as z from "zod";
 import {
   ArrowLeft,
   Calendar as CalendarIcon,
-  CheckCircle,
-  Lightbulb,
-  Loader2,
   MapPin,
+  Loader2,
   LocateFixed
 } from "lucide-react";
 import { format } from "date-fns";
@@ -33,22 +31,24 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
-import { checkDataCompleteness } from "@/ai/flows/data-completeness-checker";
 import { cn } from "@/lib/utils";
 import { hotels } from "@/lib/data";
 
 const MILEAGE_RATE_KSH = 45;
 const DAILY_ALLOWANCE = 5000;
-// Mock event location - we'll use the selected hotel's location
-const MOCK_EVENT_LOCATION = hotels[0]; // Default to first hotel initially
 
 const requestSchema = z.object({
   eventName: z.string().min(3, "Event name is required"),
-  location: z.string().min(3, "Location is required"),
-  hotels: z.string().optional(),
+  hotelId: z.string({ required_error: "Please select a hotel." }),
   facilitator: z.string().min(3, "Facilitator name is required"),
   date: z.date({ required_error: "Event date is required" }),
   mileage: z.coerce.number().min(0).default(0),
@@ -64,7 +64,7 @@ function getDistance(
   lat2: number,
   lon2: number
 ) {
-  if (!lat1 || !lon1) return Infinity;
+  if (!lat1 || !lon1 || !lat2 || !lon2) return Infinity;
   const R = 6371; // Radius of the earth in km
   const dLat = (lat2 - lat1) * (Math.PI / 180);
   const dLon = (lon2 - lon1) * (Math.PI / 180);
@@ -81,10 +81,6 @@ function getDistance(
 export default function PerdiemRequestWizard() {
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isChecking, setIsChecking] = useState(false);
-  const [completenessResult, setCompletenessResult] = useState<
-    "complete" | "incomplete" | null
-  >(null);
   const [distance, setDistance] = useState<number | null>(null);
   const { toast } = useToast();
   
@@ -100,10 +96,10 @@ export default function PerdiemRequestWizard() {
     resolver: zodResolver(requestSchema),
     defaultValues: {
       eventName: "Annual Tech Conference",
-      location: MOCK_EVENT_LOCATION.city,
       facilitator: "Jane Doe",
       mileage: 0,
       airTicketCosts: 0,
+      hotelId: hotels[0].id,
     },
   });
   const {
@@ -115,6 +111,10 @@ export default function PerdiemRequestWizard() {
   } = form;
   const watchedValues = watch();
 
+  const selectedHotel = useMemo(() => {
+    return hotels.find(h => h.id === watchedValues.hotelId) ?? hotels[0];
+  }, [watchedValues.hotelId]);
+
   const totalPerdiem = useMemo(() => {
     const mileageCost = (watchedValues.mileage || 0) * MILEAGE_RATE_KSH;
     const airCost = watchedValues.airTicketCosts || 0;
@@ -124,27 +124,20 @@ export default function PerdiemRequestWizard() {
   const canCheckIn = useMemo(() => distance !== null && distance <= 1, [distance]);
   
   const updateDistance = useCallback(() => {
-      if (latitude && longitude) {
+      if (latitude && longitude && selectedHotel) {
         const dist = getDistance(
           latitude,
           longitude,
-          MOCK_EVENT_LOCATION.latitude,
-          MOCK_EVENT_LOCATION.longitude
+          selectedHotel.latitude,
+          selectedHotel.longitude
         );
         setDistance(dist);
       }
-  }, [latitude, longitude]);
+  }, [latitude, longitude, selectedHotel]);
   
   useEffect(() => {
-    // Initial position fetch
     getPosition();
-
-    // Set up interval to refresh position
-    const intervalId = setInterval(() => {
-      getPosition();
-    }, 5000); // Refresh position every 5 seconds
-
-    // Clear interval on component unmount
+    const intervalId = setInterval(getPosition, 5000); 
     return () => clearInterval(intervalId);
   }, [getPosition]);
 
@@ -155,48 +148,16 @@ export default function PerdiemRequestWizard() {
 
 
   const handleNext = async () => {
-    const isValid = await form.trigger(["eventName", "location", "facilitator", "date"]);
+    const isValid = await form.trigger(["eventName", "hotelId", "facilitator", "date"]);
     if (isValid) setStep(2);
   };
   const handleBack = () => setStep(1);
-
-  const handleCompletenessCheck = async () => {
-    setIsChecking(true);
-    setCompletenessResult(null);
-    try {
-      const values = getValues();
-      const result = await checkDataCompleteness({
-        ...values,
-        date: values.date ? format(values.date, "yyyy-MM-dd") : "",
-      });
-      setCompletenessResult(result.completenessStatus);
-      toast({
-        title: `AI Check: ${
-          result.completenessStatus === "complete" ? "Complete" : "Incomplete"
-        }`,
-        description:
-          result.completenessStatus === "complete"
-            ? "The provided data seems complete."
-            : "The AI suggests some relevant information might be missing.",
-        variant:
-          result.completenessStatus === "complete" ? "default" : "destructive",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to run AI completeness check.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsChecking(false);
-    }
-  };
   
   const onSubmit = () => {
     setIsSubmitting(true);
-    // Add timestamp to the submitted data
     const submittedData = {
         ...getValues(),
+        location: selectedHotel.city,
         checkInTimestamp: Date.now(),
     };
     
@@ -206,14 +167,12 @@ export default function PerdiemRequestWizard() {
         title: "Check-in Successful!",
         description: `You are ${distance?.toFixed(2)} km from the event. Submitting request...`,
     });
-    // Simulate submission
     setTimeout(() => {
         toast({
             title: "Request Submitted!",
             description: "Your perdiem request has been submitted for approval.",
         });
         setIsSubmitting(false);
-        // Here you would typically redirect the user or clear the form
     }, 2000);
   };
 
@@ -240,13 +199,26 @@ export default function PerdiemRequestWizard() {
                 {errors.eventName && <p className="text-sm text-destructive">{errors.eventName.message}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="location">Location</Label>
-                <Controller
-                  name="location"
+                <Label htmlFor="hotel">Venue / Hotel</Label>
+                 <Controller
+                  name="hotelId"
                   control={control}
-                  render={({ field }) => <Input id="location" {...field} />}
+                  render={({ field }) => (
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a hotel" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {hotels.map(hotel => (
+                          <SelectItem key={hotel.id} value={hotel.id}>
+                            {hotel.name}, {hotel.city}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 />
-                 {errors.location && <p className="text-sm text-destructive">{errors.location.message}</p>}
+                 {errors.hotelId && <p className="text-sm text-destructive">{errors.hotelId.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="date">Date</Label>
@@ -280,7 +252,7 @@ export default function PerdiemRequestWizard() {
                 />
                  {errors.date && <p className="text-sm text-destructive">{errors.date.message}</p>}
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="facilitator">Facilitator</Label>
                 <Controller
                   name="facilitator"
@@ -288,14 +260,6 @@ export default function PerdiemRequestWizard() {
                   render={({ field }) => <Input id="facilitator" {...field} />}
                 />
                 {errors.facilitator && <p className="text-sm text-destructive">{errors.facilitator.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="hotels">Available Hotels (Optional)</Label>
-                <Controller
-                  name="hotels"
-                  control={control}
-                  render={({ field }) => <Textarea id="hotels" {...field} />}
-                />
               </div>
             </div>
           )}
@@ -323,7 +287,7 @@ export default function PerdiemRequestWizard() {
                 <Controller
                   name="groundTransfers"
                   control={control}
-                  render={({ field }) => <Textarea id="groundTransfers" placeholder="e.g., Taxi from airport to hotel" {...field} />}
+                  render={({ field }) => <Input id="groundTransfers" placeholder="e.g., Taxi from airport to hotel" {...field} />}
                 />
               </div>
               <div className="md:col-span-2">
@@ -341,7 +305,7 @@ export default function PerdiemRequestWizard() {
                             <p className="text-sm text-destructive">{geoError.message}</p>
                         ) : distance !== null ? (
                              <p className="text-lg font-semibold">
-                                You are <span className={cn(canCheckIn ? "text-green-500" : "text-amber-500")}>{distance.toFixed(2)} km</span> away from the event location.
+                                You are <span className={cn(canCheckIn ? "text-green-500" : "text-amber-500")}>{distance.toFixed(2)} km</span> away from {selectedHotel.name}.
                             </p>
                         ) : (
                             <p className="text-muted-foreground">Acquiring your location...</p>
@@ -352,21 +316,6 @@ export default function PerdiemRequestWizard() {
                     </CardFooter>
                 </Card>
               </div>
-               <div className="flex items-center space-x-4 rounded-md border p-4 md:col-span-2">
-                    <Lightbulb />
-                    <div className="flex-1 space-y-1">
-                      <p className="text-sm font-medium leading-none">
-                        AI Data Completeness Check
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Check if you've filled all relevant fields before submitting.
-                      </p>
-                    </div>
-                    <Button type="button" onClick={handleCompletenessCheck} disabled={isChecking}>
-                        {isChecking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-                        Check
-                    </Button>
-                </div>
             </div>
           )}
         </CardContent>
