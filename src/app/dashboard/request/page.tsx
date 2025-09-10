@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -11,6 +11,7 @@ import {
   Lightbulb,
   Loader2,
   MapPin,
+  LocateFixed
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -37,10 +38,12 @@ import { useToast } from "@/hooks/use-toast";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { checkDataCompleteness } from "@/ai/flows/data-completeness-checker";
 import { cn } from "@/lib/utils";
+import { hotels } from "@/lib/data";
 
 const MILEAGE_RATE_KSH = 45;
 const DAILY_ALLOWANCE = 5000;
-const EVENT_LOCATION = { lat: -1.286389, lon: 36.817223 }; // Mock Nairobi CBD location
+// Mock event location - we'll use the selected hotel's location
+const MOCK_EVENT_LOCATION = hotels[0]; // Default to first hotel initially
 
 const requestSchema = z.object({
   eventName: z.string().min(3, "Event name is required"),
@@ -61,6 +64,7 @@ function getDistance(
   lat2: number,
   lon2: number
 ) {
+  if (!lat1 || !lon1) return Infinity;
   const R = 6371; // Radius of the earth in km
   const dLat = (lat2 - lat1) * (Math.PI / 180);
   const dLon = (lon2 - lon1) * (Math.PI / 180);
@@ -81,14 +85,19 @@ export default function PerdiemRequestWizard() {
   const [completenessResult, setCompletenessResult] = useState<
     "complete" | "incomplete" | null
   >(null);
+  const [distance, setDistance] = useState<number | null>(null);
   const { toast } = useToast();
-  const { latitude, longitude, error: geoError, getPosition } = useGeolocation();
+  const { latitude, longitude, error: geoError, getPosition, loading: geoLoading } = useGeolocation({
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0,
+  });
 
   const form = useForm<RequestFormValues>({
     resolver: zodResolver(requestSchema),
     defaultValues: {
       eventName: "Annual Tech Conference",
-      location: "Nairobi, Kenya",
+      location: MOCK_EVENT_LOCATION.city,
       facilitator: "Jane Doe",
       mileage: 0,
       airTicketCosts: 0,
@@ -108,6 +117,26 @@ export default function PerdiemRequestWizard() {
     const airCost = watchedValues.airTicketCosts || 0;
     return mileageCost + airCost + DAILY_ALLOWANCE;
   }, [watchedValues]);
+
+  const canCheckIn = useMemo(() => distance !== null && distance <= 1, [distance]);
+
+  const updateDistance = useCallback(() => {
+    if (latitude && longitude) {
+      const dist = getDistance(latitude, longitude, MOCK_EVENT_LOCATION.latitude, MOCK_EVENT_LOCATION.longitude);
+      setDistance(dist);
+    }
+  }, [latitude, longitude]);
+
+  useEffect(() => {
+    getPosition();
+    const interval = setInterval(getPosition, 5000); // Refresh position every 5 seconds
+    return () => clearInterval(interval);
+  }, [getPosition]);
+  
+  useEffect(() => {
+    updateDistance();
+  }, [latitude, longitude, updateDistance]);
+
 
   const handleNext = async () => {
     const isValid = await form.trigger(["eventName", "location", "facilitator", "date"]);
@@ -149,49 +178,28 @@ export default function PerdiemRequestWizard() {
   
   const onSubmit = () => {
     setIsSubmitting(true);
-    getPosition();
+    // Add timestamp to the submitted data
+    const submittedData = {
+        ...getValues(),
+        checkInTimestamp: Date.now(),
+    };
+    
+    console.log("Submitting with timestamp:", submittedData);
+
+    toast({
+        title: "Check-in Successful!",
+        description: `You are ${distance?.toFixed(2)} km from the event. Submitting request...`,
+    });
+    // Simulate submission
+    setTimeout(() => {
+        toast({
+            title: "Request Submitted!",
+            description: "Your perdiem request has been submitted for approval.",
+        });
+        setIsSubmitting(false);
+        // Here you would typically redirect the user or clear the form
+    }, 2000);
   };
-
-  useEffect(() => {
-    if (isSubmitting && (latitude || geoError)) {
-        if(geoError) {
-             toast({
-                title: "Location Error",
-                description: geoError.message,
-                variant: "destructive",
-            });
-            setIsSubmitting(false);
-            return;
-        }
-
-        if(latitude && longitude) {
-            const distance = getDistance(latitude, longitude, EVENT_LOCATION.lat, EVENT_LOCATION.lon);
-            
-            if (distance <= 1) {
-                toast({
-                    title: "Check-in Successful!",
-                    description: `You are ${distance.toFixed(2)} km from the event. Submitting request...`,
-                });
-                // Simulate submission
-                setTimeout(() => {
-                    toast({
-                        title: "Request Submitted!",
-                        description: "Your perdiem request has been submitted for approval.",
-                    });
-                    setIsSubmitting(false);
-                }, 2000);
-            } else {
-                 toast({
-                    title: "Check-in Failed",
-                    description: `You are ${distance.toFixed(2)} km away. You must be within 1 km of the event to submit.`,
-                    variant: "destructive",
-                });
-                setIsSubmitting(false);
-            }
-        }
-    }
-  }, [isSubmitting, latitude, longitude, geoError, getPosition, toast]);
-
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
@@ -303,15 +311,28 @@ export default function PerdiemRequestWizard() {
                 />
               </div>
               <div className="md:col-span-2">
-                <Card className="bg-muted/50">
-                    <CardHeader>
-                        <CardTitle className="text-lg">Estimated Per Diem</CardTitle>
+                 <Card className={cn("transition-colors", canCheckIn ? "border-green-500" : "border-amber-500")}>
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-lg">Location Check</CardTitle>
+                        {geoLoading ? (
+                            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                        ) : (
+                            <LocateFixed className={cn("h-5 w-5", canCheckIn ? "text-green-500" : "text-amber-500")} />
+                        )}
                     </CardHeader>
-                    <CardContent className="text-4xl font-bold text-primary">
-                        Ksh {totalPerdiem.toLocaleString()}
+                    <CardContent>
+                        {geoError ? (
+                            <p className="text-sm text-destructive">{geoError.message}</p>
+                        ) : distance !== null ? (
+                             <p className="text-lg font-semibold">
+                                You are <span className={cn(canCheckIn ? "text-green-500" : "text-amber-500")}>{distance.toFixed(2)} km</span> away from the event location.
+                            </p>
+                        ) : (
+                            <p className="text-muted-foreground">Acquiring your location...</p>
+                        )}
                     </CardContent>
                     <CardFooter className="text-sm text-muted-foreground">
-                        Includes daily allowance of Ksh {DAILY_ALLOWANCE.toLocaleString()}.
+                       You must be within 1 km to check-in and submit your request.
                     </CardFooter>
                 </Card>
               </div>
@@ -346,7 +367,7 @@ export default function PerdiemRequestWizard() {
               Next
             </Button>
           ) : (
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting || !canCheckIn} className={cn(!canCheckIn && "opacity-50")}>
               {isSubmitting ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (

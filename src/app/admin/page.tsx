@@ -26,7 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { employees, perdiemRequests } from "@/lib/data";
+import { employees, perdiemRequests, hotels } from "@/lib/data";
 
 export default function AdminDashboard() {
   return (
@@ -42,6 +42,7 @@ export default function AdminDashboard() {
         <TabsList>
           <TabsTrigger value="requests">Perdiem Requests</TabsTrigger>
           <TabsTrigger value="employees">Employees</TabsTrigger>
+          <TabsTrigger value="hotels">Hotels</TabsTrigger>
         </TabsList>
         <TabsContent value="requests">
           <Card>
@@ -181,6 +182,62 @@ export default function AdminDashboard() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuItem>View</DropdownMenuItem>
+                            <DropdownMenuItem>Edit</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive">
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="hotels">
+          <Card>
+            <CardHeader>
+              <CardTitle>Hotels</CardTitle>
+              <CardDescription>
+                A list of all registered hotels.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Hotel Name</TableHead>
+                    <TableHead>City</TableHead>
+                    <TableHead>Coordinates</TableHead>
+                    <TableHead>
+                      <span className="sr-only">Actions</span>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {hotels.map((hotel) => (
+                    <TableRow key={hotel.id}>
+                      <TableCell className="font-medium">{hotel.name}</TableCell>
+                      <TableCell>{hotel.city}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {hotel.latitude.toFixed(4)}, {hotel.longitude.toFixed(4)}
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              aria-haspopup="true"
+                              size="icon"
+                              variant="ghost"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Toggle menu</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuItem>Edit</DropdownMenuItem>
                             <DropdownMenuItem className="text-destructive">
                               Delete

@@ -9,6 +9,14 @@ export type Employee = {
   avatarUrl: string;
 };
 
+export type Hotel = {
+  id: string;
+  name: string;
+  city: string;
+  latitude: number;
+  longitude: number;
+};
+
 export type PerdiemRequest = {
   id: string;
   employeeId: string;
@@ -18,6 +26,7 @@ export type PerdiemRequest = {
   date: string;
   totalPerdiem: number;
   status: 'Approved' | 'Pending' | 'Rejected';
+  checkInTimestamp?: number;
 };
 
 export const employees: Employee[] = [
@@ -83,6 +92,7 @@ export const perdiemRequests: PerdiemRequest[] = [
     date: '2024-08-15',
     totalPerdiem: 45000,
     status: 'Approved',
+    checkInTimestamp: 1692086400000,
   },
   {
     id: 'REQ002',
@@ -113,6 +123,7 @@ export const perdiemRequests: PerdiemRequest[] = [
     date: '2024-09-05',
     totalPerdiem: 15000,
     status: 'Approved',
+    checkInTimestamp: 1693891200000,
   },
   {
     id: 'REQ005',
@@ -124,4 +135,12 @@ export const perdiemRequests: PerdiemRequest[] = [
     totalPerdiem: 18000,
     status: 'Rejected',
   },
+];
+
+export const hotels: Hotel[] = [
+    { id: '1', name: 'Sarova Stanley', city: 'Nairobi', latitude: -1.2833, longitude: 36.8167 },
+    { id: '2', name: 'Serena Beach Resort & Spa', city: 'Mombasa', latitude: -4.0435, longitude: 39.6682 },
+    { id: '3', name: 'Acacia Premier Hotel', city: 'Kisumu', latitude: -0.0917, longitude: 34.7680 },
+    { id: '4', name: 'Sarova Woodlands Hotel and Spa', city: 'Nakuru', latitude: -0.3031, longitude: 36.0801 },
+    { id: '5', name: 'Enashipai Resort & Spa', city: 'Naivasha', latitude: -0.7212, longitude: 36.4304 },
 ];
