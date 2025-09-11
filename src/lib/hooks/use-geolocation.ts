@@ -22,10 +22,10 @@ export const useGeolocation = (options: PositionOptions = {}) => {
     altitude: null,
     altitudeAccuracy: null,
     heading: null,
-    latitude: null,
-    longitude: null,
+    latitude: 0,
+    longitude: 0,
     speed: null,
-    timestamp: null,
+    timestamp: Date.now(),
     error: null,
   });
   const optionsRef = useRef(options);
