@@ -1,3 +1,5 @@
+"use client";
+
 import { Landmark } from "lucide-react";
 
 export function Logo({ className }: { className?: string }) {
