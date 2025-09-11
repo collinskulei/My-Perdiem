@@ -137,4 +137,10 @@ export const perdiemRequests: PerdiemRequest[] = [
   },
 ];
 
-export const venues: Venue[] = [];
+export const venues: Venue[] = [
+  { id: "venue-test-001", name: "Test Venue (for Check-in)", city: "Test City", latitude: 0, longitude: 0 },
+  { id: "venue-nrb-001", name: "Sarova Stanley", city: "Nairobi", latitude: -1.2833, longitude: 36.8219 },
+  { id: "venue-nrb-002", name: "Villa Rosa Kempinski", city: "Nairobi", latitude: -1.2721, longitude: 36.8095 },
+  { id: "venue-nrb-003", name: "Nairobi Serena Hotel", city: "Nairobi", latitude: -1.2882, longitude: 36.8166 },
+  { id: "venue-nrb-004", name: "Sankara Nairobi, Autograph Collection", city: "Nairobi", latitude: -1.2652, longitude: 36.8078 },
+];
