@@ -45,7 +45,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { cn } from "@/lib/utils";
-import { getVenues } from "@/lib/firebase/firestore";
+import { venues as initialVenues } from "@/lib/data";
 import type { Venue } from "@/lib/data";
 
 const MILEAGE_RATE_KSH = 45;
@@ -117,22 +117,13 @@ export default function PerdiemRequestWizard() {
     formState: { errors },
   } = form;
 
-  const fetchVenues = useCallback(async () => {
-    try {
-      const firestoreVenues = await getVenues();
-      setVenues(firestoreVenues);
-      if (firestoreVenues.length > 0 && !getValues("venueId")) {
-        setValue("venueId", firestoreVenues[0].id);
-      }
-    } catch (error) {
-      console.error("Error fetching venues: ", error);
-      toast({
-        title: "Error",
-        description: "Could not fetch venues from the database.",
-        variant: "destructive",
-      });
+  const fetchVenues = useCallback(() => {
+    // For testing, we use the local data.
+    setVenues(initialVenues);
+    if (initialVenues.length > 0 && !getValues("venueId")) {
+      setValue("venueId", initialVenues[0].id);
     }
-  }, [toast, setValue, getValues]);
+  }, [setValue, getValues]);
 
   useEffect(() => {
     fetchVenues();

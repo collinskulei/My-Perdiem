@@ -40,39 +40,28 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { employees, perdiemRequests } from "@/lib/data";
+import { employees, perdiemRequests, venues as initialVenues } from "@/lib/data";
 import type { Venue } from "@/lib/data";
-import { getVenues, addVenue } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 
 const defaultNewVenue = { name: "Test Venue", city: "Test City", latitude: "0", longitude: "0" };
 
 export default function AdminDashboard() {
-  const [venues, setVenues] = useState<Venue[]>([]);
+  const [venues, setVenues] = useState<Venue[]>(initialVenues);
   const [isAddVenueOpen, setIsAddVenueOpen] = useState(false);
   const [newVenue, setNewVenue] = useState(defaultNewVenue);
   const [loadingVenues, setLoadingVenues] = useState(true);
   const { toast } = useToast();
-
-  useEffect(() => {
-    const fetchVenues = async () => {
-      try {
-        const firestoreVenues = await getVenues();
-        setVenues(firestoreVenues);
-      } catch (error) {
-        console.error("Error fetching venues: ", error);
-        toast({
-          title: "Error",
-          description: "Could not fetch venues from the database.",
-          variant: "destructive",
-        });
-      } finally {
-        setLoadingVenues(false);
-      }
-    };
-    fetchVenues();
-  }, [toast]);
   
+  useEffect(() => {
+    // Simulate fetching data
+    setLoadingVenues(true);
+    setTimeout(() => {
+      setVenues(initialVenues);
+      setLoadingVenues(false);
+    }, 500);
+  }, []);
+
   useEffect(() => {
     if (isAddVenueOpen) {
       setNewVenue(defaultNewVenue);
@@ -89,29 +78,26 @@ export default function AdminDashboard() {
       return;
     }
     const venueToAdd = {
+      id: `venue-${Date.now()}`,
       name: newVenue.name,
       city: newVenue.city,
       latitude: parseFloat(newVenue.latitude) || 0,
       longitude: parseFloat(newVenue.longitude) || 0,
     };
     
-    try {
-      const newVenueId = await addVenue(venueToAdd);
-      setVenues([...venues, { id: newVenueId, ...venueToAdd }]);
-      setNewVenue(defaultNewVenue);
-      setIsAddVenueOpen(false);
-      toast({
-        title: "Success",
-        description: "Venue added successfully.",
-      });
-    } catch (error) {
-       console.error("Error adding venue: ", error);
-       toast({
-        title: "Error",
-        description: "Could not add the venue. Please try again.",
-        variant: "destructive",
-      });
-    }
+    // Add to local state instead of Firestore
+    setVenues(prevVenues => [...prevVenues, venueToAdd]);
+    
+    // Also update the shared initialVenues array so other pages can see it for now
+    // NOTE: This is for temporary testing and will be replaced by a proper state management or DB solution.
+    initialVenues.push(venueToAdd);
+
+    setNewVenue(defaultNewVenue);
+    setIsAddVenueOpen(false);
+    toast({
+      title: "Success",
+      description: "Venue added successfully for this session.",
+    });
   };
 
   return (
