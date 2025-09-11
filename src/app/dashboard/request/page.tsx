@@ -44,7 +44,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { cn } from "@/lib/utils";
-import { venues } from "@/lib/data";
+import { getVenues } from "@/lib/firebase/firestore";
+import type { Venue } from "@/lib/data";
 
 const MILEAGE_RATE_KSH = 45;
 const DAILY_ALLOWANCE = 5000;
@@ -67,7 +68,7 @@ function getDistance(
   lat2: number,
   lon2: number
 ) {
-  if (!lat1 || !lon1 || !lat2 || !lon2) return Infinity;
+  if (lat1 === null || lon1 === null || lat2 === null || lon2 === null) return Infinity;
   const R = 6371; // Radius of the earth in km
   const dLat = (lat2 - lat1) * (Math.PI / 180);
   const dLon = (lon2 - lon1) * (Math.PI / 180);
@@ -87,6 +88,7 @@ export default function PerdiemRequestWizard() {
   const [distance, setDistance] = useState<number | null>(null);
   const { toast } = useToast();
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const [venues, setVenues] = useState<Venue[]>([]);
   
   const geoOptions = useMemo(() => ({
     enableHighAccuracy: true,
@@ -96,6 +98,26 @@ export default function PerdiemRequestWizard() {
 
   const { latitude, longitude, error: geoError, getPosition, loading: geoLoading } = useGeolocation(geoOptions);
 
+  useEffect(() => {
+    const fetchVenues = async () => {
+      try {
+        const firestoreVenues = await getVenues();
+        setVenues(firestoreVenues);
+        if (firestoreVenues.length > 0) {
+          setValue("venueId", firestoreVenues[0].id);
+        }
+      } catch (error) {
+        console.error("Error fetching venues: ", error);
+        toast({
+          title: "Error",
+          description: "Could not fetch venues from the database.",
+          variant: "destructive",
+        });
+      }
+    };
+    fetchVenues();
+  }, [toast]);
+
   const form = useForm<RequestFormValues>({
     resolver: zodResolver(requestSchema),
     defaultValues: {
@@ -103,7 +125,6 @@ export default function PerdiemRequestWizard() {
       facilitator: "Jane Doe",
       mileage: 0,
       airTicketCosts: 0,
-      venueId: venues[0].id,
     },
   });
   const {
@@ -117,8 +138,9 @@ export default function PerdiemRequestWizard() {
   const watchedValues = watch();
 
   const selectedVenue = useMemo(() => {
+    if (venues.length === 0) return null;
     return venues.find(h => h.id === watchedValues.venueId) ?? venues[0];
-  }, [watchedValues.venueId]);
+  }, [watchedValues.venueId, venues]);
 
   const totalPerdiem = useMemo(() => {
     const mileageCost = (watchedValues.mileage || 0) * MILEAGE_RATE_KSH;
@@ -147,15 +169,14 @@ export default function PerdiemRequestWizard() {
   useEffect(() => {
     const intervalId = setInterval(() => {
       getPosition();
-      updateDistance();
     }, 5000); 
     return () => clearInterval(intervalId);
-  }, [getPosition, updateDistance]);
+  }, [getPosition]);
 
 
   useEffect(() => {
     updateDistance();
-  }, [latitude, longitude, updateDistance]);
+  }, [latitude, longitude, selectedVenue, updateDistance]);
 
 
   const handleNext = async () => {
@@ -166,6 +187,15 @@ export default function PerdiemRequestWizard() {
   
   const onSubmit = () => {
     setIsSubmitting(true);
+    if (!selectedVenue) {
+        toast({
+            title: "Error",
+            description: "No venue selected.",
+            variant: "destructive"
+        });
+        setIsSubmitting(false);
+        return;
+    }
     const submittedData = {
         ...getValues(),
         location: selectedVenue.city,
@@ -354,7 +384,7 @@ export default function PerdiemRequestWizard() {
                             <p className="text-sm text-destructive">{geoError.message}</p>
                         ) : distance !== null ? (
                              <p className="text-lg font-semibold">
-                                You are <span className={cn(canCheckIn ? "text-green-500" : "text-amber-500")}>{distance.toFixed(2)} km</span> away from {selectedVenue.name}.
+                                You are <span className={cn(canCheckIn ? "text-green-500" : "text-amber-500")}>{distance.toFixed(2)} km</span> away from {selectedVenue?.name}.
                             </p>
                         ) : (
                             <p className="text-muted-foreground">Acquiring your location...</p>

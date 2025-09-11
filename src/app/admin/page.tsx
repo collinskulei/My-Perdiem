@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Download, MoreHorizontal, PlusCircle } from "lucide-react";
 import Image from "next/image";
 
@@ -40,24 +40,70 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { employees, perdiemRequests, venues as initialVenues } from "@/lib/data";
+import { employees, perdiemRequests } from "@/lib/data";
 import type { Venue } from "@/lib/data";
+import { getVenues, addVenue } from "@/lib/firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
 
 export default function AdminDashboard() {
-  const [venues, setVenues] = useState<Venue[]>(initialVenues);
+  const [venues, setVenues] = useState<Venue[]>([]);
   const [isAddVenueOpen, setIsAddVenueOpen] = useState(false);
   const [newVenue, setNewVenue] = useState({ name: "", city: "", latitude: "", longitude: "" });
+  const [loadingVenues, setLoadingVenues] = useState(true);
+  const { toast } = useToast();
 
-  const handleAddVenue = () => {
+  useEffect(() => {
+    const fetchVenues = async () => {
+      try {
+        const firestoreVenues = await getVenues();
+        setVenues(firestoreVenues);
+      } catch (error) {
+        console.error("Error fetching venues: ", error);
+        toast({
+          title: "Error",
+          description: "Could not fetch venues from the database.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingVenues(false);
+      }
+    };
+    fetchVenues();
+  }, [toast]);
+
+  const handleAddVenue = async () => {
+    if (!newVenue.name || !newVenue.city || !newVenue.latitude || !newVenue.longitude) {
+      toast({
+        title: "Missing fields",
+        description: "Please fill out all venue details.",
+        variant: "destructive",
+      });
+      return;
+    }
     const venueToAdd = {
-      id: `${venues.length + 1}`,
-      ...newVenue,
+      name: newVenue.name,
+      city: newVenue.city,
       latitude: parseFloat(newVenue.latitude) || 0,
       longitude: parseFloat(newVenue.longitude) || 0,
     };
-    setVenues([...venues, venueToAdd]);
-    setNewVenue({ name: "", city: "", latitude: "", longitude: "" });
-    setIsAddVenueOpen(false);
+    
+    try {
+      const newVenueId = await addVenue(venueToAdd);
+      setVenues([...venues, { id: newVenueId, ...venueToAdd }]);
+      setNewVenue({ name: "", city: "", latitude: "", longitude: "" });
+      setIsAddVenueOpen(false);
+      toast({
+        title: "Success",
+        description: "Venue added successfully.",
+      });
+    } catch (error) {
+       console.error("Error adding venue: ", error);
+       toast({
+        title: "Error",
+        description: "Could not add the venue. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -317,7 +363,13 @@ export default function AdminDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {venues.map((venue) => (
+                  {loadingVenues ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="h-24 text-center">
+                        Loading venues...
+                      </TableCell>
+                    </TableRow>
+                  ) : venues.map((venue) => (
                     <TableRow key={venue.id}>
                       <TableCell className="font-medium">{venue.name}</TableCell>
                       <TableCell>{venue.city}</TableCell>

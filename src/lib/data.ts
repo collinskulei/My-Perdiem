@@ -137,10 +137,4 @@ export const perdiemRequests: PerdiemRequest[] = [
   },
 ];
 
-export const venues: Venue[] = [
-    { id: '1', name: 'Sarova Stanley', city: 'Nairobi', latitude: -1.2833, longitude: 36.8167 },
-    { id: '2', name: 'Serena Beach Resort & Spa', city: 'Mombasa', latitude: -4.0435, longitude: 39.6682 },
-    { id: '3', name: 'Acacia Premier Hotel', city: 'Kisumu', latitude: -0.0917, longitude: 34.7680 },
-    { id: '4', name: 'Sarova Woodlands Hotel and Spa', city: 'Nakuru', latitude: -0.3031, longitude: 36.0801 },
-    { id: '5', name: 'Enashipai Resort & Spa', city: 'Naivasha', latitude: -0.7212, longitude: 36.4304 },
-];
+export const venues: Venue[] = [];
