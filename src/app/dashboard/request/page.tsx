@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
@@ -98,25 +99,38 @@ export default function PerdiemRequestWizard() {
 
   const { latitude, longitude, error: geoError, getPosition, loading: geoLoading } = useGeolocation(geoOptions);
 
+  const fetchVenues = useCallback(async () => {
+    try {
+      const firestoreVenues = await getVenues();
+      setVenues(firestoreVenues);
+      if (firestoreVenues.length > 0 && !getValues("venueId")) {
+        setValue("venueId", firestoreVenues[0].id);
+      }
+    } catch (error) {
+      console.error("Error fetching venues: ", error);
+      toast({
+        title: "Error",
+        description: "Could not fetch venues from the database.",
+        variant: "destructive",
+      });
+    }
+  }, [toast, setValue, getValues]);
+
   useEffect(() => {
-    const fetchVenues = async () => {
-      try {
-        const firestoreVenues = await getVenues();
-        setVenues(firestoreVenues);
-        if (firestoreVenues.length > 0) {
-          setValue("venueId", firestoreVenues[0].id);
-        }
-      } catch (error) {
-        console.error("Error fetching venues: ", error);
-        toast({
-          title: "Error",
-          description: "Could not fetch venues from the database.",
-          variant: "destructive",
-        });
+    fetchVenues();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchVenues();
       }
     };
-    fetchVenues();
-  }, [toast]);
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [fetchVenues]);
 
   const form = useForm<RequestFormValues>({
     resolver: zodResolver(requestSchema),
