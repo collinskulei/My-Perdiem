@@ -45,10 +45,12 @@ import type { Venue } from "@/lib/data";
 import { getVenues, addVenue } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 
+const defaultNewVenue = { name: "Test Venue", city: "Test City", latitude: "0", longitude: "0" };
+
 export default function AdminDashboard() {
   const [venues, setVenues] = useState<Venue[]>([]);
   const [isAddVenueOpen, setIsAddVenueOpen] = useState(false);
-  const [newVenue, setNewVenue] = useState({ name: "Test Venue", city: "Test City", latitude: "0", longitude: "0" });
+  const [newVenue, setNewVenue] = useState(defaultNewVenue);
   const [loadingVenues, setLoadingVenues] = useState(true);
   const { toast } = useToast();
 
@@ -70,6 +72,12 @@ export default function AdminDashboard() {
     };
     fetchVenues();
   }, [toast]);
+  
+  useEffect(() => {
+    if (isAddVenueOpen) {
+      setNewVenue(defaultNewVenue);
+    }
+  }, [isAddVenueOpen]);
 
   const handleAddVenue = async () => {
     if (!newVenue.name || !newVenue.city || !newVenue.latitude || !newVenue.longitude) {
@@ -90,7 +98,7 @@ export default function AdminDashboard() {
     try {
       const newVenueId = await addVenue(venueToAdd);
       setVenues([...venues, { id: newVenueId, ...venueToAdd }]);
-      setNewVenue({ name: "Test Venue", city: "Test City", latitude: "0", longitude: "0" });
+      setNewVenue(defaultNewVenue);
       setIsAddVenueOpen(false);
       toast({
         title: "Success",
