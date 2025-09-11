@@ -48,7 +48,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function AdminDashboard() {
   const [venues, setVenues] = useState<Venue[]>([]);
   const [isAddVenueOpen, setIsAddVenueOpen] = useState(false);
-  const [newVenue, setNewVenue] = useState({ name: "", city: "", latitude: "", longitude: "" });
+  const [newVenue, setNewVenue] = useState({ name: "Test Venue", city: "Test City", latitude: "1.2921", longitude: "36.8219" });
   const [loadingVenues, setLoadingVenues] = useState(true);
   const { toast } = useToast();
 
@@ -90,7 +90,7 @@ export default function AdminDashboard() {
     try {
       const newVenueId = await addVenue(venueToAdd);
       setVenues([...venues, { id: newVenueId, ...venueToAdd }]);
-      setNewVenue({ name: "", city: "", latitude: "", longitude: "" });
+      setNewVenue({ name: "Test Venue", city: "Test City", latitude: "1.2921", longitude: "36.8219" });
       setIsAddVenueOpen(false);
       toast({
         title: "Success",
