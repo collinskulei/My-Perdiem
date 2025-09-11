@@ -99,6 +99,24 @@ export default function PerdiemRequestWizard() {
 
   const { latitude, longitude, error: geoError, getPosition, loading: geoLoading } = useGeolocation(geoOptions);
 
+  const form = useForm<RequestFormValues>({
+    resolver: zodResolver(requestSchema),
+    defaultValues: {
+      eventName: "Annual Tech Conference",
+      facilitator: "Jane Doe",
+      mileage: 0,
+      airTicketCosts: 0,
+    },
+  });
+  const {
+    control,
+    handleSubmit,
+    watch,
+    setValue,
+    getValues,
+    formState: { errors },
+  } = form;
+
   const fetchVenues = useCallback(async () => {
     try {
       const firestoreVenues = await getVenues();
@@ -132,23 +150,6 @@ export default function PerdiemRequestWizard() {
     };
   }, [fetchVenues]);
 
-  const form = useForm<RequestFormValues>({
-    resolver: zodResolver(requestSchema),
-    defaultValues: {
-      eventName: "Annual Tech Conference",
-      facilitator: "Jane Doe",
-      mileage: 0,
-      airTicketCosts: 0,
-    },
-  });
-  const {
-    control,
-    handleSubmit,
-    watch,
-    setValue,
-    getValues,
-    formState: { errors },
-  } = form;
   const watchedValues = watch();
 
   const selectedVenue = useMemo(() => {
