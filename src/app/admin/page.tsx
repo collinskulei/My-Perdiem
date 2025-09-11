@@ -345,7 +345,7 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button type="submit" onClick={handleAddVenue}>Save Venue</Button>
+                    <Button type="button" onClick={handleAddVenue}>Save Venue</Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
