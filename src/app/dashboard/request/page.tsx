@@ -153,8 +153,7 @@ export default function PerdiemRequestWizard() {
   const watchedValues = watch();
 
   const selectedVenue = useMemo(() => {
-    if (venues.length === 0) return null;
-    return venues.find(h => h.id === watchedValues.venueId) ?? venues[0];
+    return venues.find(h => h.id === watchedValues.venueId);
   }, [watchedValues.venueId, venues]);
 
   const totalPerdiem = useMemo(() => {
