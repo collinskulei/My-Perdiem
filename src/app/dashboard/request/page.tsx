@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
@@ -15,10 +14,6 @@ import {
   LocateFixed,
   Check,
   ChevronsUpDown,
-  DollarSign,
-  Car,
-  Plane,
-  Bed,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -53,9 +48,7 @@ import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { cn } from "@/lib/utils";
 import { venues as initialVenues, employees, dutyStationCoordinates } from "@/lib/data";
 import type { Venue } from "@/lib/data";
-
-const MILEAGE_RATE_KSH = 45;
-const DAILY_ALLOWANCE = 5000;
+import { useToast } from "@/hooks/use-toast";
 
 const requestSchema = z.object({
   eventName: z.string().min(3, "Activity name is required"),
@@ -72,7 +65,7 @@ const requestSchema = z.object({
   groundTransferReceipts: z.any().optional(),
 });
 
-type RequestFormValues = z.infer<typeof requestSchema>;
+export type RequestFormValues = z.infer<typeof requestSchema>;
 
 function getDistance(
   lat1: number,
@@ -96,9 +89,9 @@ function getDistance(
 
 export default function PerdiemRequestWizard() {
   const [step, setStep] = useState(1);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [distance, setDistance] = useState<number | null>(null);
   const router = useRouter();
+  const { toast } = useToast();
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [isTestMode, setIsTestMode] = useState(false);
@@ -120,7 +113,6 @@ export default function PerdiemRequestWizard() {
 
   const {
     control,
-    handleSubmit,
     watch,
     setValue,
     getValues,
@@ -137,7 +129,6 @@ export default function PerdiemRequestWizard() {
     }
   }, [setValue, getValues]);
 
-
   const geoOptions = useMemo(() => ({
     enableHighAccuracy: true,
     timeout: 10000,
@@ -148,15 +139,12 @@ export default function PerdiemRequestWizard() {
 
   useEffect(() => {
     fetchVenues();
-
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         fetchVenues();
       }
     };
-
     document.addEventListener('visibilitychange', handleVisibilityChange);
-
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
@@ -165,8 +153,7 @@ export default function PerdiemRequestWizard() {
   const watchedValues = watch();
 
   const selectedVenue = useMemo(() => {
-    const venue = venues.find(h => h.id === watchedValues.venueId);
-    return venue;
+    return venues.find(h => h.id === watchedValues.venueId);
   }, [watchedValues.venueId, venues]);
 
   useEffect(() => {
@@ -180,38 +167,18 @@ export default function PerdiemRequestWizard() {
           selectedVenue.latitude,
           selectedVenue.longitude
         );
-        // round trip
-        setValue("mileage", Math.round(dist * 2));
+        setValue("mileage", Math.round(dist * 2)); // round trip
       }
     }
   }, [selectedVenue, setValue]);
   
-  const { totalPerdiem, mileageCost, airCost, accommodationCost, dailyAllowanceCost } = useMemo(() => {
-    const mileageCalc = (watchedValues.mileage || 0) * MILEAGE_RATE_KSH;
-    const airCalc = watchedValues.airTicketCosts || 0;
-    const accommodationCalc = (watchedValues.accommodationCost || 0) * (watchedValues.numberOfNights || 1);
-    const dailyAllowanceCalc = DAILY_ALLOWANCE * (watchedValues.numberOfNights || 1);
-    return {
-        totalPerdiem: mileageCalc + airCalc + accommodationCalc + dailyAllowanceCalc,
-        mileageCost: mileageCalc,
-        airCost: airCalc,
-        accommodationCost: accommodationCalc,
-        dailyAllowanceCost: dailyAllowanceCalc
-    };
-  }, [watchedValues]);
-
   const canCheckIn = useMemo(() => isTestMode || (distance !== null && distance <= 1), [isTestMode, distance]);
   
   const updateDistance = useCallback(() => {
-      if (latitude && longitude && selectedVenue) {
-        const dist = getDistance(
-          latitude,
-          longitude,
-          selectedVenue.latitude,
-          selectedVenue.longitude
-        );
-        setDistance(dist);
-      }
+    if (latitude && longitude && selectedVenue) {
+      const dist = getDistance(latitude, longitude, selectedVenue.latitude, selectedVenue.longitude);
+      setDistance(dist);
+    }
   }, [latitude, longitude, selectedVenue]);
   
   useEffect(() => {
@@ -220,20 +187,14 @@ export default function PerdiemRequestWizard() {
 
   useEffect(() => {
     const intervalId = setInterval(() => {
-      if (!isTestMode) {
-        getPosition();
-      }
+      if (!isTestMode) getPosition();
     }, 5000); 
     return () => clearInterval(intervalId);
   }, [getPosition, isTestMode]);
 
-
   useEffect(() => {
-    if (!isTestMode) {
-      updateDistance();
-    }
+    if (!isTestMode) updateDistance();
   }, [latitude, longitude, selectedVenue, updateDistance, isTestMode]);
-
 
   const handleNext = async () => {
     let fieldsToValidate: (keyof RequestFormValues)[] = [];
@@ -241,68 +202,71 @@ export default function PerdiemRequestWizard() {
       fieldsToValidate = ["eventName", "activityCode", "venueId", "facilitator", "date"];
     } else if (step === 2) {
       fieldsToValidate = ["mileage", "airTicketCosts", "groundTransfers", "airTicketReceipt", "groundTransferReceipts"];
-    } else if (step === 3) {
-      fieldsToValidate = ["accommodationCost", "numberOfNights"];
     }
     
     const isValid = await trigger(fieldsToValidate);
     
     if (isValid) {
-      if (step === 3) {
-        if (!canCheckIn) {
-          return; // Don't proceed if check-in conditions aren't met
-        }
-      }
-      if (step < 4) {
+      if (step < 3) {
         setStep(s => s + 1);
       }
     }
   };
 
-  const handleBack = () => setStep(s => s - 1);
-  
-  const onSubmit = (data: RequestFormValues) => {
-    if (step !== 4) return; // Only submit on the last step
-    
-    setIsSubmitting(true);
-    const submittedData = {
-        ...data,
-        location: selectedVenue?.city,
-        checkInTimestamp: Date.now(),
-        totalPerdiem,
-    };
-    
-    console.log("Submitting:", submittedData);
+  const handleCheckIn = async () => {
+    const fieldsToValidate: (keyof RequestFormValues)[] = ["accommodationCost", "numberOfNights"];
+    const isValid = await trigger(fieldsToValidate);
+    if (!isValid) return;
+    if (!canCheckIn) {
+      toast({
+        title: "Check-in Failed",
+        description: "You are too far from the venue to check in.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    // Simulate API call
-    setTimeout(() => {
-        setIsSubmitting(false);
-        router.push("/dashboard");
-    }, 2000);
+    toast({
+      title: "Check-in Successful!",
+      description: "You can now proceed to review your request.",
+    });
+
+    const formData = getValues();
+    const query = new URLSearchParams({
+      ...Object.fromEntries(
+        Object.entries(formData).map(([key, value]) => [
+          key,
+          value instanceof Date ? value.toISOString() : String(value)
+        ])
+      ),
+      venueName: selectedVenue?.name || '',
+      venueCity: selectedVenue?.city || '',
+    }).toString();
+    
+    router.push(`/dashboard/request/review?${query}`);
   };
+
+  const handleBack = () => setStep(s => s - 1);
   
   const getStepDescription = () => {
     switch (step) {
       case 1: return "Activity Information";
       case 2: return "Transport & Costs";
       case 3: return "Accommodation & Check-in";
-      case 4: return "Review & Submit";
       default: return "";
     }
-  }
-
+  };
 
   return (
-    <>
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle className="text-2xl">New Perdiem Request</CardTitle>
         <CardDescription>
-          Step {step} of 4: {getStepDescription()}
+          Step {step} of 3: {getStepDescription()}
         </CardDescription>
-        <Progress value={(step / 4) * 100} className="mt-2" />
+        <Progress value={(step / 3) * 100} className="mt-2" />
       </CardHeader>
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form>
         <CardContent className="space-y-6">
           {step === 1 && (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -336,16 +300,9 @@ export default function PerdiemRequestWizard() {
                           variant="outline"
                           role="combobox"
                           aria-expanded={isPopoverOpen}
-                          className={cn(
-                            "w-full justify-between",
-                            !field.value && "text-muted-foreground"
-                          )}
+                          className={cn("w-full justify-between", !field.value && "text-muted-foreground")}
                         >
-                          {field.value
-                            ? venues.find(
-                                (venue) => venue.id === field.value
-                              )?.name
-                            : "Select venue"}
+                          {field.value ? venues.find((v) => v.id === field.value)?.name : "Select venue"}
                           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                       </PopoverTrigger>
@@ -364,14 +321,7 @@ export default function PerdiemRequestWizard() {
                                     setIsPopoverOpen(false);
                                   }}
                                 >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      venue.id === field.value
-                                        ? "opacity-100"
-                                        : "opacity-0"
-                                    )}
-                                  />
+                                  <Check className={cn("mr-2 h-4 w-4", venue.id === field.value ? "opacity-100" : "opacity-0")} />
                                   {venue.name}, {venue.city}
                                 </CommandItem>
                               ))}
@@ -394,22 +344,14 @@ export default function PerdiemRequestWizard() {
                         <PopoverTrigger asChild>
                           <Button
                             variant={"outline"}
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
+                            className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}
                           >
                             <CalendarIcon className="mr-2 h-4 w-4" />
                             {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            initialFocus
-                          />
+                          <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
                         </PopoverContent>
                       </Popover>
                   )}
@@ -518,58 +460,12 @@ export default function PerdiemRequestWizard() {
                         )}
                     </CardContent>
                     <CardFooter className="text-sm text-muted-foreground">
-                      {isTestMode ? "You can now check-in from anywhere." : "You must be within 1 km to check-in and submit your request."}
+                      {isTestMode ? "You can now check-in from anywhere." : "You must be within 1 km to check-in."}
                     </CardFooter>
                 </Card>
               </div>
             </div>
           )}
-
-          {step === 4 && (
-            <div className="space-y-6">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Per Diem Summary</CardTitle>
-                        <CardDescription>Review the calculated costs before submitting your request.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                                <Car />
-                                <span>Mileage ({watchedValues.mileage} km)</span>
-                            </div>
-                            <span className="font-medium">Ksh {mileageCost.toLocaleString()}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                                <Plane />
-                                <span>Air Ticket</span>
-                            </div>
-                            <span className="font-medium">Ksh {airCost.toLocaleString()}</span>
-                        </div>
-                         <div className="flex items-center justify-between">
-                             <div className="flex items-center gap-2 text-muted-foreground">
-                                <Bed />
-                                <span>Accommodation ({watchedValues.numberOfNights} nights)</span>
-                            </div>
-                            <span className="font-medium">Ksh {accommodationCost.toLocaleString()}</span>
-                        </div>
-                         <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                                <DollarSign />
-                                <span>Daily Allowance ({watchedValues.numberOfNights} days)</span>
-                            </div>
-                            <span className="font-medium">Ksh {dailyAllowanceCost.toLocaleString()}</span>
-                        </div>
-                    </CardContent>
-                    <CardFooter className="flex items-center justify-between font-bold text-lg bg-muted/50 p-4 rounded-b-lg">
-                        <span>Total Per Diem</span>
-                        <span>Ksh {totalPerdiem.toLocaleString()}</span>
-                    </CardFooter>
-                </Card>
-            </div>
-          )}
-
         </CardContent>
         <CardFooter className="flex justify-between">
           {step === 1 ? (
@@ -583,26 +479,16 @@ export default function PerdiemRequestWizard() {
             <Button type="button" onClick={handleNext}>
               Next
             </Button>
-          ) : step === 3 ? (
-             <Button type="button" onClick={handleNext} disabled={!canCheckIn} className={cn(!canCheckIn && "opacity-50")}>
+          ) : (
+             <Button type="button" onClick={handleCheckIn} disabled={!canCheckIn || (geoLoading && !isTestMode)} className={cn(!canCheckIn && "opacity-50")}>
               <MapPin className="mr-2 h-4 w-4" />
               Check-in
-            </Button>
-          ) : (
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                "Submit Request"
-              )}
             </Button>
           )}
         </CardFooter>
       </form>
     </Card>
-    </>
   );
 }
-
 
     
