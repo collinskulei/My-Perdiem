@@ -53,6 +53,8 @@ import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { cn } from "@/lib/utils";
 import { venues as initialVenues, employees, dutyStationCoordinates } from "@/lib/data";
 import type { Venue } from "@/lib/data";
+import { SuccessDialog } from "@/components/success-dialog";
+
 
 const MILEAGE_RATE_KSH = 45;
 const DAILY_ALLOWANCE = 5000;
@@ -103,6 +105,7 @@ export default function PerdiemRequestWizard() {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [isTestMode, setIsTestMode] = useState(false);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   
   const form = useForm<RequestFormValues>({
     resolver: zodResolver(requestSchema),
@@ -131,9 +134,10 @@ export default function PerdiemRequestWizard() {
   } = form;
 
   const fetchVenues = useCallback(() => {
-    setVenues(initialVenues);
-    if (initialVenues.length > 0 && !getValues("venueId")) {
-      setValue("venueId", initialVenues[0].id);
+    const allVenues = initialVenues;
+    setVenues(allVenues);
+    if (allVenues.length > 0 && !getValues("venueId")) {
+      setValue("venueId", allVenues[0].id);
     }
   }, [setValue, getValues]);
 
@@ -276,11 +280,7 @@ export default function PerdiemRequestWizard() {
 
     setTimeout(() => {
         setIsSubmitting(false);
-        toast({
-            title: "Request Submitted Successfully!",
-            description: "Your per diem request has been sent for approval.",
-        });
-        router.push("/dashboard");
+        setShowSuccessDialog(true);
     }, 2000);
   };
   
@@ -296,6 +296,7 @@ export default function PerdiemRequestWizard() {
 
 
   return (
+    <>
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle className="text-2xl">New Perdiem Request</CardTitle>
@@ -588,7 +589,7 @@ export default function PerdiemRequestWizard() {
           ) : step === 3 ? (
              <Button type="button" onClick={handleNext} disabled={!canCheckIn} className={cn(!canCheckIn && "opacity-50")}>
               <MapPin className="mr-2 h-4 w-4" />
-              Check-in &amp; Review
+              Check-in & Review
             </Button>
           ) : (
             <Button type="submit" disabled={isSubmitting}>
@@ -602,7 +603,16 @@ export default function PerdiemRequestWizard() {
         </CardFooter>
       </form>
     </Card>
+
+    <SuccessDialog
+        isOpen={showSuccessDialog}
+        onClose={() => {
+            setShowSuccessDialog(false);
+            router.push("/dashboard");
+        }}
+        title="Request Submitted!"
+        description="Your per diem request has been sent for approval. You will be notified once it's reviewed."
+    />
+    </>
   );
 }
-
-    
