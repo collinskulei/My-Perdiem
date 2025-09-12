@@ -255,9 +255,8 @@ export default function PerdiemRequestWizard() {
               description: "You must be within 1km of the venue to proceed.",
               variant: "destructive",
             });
-            return; // Important: stop execution if check-in fails
+            return;
           }
-          // Only show toast on successful check-in, not the final success dialog
           toast({
             title: "Check-in Successful!",
             description: "You can now review your per diem request.",
@@ -293,7 +292,6 @@ export default function PerdiemRequestWizard() {
     // Simulate API call
     setTimeout(() => {
         setIsSubmitting(false);
-        // Show the lively success dialog only on final submission
         setShowSuccessDialog(true);
     }, 2000);
   };
@@ -630,6 +628,8 @@ export default function PerdiemRequestWizard() {
     </>
   );
 }
+
+    
 
     
 
