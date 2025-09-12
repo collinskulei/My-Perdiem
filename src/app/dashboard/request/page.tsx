@@ -54,8 +54,6 @@ import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { cn } from "@/lib/utils";
 import { venues as initialVenues, employees, dutyStationCoordinates } from "@/lib/data";
 import type { Venue } from "@/lib/data";
-import { SuccessDialog } from "@/components/success-dialog";
-
 
 const MILEAGE_RATE_KSH = 45;
 const DAILY_ALLOWANCE = 5000;
@@ -106,7 +104,6 @@ export default function PerdiemRequestWizard() {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [isTestMode, setIsTestMode] = useState(false);
-  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   
   const form = useForm<RequestFormValues>({
     resolver: zodResolver(requestSchema),
@@ -257,10 +254,6 @@ export default function PerdiemRequestWizard() {
             });
             return;
           }
-          toast({
-            title: "Check-in Successful!",
-            description: "You can now review your per diem request.",
-          });
        }
     }
     
@@ -284,15 +277,10 @@ export default function PerdiemRequestWizard() {
     
     console.log("Submitting:", submittedData);
 
-    toast({
-        title: "Submitting Request...",
-        description: "Please wait while we process your per diem request.",
-    });
-
     // Simulate API call
     setTimeout(() => {
         setIsSubmitting(false);
-        setShowSuccessDialog(true);
+        router.push("/dashboard");
     }, 2000);
   };
   
@@ -615,22 +603,6 @@ export default function PerdiemRequestWizard() {
         </CardFooter>
       </form>
     </Card>
-
-    <SuccessDialog
-        isOpen={showSuccessDialog}
-        onClose={() => {
-            setShowSuccessDialog(false);
-            router.push("/dashboard");
-        }}
-        title="Request Submitted!"
-        description="Your per diem request has been sent for approval. You will be notified once it's reviewed."
-    />
     </>
   );
 }
-
-    
-
-    
-
-    
