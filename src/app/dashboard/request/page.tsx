@@ -46,7 +46,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { cn } from "@/lib/utils";
-import { venues as initialVenues } from "@/lib/data";
+import { venues as initialVenues, employees, dutyStationCoordinates } from "@/lib/data";
 import type { Venue } from "@/lib/data";
 
 const MILEAGE_RATE_KSH = 45;
@@ -163,6 +163,23 @@ export default function PerdiemRequestWizard() {
     const venue = venues.find(h => h.id === watchedValues.venueId);
     return venue;
   }, [watchedValues.venueId, venues]);
+
+  useEffect(() => {
+    if (selectedVenue) {
+      const currentUser = employees[0]; // Assuming John Doe
+      const stationCoords = dutyStationCoordinates[currentUser.dutyStation];
+      if (stationCoords) {
+        const dist = getDistance(
+          stationCoords.latitude,
+          stationCoords.longitude,
+          selectedVenue.latitude,
+          selectedVenue.longitude
+        );
+        // round trip
+        setValue("mileage", Math.round(dist * 2));
+      }
+    }
+  }, [selectedVenue, setValue]);
 
   const totalPerdiem = useMemo(() => {
     const mileageCost = (watchedValues.mileage || 0) * MILEAGE_RATE_KSH;
@@ -407,7 +424,7 @@ export default function PerdiemRequestWizard() {
                 <Controller
                   name="mileage"
                   control={control}
-                  render={({ field }) => <Input id="mileage" type="number" {...field} />}
+                  render={({ field }) => <Input id="mileage" type="number" {...field} readOnly className="bg-muted"/>}
                 />
                  {errors.mileage && <p className="text-sm text-destructive">{errors.mileage.message}</p>}
               </div>

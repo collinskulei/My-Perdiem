@@ -1,3 +1,4 @@
+
 export type Employee = {
   id: string;
   name: string;
@@ -81,6 +82,13 @@ export const employees: Employee[] = [
     avatarUrl: 'https://picsum.photos/seed/14/100/100',
   },
 ];
+
+export const dutyStationCoordinates: { [key: string]: { latitude: number, longitude: number } } = {
+  "Nairobi": { latitude: -1.286389, longitude: 36.817223 },
+  "Mombasa": { latitude: -4.043477, longitude: 39.668205 },
+  "Kisumu": { latitude: -0.091702, longitude: 34.767956 },
+  "Nakuru": { latitude: -0.303099, longitude: 36.080025 },
+};
 
 export const perdiemRequests: PerdiemRequest[] = [
   {
