@@ -270,10 +270,10 @@ export default function PerdiemRequestWizard() {
 
   const handleBack = () => setStep(s => s - 1);
   
-  const onSubmit = () => {
+  const onSubmit = (data: RequestFormValues) => {
     setIsSubmitting(true);
     const submittedData = {
-        ...getValues(),
+        ...data,
         location: selectedVenue?.city,
         checkInTimestamp: Date.now(),
         totalPerdiem,
@@ -624,3 +624,5 @@ export default function PerdiemRequestWizard() {
     </>
   );
 }
+
+    
