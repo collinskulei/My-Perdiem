@@ -53,10 +53,11 @@ const MILEAGE_RATE_KSH = 45;
 const DAILY_ALLOWANCE = 5000;
 
 const requestSchema = z.object({
-  eventName: z.string().min(3, "Event name is required"),
+  eventName: z.string().min(3, "Activity name is required"),
+  activityCode: z.string().min(1, "Activity code is required"),
   venueId: z.string({ required_error: "Please select a venue." }),
   facilitator: z.string().min(3, "Facilitator name is required"),
-  date: z.date({ required_error: "Event date is required" }),
+  date: z.date({ required_error: "Activity date is required" }),
   mileage: z.coerce.number().min(0).default(0),
   groundTransfers: z.string().optional(),
   airTicketCosts: z.coerce.number().min(0).default(0),
@@ -92,19 +93,12 @@ export default function PerdiemRequestWizard() {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [isTestMode, setIsTestMode] = useState(false);
-
-  const geoOptions = useMemo(() => ({
-    enableHighAccuracy: true,
-    timeout: 10000,
-    maximumAge: 0,
-  }), []);
-
-  const { latitude, longitude, error: geoError, getPosition, loading: geoLoading } = useGeolocation(geoOptions);
-
+  
   const form = useForm<RequestFormValues>({
     resolver: zodResolver(requestSchema),
     defaultValues: {
       eventName: "Annual Tech Conference",
+      activityCode: "ATC2024",
       facilitator: "Jane Doe",
       mileage: 0,
       airTicketCosts: 0,
@@ -112,6 +106,7 @@ export default function PerdiemRequestWizard() {
       date: new Date(),
     },
   });
+
   const {
     control,
     handleSubmit,
@@ -120,7 +115,7 @@ export default function PerdiemRequestWizard() {
     getValues,
     formState: { errors },
   } = form;
-  
+
   const fetchVenues = useCallback(() => {
     // For testing, we use the local data.
     setVenues(initialVenues);
@@ -128,6 +123,15 @@ export default function PerdiemRequestWizard() {
       setValue("venueId", initialVenues[0].id);
     }
   }, [setValue, getValues]);
+
+
+  const geoOptions = useMemo(() => ({
+    enableHighAccuracy: true,
+    timeout: 10000,
+    maximumAge: 0,
+  }), []);
+
+  const { latitude, longitude, error: geoError, getPosition, loading: geoLoading } = useGeolocation(geoOptions);
 
   useEffect(() => {
     fetchVenues();
@@ -193,7 +197,7 @@ export default function PerdiemRequestWizard() {
 
 
   const handleNext = async () => {
-    const isValid = await form.trigger(["eventName", "venueId", "facilitator", "date"]);
+    const isValid = await form.trigger(["eventName", "activityCode", "venueId", "facilitator", "date"]);
     if (isValid) setStep(2);
   };
   const handleBack = () => setStep(1);
@@ -247,8 +251,8 @@ export default function PerdiemRequestWizard() {
         <CardContent className="space-y-6">
           {step === 1 && (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="eventName">Event Name</Label>
+              <div className="space-y-2">
+                <Label htmlFor="eventName">Activity Name</Label>
                 <Controller
                   name="eventName"
                   control={control}
@@ -257,7 +261,16 @@ export default function PerdiemRequestWizard() {
                 {errors.eventName && <p className="text-sm text-destructive">{errors.eventName.message}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="venue">Venue / Hotel</Label>
+                <Label htmlFor="activityCode">Activity Code</Label>
+                <Controller
+                  name="activityCode"
+                  control={control}
+                  render={({ field }) => <Input id="activityCode" {...field} />}
+                />
+                {errors.activityCode && <p className="text-sm text-destructive">{errors.activityCode.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="venue">Activity Venue</Label>
                 <Controller
                   name="venueId"
                   control={control}
@@ -317,7 +330,7 @@ export default function PerdiemRequestWizard() {
                 {errors.venueId && <p className="text-sm text-destructive">{errors.venueId.message}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="date">Date</Label>
+                <Label htmlFor="date">Activity Date</Label>
                 <Controller
                   name="date"
                   control={control}
@@ -349,7 +362,7 @@ export default function PerdiemRequestWizard() {
                  {errors.date && <p className="text-sm text-destructive">{errors.date.message}</p>}
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="facilitator">Facilitator</Label>
+                <Label htmlFor="facilitator">Activity Facilitator</Label>
                 <Controller
                   name="facilitator"
                   control={control}
