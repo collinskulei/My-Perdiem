@@ -247,23 +247,23 @@ export default function PerdiemRequestWizard() {
       isValid = await trigger(["mileage", "airTicketCosts", "groundTransfers", "airTicketReceipt", "groundTransferReceipts"]);
     } else if (step === 3) {
       isValid = await trigger(["accommodationCost", "numberOfNights"]);
-       if (isValid && !canCheckIn) {
+       if (isValid) {
+          if (!canCheckIn) {
+            toast({
+              title: "Check-in Failed",
+              description: "You must be within 1km of the venue to proceed.",
+              variant: "destructive",
+            });
+            return;
+          }
           toast({
-            title: "Check-in Failed",
-            description: "You must be within 1km of the venue to proceed.",
-            variant: "destructive",
+            title: "Check-in Successful!",
+            description: "You can now review your per diem request.",
           });
-          return;
        }
     }
     
     if (isValid) {
-      if(step === 3) {
-        toast({
-          title: "Check-in Successful!",
-          description: "You can now review and submit your request.",
-        });
-      }
       setStep(s => s + 1);
     }
   };
