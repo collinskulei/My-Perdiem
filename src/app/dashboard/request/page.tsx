@@ -597,7 +597,7 @@ export default function PerdiemRequestWizard() {
           ) : step === 3 ? (
              <Button type="button" onClick={handleNext} disabled={!canCheckIn} className={cn(!canCheckIn && "opacity-50")}>
               <MapPin className="mr-2 h-4 w-4" />
-              Check-in & Review
+              Check-in
             </Button>
           ) : (
             <Button type="submit" disabled={isSubmitting}>
