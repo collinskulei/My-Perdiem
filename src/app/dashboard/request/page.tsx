@@ -63,7 +63,7 @@ const requestSchema = z.object({
   eventName: z.string().min(3, "Activity name is required"),
   activityCode: z.string().min(1, "Activity code is required"),
   venueId: z.string({ required_error: "Please select a venue." }),
-  facilitator: z.string().min(3, "Facilitator name is required"),
+  facilitator: z.string().min(3, "Activity facilitator is required"),
   date: z.date({ required_error: "Activity date is required" }),
   mileage: z.coerce.number().min(0).default(0),
   groundTransfers: z.string().optional().default(""),
@@ -113,10 +113,10 @@ export default function PerdiemRequestWizard() {
       eventName: "Annual Tech Conference",
       activityCode: "ATC2024",
       facilitator: "Jane Doe",
+      date: new Date(),
+      groundTransfers: "",
       mileage: 0,
       airTicketCosts: 0,
-      groundTransfers: "",
-      date: new Date(),
       accommodationCost: 0,
       numberOfNights: 1,
     },
@@ -244,7 +244,7 @@ export default function PerdiemRequestWizard() {
     if (step === 1) {
       isValid = await trigger(["eventName", "activityCode", "venueId", "facilitator", "date"]);
     } else if (step === 2) {
-      isValid = await trigger(["mileage", "airTicketCosts"]);
+      isValid = await trigger(["mileage", "airTicketCosts", "groundTransfers", "airTicketReceipt", "groundTransferReceipts"]);
     } else if (step === 3) {
       isValid = await trigger(["accommodationCost", "numberOfNights"]);
        if (isValid && !canCheckIn) {
@@ -257,7 +257,15 @@ export default function PerdiemRequestWizard() {
        }
     }
     
-    if (isValid) setStep(s => s + 1);
+    if (isValid) {
+      if(step === 3) {
+        toast({
+          title: "Check-in Successful!",
+          description: "You can now review and submit your request.",
+        });
+      }
+      setStep(s => s + 1);
+    }
   };
 
   const handleBack = () => setStep(s => s - 1);
