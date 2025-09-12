@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
@@ -254,8 +255,9 @@ export default function PerdiemRequestWizard() {
               description: "You must be within 1km of the venue to proceed.",
               variant: "destructive",
             });
-            return;
+            return; // Important: stop execution if check-in fails
           }
+          // Only show toast on successful check-in, not the final success dialog
           toast({
             title: "Check-in Successful!",
             description: "You can now review your per diem request.",
@@ -264,7 +266,9 @@ export default function PerdiemRequestWizard() {
     }
     
     if (isValid) {
-      setStep(s => s + 1);
+      if (step < 4) {
+        setStep(s => s + 1);
+      }
     }
   };
 
@@ -286,8 +290,10 @@ export default function PerdiemRequestWizard() {
         description: "Please wait while we process your per diem request.",
     });
 
+    // Simulate API call
     setTimeout(() => {
         setIsSubmitting(false);
+        // Show the lively success dialog only on final submission
         setShowSuccessDialog(true);
     }, 2000);
   };
