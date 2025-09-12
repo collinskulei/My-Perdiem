@@ -59,8 +59,10 @@ const requestSchema = z.object({
   facilitator: z.string().min(3, "Facilitator name is required"),
   date: z.date({ required_error: "Activity date is required" }),
   mileage: z.coerce.number().min(0).default(0),
-  groundTransfers: z.string().optional(),
+  groundTransfers: z.string().optional().default(""),
   airTicketCosts: z.coerce.number().min(0).default(0),
+  accommodationCost: z.coerce.number().min(0).default(0),
+  numberOfNights: z.coerce.number().min(1).default(1),
 });
 
 type RequestFormValues = z.infer<typeof requestSchema>;
@@ -104,6 +106,8 @@ export default function PerdiemRequestWizard() {
       airTicketCosts: 0,
       groundTransfers: "",
       date: new Date(),
+      accommodationCost: 0,
+      numberOfNights: 1,
     },
   });
 
@@ -114,6 +118,7 @@ export default function PerdiemRequestWizard() {
     setValue,
     getValues,
     formState: { errors },
+    trigger,
   } = form;
 
   const fetchVenues = useCallback(() => {
@@ -152,13 +157,16 @@ export default function PerdiemRequestWizard() {
   const watchedValues = watch();
 
   const selectedVenue = useMemo(() => {
-    return venues.find(h => h.id === watchedValues.venueId);
+    const venue = venues.find(h => h.id === watchedValues.venueId);
+    return venue;
   }, [watchedValues.venueId, venues]);
 
   const totalPerdiem = useMemo(() => {
     const mileageCost = (watchedValues.mileage || 0) * MILEAGE_RATE_KSH;
     const airCost = watchedValues.airTicketCosts || 0;
-    return mileageCost + airCost + DAILY_ALLOWANCE;
+    const accommodation = (watchedValues.accommodationCost || 0) * (watchedValues.numberOfNights || 1);
+    const dailyAllowance = DAILY_ALLOWANCE * (watchedValues.numberOfNights || 1);
+    return mileageCost + airCost + accommodation + dailyAllowance;
   }, [watchedValues]);
 
   const canCheckIn = useMemo(() => isTestMode || (distance !== null && distance <= 1), [isTestMode, distance]);
@@ -197,10 +205,16 @@ export default function PerdiemRequestWizard() {
 
 
   const handleNext = async () => {
-    const isValid = await form.trigger(["eventName", "activityCode", "venueId", "facilitator", "date"]);
-    if (isValid) setStep(2);
+    let isValid = false;
+    if (step === 1) {
+      isValid = await trigger(["eventName", "activityCode", "venueId", "facilitator", "date"]);
+    } else if (step === 2) {
+      isValid = await trigger(["mileage", "airTicketCosts"]);
+    }
+    
+    if (isValid) setStep(s => s + 1);
   };
-  const handleBack = () => setStep(1);
+  const handleBack = () => setStep(s => s - 1);
   
   const onSubmit = () => {
     setIsSubmitting(true);
@@ -237,15 +251,25 @@ export default function PerdiemRequestWizard() {
         setIsSubmitting(false);
     }, 2000);
   };
+  
+  const getStepDescription = () => {
+    switch (step) {
+      case 1: return "Activity Information";
+      case 2: return "Transport & Costs";
+      case 3: return "Accommodation & Check-in";
+      default: return "";
+    }
+  }
+
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle className="text-2xl">New Perdiem Request</CardTitle>
         <CardDescription>
-          Step {step} of 2: {step === 1 ? "Activity Information" : "Transport & Costs"}
+          Step {step} of 3: {getStepDescription()}
         </CardDescription>
-        <Progress value={(step / 2) * 100} className="mt-2" />
+        <Progress value={(step / 3) * 100} className="mt-2" />
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
         <CardContent className="space-y-6">
@@ -305,7 +329,7 @@ export default function PerdiemRequestWizard() {
                                   value={venue.name}
                                   key={venue.id}
                                   onSelect={() => {
-                                    setValue("venueId", venue.id);
+                                    field.onChange(venue.id);
                                     setIsPopoverOpen(false);
                                   }}
                                 >
@@ -382,6 +406,7 @@ export default function PerdiemRequestWizard() {
                   control={control}
                   render={({ field }) => <Input id="mileage" type="number" {...field} />}
                 />
+                 {errors.mileage && <p className="text-sm text-destructive">{errors.mileage.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="airTicketCosts">Air Ticket Costs (Ksh)</Label>
@@ -390,6 +415,7 @@ export default function PerdiemRequestWizard() {
                   control={control}
                   render={({ field }) => <Input id="airTicketCosts" type="number" {...field} />}
                 />
+                 {errors.airTicketCosts && <p className="text-sm text-destructive">{errors.airTicketCosts.message}</p>}
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="groundTransfers">Ground Transfers (Optional)</Label>
@@ -399,6 +425,29 @@ export default function PerdiemRequestWizard() {
                   render={({ field }) => <Input id="groundTransfers" placeholder="e.g., Taxi from airport to hotel" {...field} />}
                 />
               </div>
+            </div>
+          )}
+          
+          {step === 3 && (
+             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div className="space-y-2">
+                    <Label htmlFor="accommodationCost">Accommodation Cost per Night (Ksh)</Label>
+                    <Controller
+                        name="accommodationCost"
+                        control={control}
+                        render={({ field }) => <Input id="accommodationCost" type="number" {...field} />}
+                    />
+                    {errors.accommodationCost && <p className="text-sm text-destructive">{errors.accommodationCost.message}</p>}
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="numberOfNights">Number of Nights</Label>
+                    <Controller
+                        name="numberOfNights"
+                        control={control}
+                        render={({ field }) => <Input id="numberOfNights" type="number" {...field} />}
+                    />
+                    {errors.numberOfNights && <p className="text-sm text-destructive">{errors.numberOfNights.message}</p>}
+                </div>
 
                <div className="md:col-span-2 space-y-4">
                 <div className="flex items-center space-x-2">
@@ -434,6 +483,7 @@ export default function PerdiemRequestWizard() {
               </div>
             </div>
           )}
+
         </CardContent>
         <CardFooter className="flex justify-between">
           {step === 1 ? (
@@ -443,7 +493,7 @@ export default function PerdiemRequestWizard() {
               <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
           )}
-          {step === 1 ? (
+          {step < 3 ? (
             <Button type="button" onClick={handleNext}>
               Next
             </Button>
