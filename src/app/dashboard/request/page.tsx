@@ -63,6 +63,8 @@ const requestSchema = z.object({
   airTicketCosts: z.coerce.number().min(0).default(0),
   accommodationCost: z.coerce.number().min(0).default(0),
   numberOfNights: z.coerce.number().min(1).default(1),
+  airTicketReceipt: z.any().optional(),
+  groundTransferReceipts: z.any().optional(),
 });
 
 type RequestFormValues = z.infer<typeof requestSchema>;
@@ -117,6 +119,7 @@ export default function PerdiemRequestWizard() {
     watch,
     setValue,
     getValues,
+    register,
     formState: { errors },
     trigger,
   } = form;
@@ -417,8 +420,18 @@ export default function PerdiemRequestWizard() {
                 />
                  {errors.airTicketCosts && <p className="text-sm text-destructive">{errors.airTicketCosts.message}</p>}
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="airTicketReceipt">Upload Air Ticket Receipt</Label>
+                <Input id="airTicketReceipt" type="file" {...register("airTicketReceipt")} />
+                {errors.airTicketReceipt && <p className="text-sm text-destructive">{errors.airTicketReceipt.message as string}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="groundTransferReceipts">Upload Ground Transfer Receipts</Label>
+                <Input id="groundTransferReceipts" type="file" {...register("groundTransferReceipts")} />
+                 {errors.groundTransferReceipts && <p className="text-sm text-destructive">{errors.groundTransferReceipts.message as string}</p>}
+              </div>
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="groundTransfers">Ground Transfers (Optional)</Label>
+                <Label htmlFor="groundTransfers">Ground Transfers Details (Optional)</Label>
                 <Controller
                   name="groundTransfers"
                   control={control}
@@ -513,4 +526,5 @@ export default function PerdiemRequestWizard() {
   );
 }
 
+    
     
