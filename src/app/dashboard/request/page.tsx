@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -13,6 +14,10 @@ import {
   LocateFixed,
   Check,
   ChevronsUpDown,
+  DollarSign,
+  Car,
+  Plane,
+  Bed,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -94,6 +99,7 @@ export default function PerdiemRequestWizard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [distance, setDistance] = useState<number | null>(null);
   const { toast } = useToast();
+  const router = useRouter();
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [isTestMode, setIsTestMode] = useState(false);
@@ -125,7 +131,6 @@ export default function PerdiemRequestWizard() {
   } = form;
 
   const fetchVenues = useCallback(() => {
-    // For testing, we use the local data.
     setVenues(initialVenues);
     if (initialVenues.length > 0 && !getValues("venueId")) {
       setValue("venueId", initialVenues[0].id);
@@ -180,13 +185,19 @@ export default function PerdiemRequestWizard() {
       }
     }
   }, [selectedVenue, setValue]);
-
-  const totalPerdiem = useMemo(() => {
-    const mileageCost = (watchedValues.mileage || 0) * MILEAGE_RATE_KSH;
-    const airCost = watchedValues.airTicketCosts || 0;
-    const accommodation = (watchedValues.accommodationCost || 0) * (watchedValues.numberOfNights || 1);
-    const dailyAllowance = DAILY_ALLOWANCE * (watchedValues.numberOfNights || 1);
-    return mileageCost + airCost + accommodation + dailyAllowance;
+  
+  const { totalPerdiem, mileageCost, airCost, accommodationCost, dailyAllowanceCost } = useMemo(() => {
+    const mileageCalc = (watchedValues.mileage || 0) * MILEAGE_RATE_KSH;
+    const airCalc = watchedValues.airTicketCosts || 0;
+    const accommodationCalc = (watchedValues.accommodationCost || 0) * (watchedValues.numberOfNights || 1);
+    const dailyAllowanceCalc = DAILY_ALLOWANCE * (watchedValues.numberOfNights || 1);
+    return {
+        totalPerdiem: mileageCalc + airCalc + accommodationCalc + dailyAllowanceCalc,
+        mileageCost: mileageCalc,
+        airCost: airCalc,
+        accommodationCost: accommodationCalc,
+        dailyAllowanceCost: dailyAllowanceCalc
+    };
   }, [watchedValues]);
 
   const canCheckIn = useMemo(() => isTestMode || (distance !== null && distance <= 1), [isTestMode, distance]);
@@ -230,45 +241,46 @@ export default function PerdiemRequestWizard() {
       isValid = await trigger(["eventName", "activityCode", "venueId", "facilitator", "date"]);
     } else if (step === 2) {
       isValid = await trigger(["mileage", "airTicketCosts"]);
+    } else if (step === 3) {
+      isValid = await trigger(["accommodationCost", "numberOfNights"]);
+       if (isValid && !canCheckIn) {
+          toast({
+            title: "Check-in Failed",
+            description: "You must be within 1km of the venue to proceed.",
+            variant: "destructive",
+          });
+          return;
+       }
     }
     
     if (isValid) setStep(s => s + 1);
   };
+
   const handleBack = () => setStep(s => s - 1);
   
   const onSubmit = () => {
     setIsSubmitting(true);
-    if (!selectedVenue) {
-        toast({
-            title: "Error",
-            description: "No venue selected.",
-            variant: "destructive"
-        });
-        setIsSubmitting(false);
-        return;
-    }
     const submittedData = {
         ...getValues(),
-        location: selectedVenue.city,
+        location: selectedVenue?.city,
         checkInTimestamp: Date.now(),
+        totalPerdiem,
     };
     
-    console.log("Submitting with timestamp:", submittedData);
-
-    const description = isTestMode 
-      ? "Test Mode: Check-in successful. Submitting request..."
-      : `You are ${distance?.toFixed(2)} km from the event. Submitting request...`
+    console.log("Submitting:", submittedData);
 
     toast({
-        title: "Check-in Successful!",
-        description: description,
+        title: "Submitting Request...",
+        description: "Please wait while we process your per diem request.",
     });
+
     setTimeout(() => {
-        toast({
-            title: "Request Submitted!",
-            description: "Your perdiem request has been submitted for approval.",
-        });
         setIsSubmitting(false);
+        toast({
+            title: "Request Submitted Successfully!",
+            description: "Your per diem request has been sent for approval.",
+        });
+        router.push("/dashboard");
     }, 2000);
   };
   
@@ -277,6 +289,7 @@ export default function PerdiemRequestWizard() {
       case 1: return "Activity Information";
       case 2: return "Transport & Costs";
       case 3: return "Accommodation & Check-in";
+      case 4: return "Review & Submit";
       default: return "";
     }
   }
@@ -287,9 +300,9 @@ export default function PerdiemRequestWizard() {
       <CardHeader>
         <CardTitle className="text-2xl">New Perdiem Request</CardTitle>
         <CardDescription>
-          Step {step} of 3: {getStepDescription()}
+          Step {step} of 4: {getStepDescription()}
         </CardDescription>
-        <Progress value={(step / 3) * 100} className="mt-2" />
+        <Progress value={(step / 4) * 100} className="mt-2" />
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
         <CardContent className="space-y-6">
@@ -514,6 +527,51 @@ export default function PerdiemRequestWizard() {
             </div>
           )}
 
+          {step === 4 && (
+            <div className="space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Per Diem Summary</CardTitle>
+                        <CardDescription>Review the calculated costs before submitting your request.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <Car />
+                                <span>Mileage ({watchedValues.mileage} km)</span>
+                            </div>
+                            <span className="font-medium">Ksh {mileageCost.toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <Plane />
+                                <span>Air Ticket</span>
+                            </div>
+                            <span className="font-medium">Ksh {airCost.toLocaleString()}</span>
+                        </div>
+                         <div className="flex items-center justify-between">
+                             <div className="flex items-center gap-2 text-muted-foreground">
+                                <Bed />
+                                <span>Accommodation ({watchedValues.numberOfNights} nights)</span>
+                            </div>
+                            <span className="font-medium">Ksh {accommodationCost.toLocaleString()}</span>
+                        </div>
+                         <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <DollarSign />
+                                <span>Daily Allowance ({watchedValues.numberOfNights} days)</span>
+                            </div>
+                            <span className="font-medium">Ksh {dailyAllowanceCost.toLocaleString()}</span>
+                        </div>
+                    </CardContent>
+                    <CardFooter className="flex items-center justify-between font-bold text-lg bg-muted/50 p-4 rounded-b-lg">
+                        <span>Total Per Diem</span>
+                        <span>Ksh {totalPerdiem.toLocaleString()}</span>
+                    </CardFooter>
+                </Card>
+            </div>
+          )}
+
         </CardContent>
         <CardFooter className="flex justify-between">
           {step === 1 ? (
@@ -527,14 +585,18 @@ export default function PerdiemRequestWizard() {
             <Button type="button" onClick={handleNext}>
               Next
             </Button>
+          ) : step === 3 ? (
+             <Button type="button" onClick={handleNext} disabled={!canCheckIn} className={cn(!canCheckIn && "opacity-50")}>
+              <MapPin className="mr-2 h-4 w-4" />
+              Check-in &amp; Review
+            </Button>
           ) : (
-            <Button type="submit" disabled={isSubmitting || !canCheckIn} className={cn(!canCheckIn && "opacity-50")}>
+            <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
-                <MapPin className="mr-2 h-4 w-4" />
+                "Submit Request"
               )}
-              Check-in & Submit
             </Button>
           )}
         </CardFooter>
@@ -543,5 +605,4 @@ export default function PerdiemRequestWizard() {
   );
 }
 
-    
     
