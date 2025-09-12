@@ -108,6 +108,8 @@ export default function PerdiemRequestWizard() {
       facilitator: "Jane Doe",
       mileage: 0,
       airTicketCosts: 0,
+      groundTransfers: "",
+      date: new Date(),
     },
   });
   const {
