@@ -42,6 +42,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Calendar } from "@/components/ui/calendar";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { cn } from "@/lib/utils";
@@ -90,7 +91,8 @@ export default function PerdiemRequestWizard() {
   const { toast } = useToast();
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [venues, setVenues] = useState<Venue[]>([]);
-  
+  const [isTestMode, setIsTestMode] = useState(false);
+
   const geoOptions = useMemo(() => ({
     enableHighAccuracy: true,
     timeout: 10000,
@@ -116,7 +118,7 @@ export default function PerdiemRequestWizard() {
     getValues,
     formState: { errors },
   } = form;
-
+  
   const fetchVenues = useCallback(() => {
     // For testing, we use the local data.
     setVenues(initialVenues);
@@ -153,7 +155,7 @@ export default function PerdiemRequestWizard() {
     return mileageCost + airCost + DAILY_ALLOWANCE;
   }, [watchedValues]);
 
-  const canCheckIn = useMemo(() => distance !== null && distance <= 1, [distance]);
+  const canCheckIn = useMemo(() => isTestMode || (distance !== null && distance <= 1), [isTestMode, distance]);
   
   const updateDistance = useCallback(() => {
       if (latitude && longitude && selectedVenue) {
@@ -173,15 +175,19 @@ export default function PerdiemRequestWizard() {
 
   useEffect(() => {
     const intervalId = setInterval(() => {
-      getPosition();
+      if (!isTestMode) {
+        getPosition();
+      }
     }, 5000); 
     return () => clearInterval(intervalId);
-  }, [getPosition]);
+  }, [getPosition, isTestMode]);
 
 
   useEffect(() => {
-    updateDistance();
-  }, [latitude, longitude, selectedVenue, updateDistance]);
+    if (!isTestMode) {
+      updateDistance();
+    }
+  }, [latitude, longitude, selectedVenue, updateDistance, isTestMode]);
 
 
   const handleNext = async () => {
@@ -209,9 +215,13 @@ export default function PerdiemRequestWizard() {
     
     console.log("Submitting with timestamp:", submittedData);
 
+    const description = isTestMode 
+      ? "Test Mode: Check-in successful. Submitting request..."
+      : `You are ${distance?.toFixed(2)} km from the event. Submitting request...`
+
     toast({
         title: "Check-in Successful!",
-        description: `You are ${distance?.toFixed(2)} km from the event. Submitting request...`,
+        description: description,
     });
     setTimeout(() => {
         toast({
@@ -374,18 +384,25 @@ export default function PerdiemRequestWizard() {
                   render={({ field }) => <Input id="groundTransfers" placeholder="e.g., Taxi from airport to hotel" {...field} />}
                 />
               </div>
-              <div className="md:col-span-2">
+
+               <div className="md:col-span-2 space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Switch id="test-mode" checked={isTestMode} onCheckedChange={setIsTestMode} />
+                  <Label htmlFor="test-mode">Enable Test Mode (Dev only)</Label>
+                </div>
                  <Card className={cn("transition-colors", canCheckIn ? "border-green-500" : "border-amber-500")}>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-lg">Location Check</CardTitle>
-                        {geoLoading ? (
+                        {geoLoading && !isTestMode ? (
                             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                         ) : (
                             <LocateFixed className={cn("h-5 w-5", canCheckIn ? "text-green-500" : "text-amber-500")} />
                         )}
                     </CardHeader>
                     <CardContent>
-                        {geoError ? (
+                        {isTestMode ? (
+                           <p className="text-lg font-semibold text-green-500">Test Mode is ON. Location check is bypassed.</p>
+                        ) : geoError ? (
                             <p className="text-sm text-destructive">{geoError.message}</p>
                         ) : distance !== null ? (
                              <p className="text-lg font-semibold">
@@ -396,7 +413,7 @@ export default function PerdiemRequestWizard() {
                         )}
                     </CardContent>
                     <CardFooter className="text-sm text-muted-foreground">
-                       You must be within 1 km to check-in and submit your request.
+                      {isTestMode ? "You can now check-in from anywhere." : "You must be within 1 km to check-in and submit your request."}
                     </CardFooter>
                 </Card>
               </div>
@@ -430,3 +447,5 @@ export default function PerdiemRequestWizard() {
     </Card>
   );
 }
+
+    
