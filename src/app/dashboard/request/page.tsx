@@ -49,7 +49,6 @@ import {
 } from "@/components/ui/command";
 import { Calendar } from "@/components/ui/calendar";
 import { Switch } from "@/components/ui/switch";
-import { useToast } from "@/hooks/use-toast";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { cn } from "@/lib/utils";
 import { venues as initialVenues, employees, dutyStationCoordinates } from "@/lib/data";
@@ -99,7 +98,6 @@ export default function PerdiemRequestWizard() {
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [distance, setDistance] = useState<number | null>(null);
-  const { toast } = useToast();
   const router = useRouter();
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [venues, setVenues] = useState<Venue[]>([]);
@@ -247,11 +245,7 @@ export default function PerdiemRequestWizard() {
       isValid = await trigger(["accommodationCost", "numberOfNights"]);
        if (isValid) {
           if (!canCheckIn) {
-            toast({
-              title: "Check-in Failed",
-              description: "You must be within 1km of the venue to proceed.",
-              variant: "destructive",
-            });
+            // No toast for failed check-in
             return;
           }
        }
@@ -606,3 +600,6 @@ export default function PerdiemRequestWizard() {
     </>
   );
 }
+
+
+    
