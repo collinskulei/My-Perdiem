@@ -236,22 +236,23 @@ export default function PerdiemRequestWizard() {
 
 
   const handleNext = async () => {
-    let isValid = false;
+    let fieldsToValidate: (keyof RequestFormValues)[] = [];
     if (step === 1) {
-      isValid = await trigger(["eventName", "activityCode", "venueId", "facilitator", "date"]);
+      fieldsToValidate = ["eventName", "activityCode", "venueId", "facilitator", "date"];
     } else if (step === 2) {
-      isValid = await trigger(["mileage", "airTicketCosts", "groundTransfers", "airTicketReceipt", "groundTransferReceipts"]);
+      fieldsToValidate = ["mileage", "airTicketCosts", "groundTransfers", "airTicketReceipt", "groundTransferReceipts"];
     } else if (step === 3) {
-      isValid = await trigger(["accommodationCost", "numberOfNights"]);
-       if (isValid) {
-          if (!canCheckIn) {
-            // No toast for failed check-in
-            return;
-          }
-       }
+      fieldsToValidate = ["accommodationCost", "numberOfNights"];
     }
     
+    const isValid = await trigger(fieldsToValidate);
+    
     if (isValid) {
+      if (step === 3) {
+        if (!canCheckIn) {
+          return; // Don't proceed if check-in conditions aren't met
+        }
+      }
       if (step < 4) {
         setStep(s => s + 1);
       }
@@ -261,6 +262,8 @@ export default function PerdiemRequestWizard() {
   const handleBack = () => setStep(s => s - 1);
   
   const onSubmit = (data: RequestFormValues) => {
+    if (step !== 4) return; // Only submit on the last step
+    
     setIsSubmitting(true);
     const submittedData = {
         ...data,
