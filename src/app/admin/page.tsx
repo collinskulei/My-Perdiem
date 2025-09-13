@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Download, MoreHorizontal, PlusCircle } from "lucide-react";
 import Image from "next/image";
+import jsPDF from "jspdf";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -41,8 +41,9 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { employees, perdiemRequests, venues as initialVenues } from "@/lib/data";
-import type { Venue } from "@/lib/data";
+import type { PerdiemRequest, Venue } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
+import { ReportDialog } from "@/components/report-dialog";
 
 const defaultNewVenue = { name: "Test Venue", city: "Test City", latitude: "0", longitude: "0" };
 
@@ -85,11 +86,7 @@ export default function AdminDashboard() {
       longitude: parseFloat(newVenue.longitude) || 0,
     };
     
-    // Add to local state instead of Firestore
     setVenues(prevVenues => [...prevVenues, venueToAdd]);
-    
-    // Also update the shared initialVenues array so other pages can see it for now
-    // NOTE: This is for temporary testing and will be replaced by a proper state management or DB solution.
     initialVenues.push(venueToAdd);
 
     setNewVenue(defaultNewVenue);
@@ -100,14 +97,44 @@ export default function AdminDashboard() {
     });
   };
 
+  const handleDownloadReport = (filteredData: PerdiemRequest[]) => {
+    const doc = new jsPDF();
+    doc.text("Perdiem Requests Report", 14, 16);
+    
+    const tableColumn = ["Date", "Employee", "Event", "Location", "Amount", "Status"];
+    const tableRows: (string | number)[][] = [];
+
+    filteredData.forEach(request => {
+      const requestData = [
+        request.date,
+        request.employeeName,
+        request.eventName,
+        request.location,
+        `Ksh ${request.totalPerdiem.toLocaleString()}`,
+        request.status
+      ];
+      tableRows.push(requestData);
+    });
+
+    (doc as any).autoTable({
+        head: [tableColumn],
+        body: tableRows,
+        startY: 20,
+    });
+    
+    doc.save("perdiem_requests_report.pdf");
+  };
+
+
   return (
     <div className="grid flex-1 items-start gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
-        <Button>
-          <Download className="mr-2 h-4 w-4" />
-          Download Data
-        </Button>
+        <ReportDialog 
+          reportData={perdiemRequests}
+          venues={venues}
+          onDownload={handleDownloadReport}
+        />
       </div>
       <Tabs defaultValue="requests">
         <TabsList>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PlusCircle, MoreHorizontal } from "lucide-react";
+import jsPDF from "jspdf";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,10 +20,39 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { perdiemRequests } from "@/lib/data";
+import { perdiemRequests, venues } from "@/lib/data";
+import type { PerdiemRequest } from "@/lib/data";
+import { ReportDialog } from "@/components/report-dialog";
 
 export default function EmployeeDashboard() {
   const userRequests = perdiemRequests.filter(req => req.employeeId === '1' || req.employeeId === '2');
+
+  const handleDownloadReport = (filteredData: PerdiemRequest[]) => {
+    const doc = new jsPDF();
+    doc.text("My Perdiem Requests Report", 14, 16);
+    
+    const tableColumn = ["Date", "Event", "Location", "Amount", "Status"];
+    const tableRows: (string | number)[][] = [];
+
+    filteredData.forEach(request => {
+      const requestData = [
+        request.date,
+        request.eventName,
+        request.location,
+        `Ksh ${request.totalPerdiem.toLocaleString()}`,
+        request.status
+      ];
+      tableRows.push(requestData);
+    });
+
+    (doc as any).autoTable({
+        head: [tableColumn],
+        body: tableRows,
+        startY: 20,
+    });
+    
+    doc.save("my_perdiem_requests_report.pdf");
+  };
 
   return (
     <div className="grid flex-1 items-start gap-4">
@@ -31,12 +61,19 @@ export default function EmployeeDashboard() {
             <h1 className="text-3xl font-bold tracking-tight">Welcome Back, John!</h1>
             <p className="text-muted-foreground">Here's a list of your recent perdiem requests.</p>
         </div>
-        <Button asChild>
-          <Link href="/dashboard/request">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            New Perdiem Request
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+            <ReportDialog 
+              reportData={userRequests}
+              venues={venues}
+              onDownload={handleDownloadReport}
+            />
+            <Button asChild>
+              <Link href="/dashboard/request">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                New Perdiem Request
+              </Link>
+            </Button>
+        </div>
       </div>
       <Card>
         <CardHeader>
