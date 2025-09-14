@@ -3,6 +3,8 @@
  * It displays a welcome message and a table of the user's recent per diem requests.
  * It also provides options to create a new request or download a report of existing requests.
  */
+"use client";
+
 import Link from "next/link";
 import { PlusCircle } from "lucide-react";
 import jsPDF from "jspdf";
