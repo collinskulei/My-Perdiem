@@ -1,6 +1,12 @@
+/**
+ * @file This file defines the main dashboard page for an authenticated employee.
+ * It displays a welcome message and a table of the user's recent per diem requests.
+ * It also provides options to create a new request or download a report of existing requests.
+ */
 import Link from "next/link";
-import { PlusCircle, MoreHorizontal } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import jsPDF from "jspdf";
+import "jspdf-autotable";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,9 +30,19 @@ import { perdiemRequests, venues } from "@/lib/data";
 import type { PerdiemRequest } from "@/lib/data";
 import { ReportDialog } from "@/components/report-dialog";
 
+/**
+ * The main dashboard component for an employee.
+ * It filters and displays per diem requests for the logged-in user.
+ * @returns {JSX.Element} The rendered employee dashboard page.
+ */
 export default function EmployeeDashboard() {
+  // Filters requests to show only those belonging to the current user (mocked as user '1' or '2').
   const userRequests = perdiemRequests.filter(req => req.employeeId === '1' || req.employeeId === '2');
 
+  /**
+   * Generates and downloads a PDF report of the user's per diem requests.
+   * @param {PerdiemRequest[]} filteredData - The data to include in the report, pre-filtered by the ReportDialog.
+   */
   const handleDownloadReport = (filteredData: PerdiemRequest[]) => {
     const doc = new jsPDF();
     doc.text("My Perdiem Requests Report", 14, 16);
@@ -62,6 +78,7 @@ export default function EmployeeDashboard() {
             <p className="text-muted-foreground">Here's a list of your recent perdiem requests.</p>
         </div>
         <div className="flex items-center gap-2">
+            {/* ReportDialog handles filtering logic and triggers onDownload */}
             <ReportDialog 
               reportData={userRequests}
               venues={venues}
@@ -102,6 +119,7 @@ export default function EmployeeDashboard() {
                     </div>
                   </TableCell>
                   <TableCell>
+                    {/* Badge color changes based on request status */}
                     <Badge variant={
                       request.status === "Approved" ? "default" :
                       request.status === "Pending" ? "secondary" : "destructive"

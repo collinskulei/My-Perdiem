@@ -1,10 +1,14 @@
-
+/**
+ * @file This file defines the ReportDialog component.
+ * It's a reusable dialog that allows users to filter data by date range and venue,
+ * and then trigger a download action to generate a PDF report.
+ */
 "use client";
 
 import { useState } from "react";
 import { Download, Calendar as CalendarIcon } from "lucide-react";
 import { DateRange } from "react-day-picker";
-import { format, isWithinInterval, parseISO } from "date-fns";
+import { format, isWithinInterval } from "date-fns";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -33,20 +37,37 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import type { PerdiemRequest, Venue } from "@/lib/data";
 
+/**
+ * Props for the ReportDialog component.
+ */
 interface ReportDialogProps {
+  /** The full dataset of per diem requests to be filtered. */
   reportData: PerdiemRequest[];
+  /** A list of available venues for the filter dropdown. */
   venues: Venue[];
+  /** Callback function that is triggered to download the report with the filtered data. */
   onDownload: (filteredData: PerdiemRequest[]) => void;
 }
 
+/**
+ * A dialog component for generating filtered reports.
+ * @param {ReportDialogProps} props - The properties for the component.
+ * @returns {JSX.Element} The rendered report dialog.
+ */
 export function ReportDialog({ reportData, venues, onDownload }: ReportDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [date, setDate] = useState<DateRange | undefined>();
   const [venue, setVenue] = useState<string>("all");
 
+  /**
+   * Handles the report generation process.
+   * It filters the `reportData` based on the selected date range and venue,
+   * then calls the `onDownload` callback with the filtered results.
+   */
   const handleGenerateReport = () => {
     let filteredData = reportData;
 
+    // Filter by date range if selected
     if (date?.from && date?.to) {
       filteredData = filteredData.filter(item => {
         const itemDate = new Date(item.date);
@@ -54,6 +75,7 @@ export function ReportDialog({ reportData, venues, onDownload }: ReportDialogPro
       });
     }
 
+    // Filter by venue if 'All Venues' is not selected
     if (venue !== "all") {
         const selectedVenue = venues.find(v => v.id === venue);
         if (selectedVenue) {
@@ -61,6 +83,7 @@ export function ReportDialog({ reportData, venues, onDownload }: ReportDialogPro
         }
     }
     
+    // Trigger the download with the filtered data and close the dialog
     onDownload(filteredData);
     setIsOpen(false);
   };

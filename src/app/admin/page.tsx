@@ -1,9 +1,15 @@
+/**
+ * @file This file defines the Admin Dashboard page.
+ * It provides a user interface for administrators to manage per diem requests, employees, and venues.
+ * Features include tabbed navigation, tables for data display, and dialogs for adding new data and generating reports.
+ */
 "use client";
 
 import { useState, useEffect } from "react";
 import { Download, MoreHorizontal, PlusCircle } from "lucide-react";
 import Image from "next/image";
 import jsPDF from "jspdf";
+import "jspdf-autotable";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -45,8 +52,17 @@ import type { PerdiemRequest, Venue } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { ReportDialog } from "@/components/report-dialog";
 
+/**
+ * A default template for creating a new venue.
+ * Used to reset the new venue form state.
+ */
 const defaultNewVenue = { name: "Test Venue", city: "Test City", latitude: "0", longitude: "0" };
 
+/**
+ * The main component for the administrator's dashboard.
+ * It features a tab-based interface to manage perdiem requests, employees, and venues.
+ * @returns {JSX.Element} The rendered admin dashboard.
+ */
 export default function AdminDashboard() {
   const [venues, setVenues] = useState<Venue[]>(initialVenues);
   const [isAddVenueOpen, setIsAddVenueOpen] = useState(false);
@@ -54,8 +70,8 @@ export default function AdminDashboard() {
   const [loadingVenues, setLoadingVenues] = useState(true);
   const { toast } = useToast();
   
+  // Effect to simulate fetching venue data on component mount.
   useEffect(() => {
-    // Simulate fetching data
     setLoadingVenues(true);
     setTimeout(() => {
       setVenues(initialVenues);
@@ -63,12 +79,18 @@ export default function AdminDashboard() {
     }, 500);
   }, []);
 
+  // Effect to reset the new venue form when the dialog is opened.
   useEffect(() => {
     if (isAddVenueOpen) {
       setNewVenue(defaultNewVenue);
     }
   }, [isAddVenueOpen]);
 
+  /**
+   * Handles the addition of a new venue.
+   * Validates form fields and adds the new venue to the state for the current session.
+   * Displays a success or error toast message.
+   */
   const handleAddVenue = async () => {
     if (!newVenue.name || !newVenue.city || !newVenue.latitude || !newVenue.longitude) {
       toast({
@@ -86,6 +108,7 @@ export default function AdminDashboard() {
       longitude: parseFloat(newVenue.longitude) || 0,
     };
     
+    // Add to both the state and the initialVenues array to persist during the session
     setVenues(prevVenues => [...prevVenues, venueToAdd]);
     initialVenues.push(venueToAdd);
 
@@ -97,6 +120,10 @@ export default function AdminDashboard() {
     });
   };
 
+  /**
+   * Generates and downloads a PDF report of per diem requests.
+   * @param {PerdiemRequest[]} filteredData - The data to include in the report, pre-filtered by the ReportDialog.
+   */
   const handleDownloadReport = (filteredData: PerdiemRequest[]) => {
     const doc = new jsPDF();
     doc.text("Perdiem Requests Report", 14, 16);
@@ -130,6 +157,7 @@ export default function AdminDashboard() {
     <div className="grid flex-1 items-start gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
+        {/* ReportDialog component handles filtering and triggers the download */}
         <ReportDialog 
           reportData={perdiemRequests}
           venues={venues}
@@ -147,7 +175,7 @@ export default function AdminDashboard() {
             <CardHeader>
               <CardTitle>Perdiem Requests</CardTitle>
               <CardDescription>
-                An overview of all submitted perdiem requests.
+                An overview of all submitted per diem requests.
               </CardDescription>
             </CardHeader>
             <CardContent>

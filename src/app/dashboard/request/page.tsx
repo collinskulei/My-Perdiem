@@ -1,4 +1,8 @@
-
+/**
+ * @file This file defines the multi-step wizard for creating a new per diem request.
+ * It guides the user through three steps: Activity Information, Transport & Costs, and Accommodation & Check-in.
+ * It uses react-hook-form for form management, zod for validation, and a custom hook for geolocation.
+ */
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
@@ -50,6 +54,9 @@ import { venues as initialVenues, employees, dutyStationCoordinates } from "@/li
 import type { Venue } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 
+/**
+ * Zod schema for validating the per diem request form fields.
+ */
 const requestSchema = z.object({
   eventName: z.string().min(3, "Activity name is required"),
   activityCode: z.string().min(1, "Activity code is required"),
@@ -65,8 +72,19 @@ const requestSchema = z.object({
   groundTransferReceipts: z.any().optional(),
 });
 
+/**
+ * Type definition for the form values, inferred from the Zod schema.
+ */
 export type RequestFormValues = z.infer<typeof requestSchema>;
 
+/**
+ * Calculates the distance between two geographical points using the Haversine formula.
+ * @param {number} lat1 Latitude of the first point.
+ * @param {number} lon1 Longitude of the first point.
+ * @param {number} lat2 Latitude of the second point.
+ * @param {number} lon2 Longitude of the second point.
+ * @returns {number} The distance in kilometers.
+ */
 function getDistance(
   lat1: number,
   lon1: number,
@@ -87,6 +105,10 @@ function getDistance(
   return R * c; // Distance in km
 }
 
+/**
+ * The main component for the per diem request wizard.
+ * @returns {JSX.Element} The rendered wizard component.
+ */
 export default function PerdiemRequestWizard() {
   const [step, setStep] = useState(1);
   const [distance, setDistance] = useState<number | null>(null);
@@ -137,6 +159,7 @@ export default function PerdiemRequestWizard() {
 
   const { latitude, longitude, error: geoError, getPosition, loading: geoLoading } = useGeolocation(geoOptions);
 
+  // Fetch venues when the component mounts and on browser tab visibility change.
   useEffect(() => {
     fetchVenues();
     const handleVisibilityChange = () => {
@@ -156,9 +179,10 @@ export default function PerdiemRequestWizard() {
     return venues.find(h => h.id === watchedValues.venueId);
   }, [watchedValues.venueId, venues]);
 
+  // Automatically calculate mileage when a venue is selected.
   useEffect(() => {
     if (selectedVenue) {
-      const currentUser = employees[0]; // Assuming John Doe
+      const currentUser = employees[0]; // Mocked current user
       const stationCoords = dutyStationCoordinates[currentUser.dutyStation];
       if (stationCoords) {
         const dist = getDistance(
@@ -172,8 +196,10 @@ export default function PerdiemRequestWizard() {
     }
   }, [selectedVenue, setValue]);
   
+  // Determines if the user is close enough to the venue to check in.
   const canCheckIn = useMemo(() => isTestMode || (distance !== null && distance <= 1), [isTestMode, distance]);
   
+  // Updates the distance from the user to the selected venue.
   const updateDistance = useCallback(() => {
     if (latitude && longitude && selectedVenue) {
       const dist = getDistance(latitude, longitude, selectedVenue.latitude, selectedVenue.longitude);
@@ -181,6 +207,7 @@ export default function PerdiemRequestWizard() {
     }
   }, [latitude, longitude, selectedVenue]);
   
+  // Get initial position and then periodically update it.
   useEffect(() => {
     getPosition();
   }, [getPosition]);
@@ -192,10 +219,15 @@ export default function PerdiemRequestWizard() {
     return () => clearInterval(intervalId);
   }, [getPosition, isTestMode]);
 
+  // Update distance whenever location or venue changes.
   useEffect(() => {
     if (!isTestMode) updateDistance();
   }, [latitude, longitude, selectedVenue, updateDistance, isTestMode]);
 
+  /**
+   * Handles navigation to the next step in the wizard.
+   * Validates the current step's fields before proceeding.
+   */
   const handleNext = async () => {
     let fieldsToValidate: (keyof RequestFormValues)[] = [];
     if (step === 1) {
@@ -213,10 +245,15 @@ export default function PerdiemRequestWizard() {
     }
   };
 
+  /**
+   * Handles the check-in process.
+   * Validates accommodation fields, checks location proximity, and navigates to the review page.
+   */
   const handleCheckIn = async () => {
     const fieldsToValidate: (keyof RequestFormValues)[] = ["accommodationCost", "numberOfNights"];
     const isValid = await trigger(fieldsToValidate);
     if (!isValid) return;
+
     if (!canCheckIn) {
       toast({
         title: "Check-in Failed",
@@ -231,6 +268,7 @@ export default function PerdiemRequestWizard() {
       description: "You can now proceed to review your request.",
     });
 
+    // Serialize form data and pass it to the review page via URL query parameters.
     const formData = getValues();
     const query = new URLSearchParams({
       ...Object.fromEntries(
@@ -246,8 +284,15 @@ export default function PerdiemRequestWizard() {
     router.push(`/dashboard/request/review?${query}`);
   };
 
+  /**
+   * Handles navigation to the previous step.
+   */
   const handleBack = () => setStep(s => s - 1);
   
+  /**
+   * Returns a description for the current step.
+   * @returns {string} The step description.
+   */
   const getStepDescription = () => {
     switch (step) {
       case 1: return "Activity Information";
@@ -490,5 +535,3 @@ export default function PerdiemRequestWizard() {
     </Card>
   );
 }
-
-    

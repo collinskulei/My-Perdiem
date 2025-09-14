@@ -1,4 +1,8 @@
-
+/**
+ * @file This file defines the final review page for a per diem request.
+ * It uses a Suspense boundary to handle asynchronous data loading from URL search parameters.
+ * The main component calculates and displays a summary of the per diem costs and handles the final submission.
+ */
 'use client';
 
 import { Suspense } from 'react';
@@ -16,15 +20,26 @@ import {
 } from '@/components/ui/card';
 import { SuccessDialog } from '@/components/success-dialog';
 
+// Constants for per diem calculation.
 const MILEAGE_RATE_KSH = 45;
 const DAILY_ALLOWANCE = 5000;
 
+/**
+ * Renders the contents of the review page.
+ * This component reads form data from URL search parameters, calculates the per diem summary,
+ * and handles the final form submission.
+ * @returns {JSX.Element} The rendered review page contents.
+ */
 function ReviewPageContents() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
+  /**
+   * Memoized parsing of form data from URL search parameters.
+   * This converts string values back to their appropriate types (Date, Number).
+   */
   const formData = useMemo(() => {
     const data: { [key: string]: any } = {};
     searchParams.forEach((value, key) => {
@@ -39,6 +54,10 @@ function ReviewPageContents() {
     return data;
   }, [searchParams]);
 
+  /**
+   * Memoized calculation of per diem costs.
+   * This recalculates only when the form data changes.
+   */
   const { totalPerdiem, mileageCost, airCost, accommodationCost, dailyAllowanceCost } = useMemo(() => {
     const mileageCalc = (formData.mileage || 0) * MILEAGE_RATE_KSH;
     const airCalc = formData.airTicketCosts || 0;
@@ -53,24 +72,31 @@ function ReviewPageContents() {
     };
   }, [formData]);
 
+  /**
+   * Handles the final submission of the per diem request.
+   * Simulates an API call and displays a success dialog upon completion.
+   */
   const handleSubmit = async () => {
     setIsSubmitting(true);
     const submittedData = {
       ...formData,
       location: formData.venueCity,
-      checkInTimestamp: Date.now(),
+      checkInTimestamp: Date.now(), // Records the final submission time
       totalPerdiem,
     };
     
     console.log("Submitting:", submittedData);
 
-    // Simulate API call
+    // Simulate API call latency
     await new Promise(resolve => setTimeout(resolve, 2000));
     
     setIsSubmitting(false);
     setIsSuccess(true);
   };
   
+  /**
+   * Handles closing the success dialog and navigating back to the dashboard.
+   */
   const handleDone = () => {
     setIsSuccess(false);
     router.push('/dashboard');
@@ -78,6 +104,7 @@ function ReviewPageContents() {
 
   return (
     <>
+      {/* Success dialog is displayed after a successful submission */}
       <SuccessDialog
         isOpen={isSuccess}
         onClose={handleDone}
@@ -163,6 +190,12 @@ function ReviewPageContents() {
   );
 }
 
+/**
+ * The main export for the review page.
+ * It wraps the page content in a Suspense boundary to handle the asynchronous loading
+ * of search parameters, preventing rendering errors on the server.
+ * @returns {JSX.Element} The review page component.
+ */
 export default function ReviewPage() {
   return (
     <Suspense fallback={<div>Loading review...</div>}>
@@ -170,5 +203,3 @@ export default function ReviewPage() {
     </Suspense>
   );
 }
-
-    

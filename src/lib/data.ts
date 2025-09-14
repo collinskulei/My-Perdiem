@@ -1,4 +1,11 @@
+/**
+ * @file This file contains mock data and type definitions for the application.
+ * It serves as a temporary in-memory database for employees, venues, and per diem requests.
+ */
 
+/**
+ * Represents an employee in the system.
+ */
 export type Employee = {
   id: string;
   name: string;
@@ -10,6 +17,9 @@ export type Employee = {
   avatarUrl: string;
 };
 
+/**
+ * Represents a venue where an event can take place.
+ */
 export type Venue = {
   id: string;
   name: string;
@@ -18,6 +28,9 @@ export type Venue = {
   longitude: number;
 };
 
+/**
+ * Represents a single per diem request submitted by an employee.
+ */
 export type PerdiemRequest = {
   id: string;
   employeeId: string;
@@ -30,6 +43,9 @@ export type PerdiemRequest = {
   checkInTimestamp?: number;
 };
 
+/**
+ * Mock data for employees.
+ */
 export const employees: Employee[] = [
   {
     id: '1',
@@ -83,6 +99,9 @@ export const employees: Employee[] = [
   },
 ];
 
+/**
+ * Geographical coordinates for various duty stations. Used for mileage calculation.
+ */
 export const dutyStationCoordinates: { [key: string]: { latitude: number, longitude: number } } = {
   "Nairobi": { latitude: -1.286389, longitude: 36.817223 },
   "Mombasa": { latitude: -4.043477, longitude: 39.668205 },
@@ -90,6 +109,9 @@ export const dutyStationCoordinates: { [key: string]: { latitude: number, longit
   "Nakuru": { latitude: -0.303099, longitude: 36.080025 },
 };
 
+/**
+ * Mock data for per diem requests.
+ */
 export const perdiemRequests: PerdiemRequest[] = [
   {
     id: 'REQ001',
@@ -145,6 +167,9 @@ export const perdiemRequests: PerdiemRequest[] = [
   },
 ];
 
+/**
+ * Mock data for venues. Includes a special "Test Venue" for easy check-in during development.
+ */
 export const venues: Venue[] = [
   { id: "venue-test-001", name: "Test Venue (for Check-in)", city: "Test City", latitude: 0, longitude: 0 },
   { id: "venue-nrb-001", name: "Sarova Stanley", city: "Nairobi", latitude: -1.2833, longitude: 36.8219 },

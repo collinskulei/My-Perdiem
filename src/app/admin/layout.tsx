@@ -1,3 +1,7 @@
+/**
+ * @file AdminLayout provides a consistent sidebar and header for all pages within the admin section.
+ * It includes navigation links for the admin dashboard, employees, and reports.
+ */
 "use client";
 
 import Link from "next/link";
@@ -25,6 +29,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
+/**
+ * Defines the layout for the admin section, including a sidebar and main content area.
+ * @param {object} props - The properties for the component.
+ * @param {React.ReactNode} props.children - The child components to be rendered within the main content area.
+ * @returns {JSX.Element} The admin layout component.
+ */
 export default function AdminLayout({
   children,
 }: {
@@ -83,7 +93,7 @@ export default function AdminLayout({
               <span className="sr-only">Toggle notifications</span>
             </Button>
             <Avatar className="h-8 w-8">
-              <AvatarImage src="https://picsum.photos/seed/admin/100/100" />
+              <AvatarImage src="https://picsum.photos/seed/admin/100/100" data-ai-hint="person avatar" />
               <AvatarFallback>AD</AvatarFallback>
             </Avatar>
           </div>

@@ -1,3 +1,8 @@
+/**
+ * @file This file defines the main login page for the application.
+ * It presents a form for users to enter their employee number and password.
+ * It also includes links to the admin login and registration pages.
+ */
 "use client";
 
 import Link from "next/link";
@@ -15,9 +20,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/logo";
 
+/**
+ * The main component for the login page.
+ * @returns {JSX.Element} The rendered login page.
+ */
 export default function LoginPage() {
   const router = useRouter();
 
+  /**
+   * Handles the login form submission.
+   * Prevents the default form submission and redirects the user to the employee dashboard.
+   * @param {React.FormEvent} e - The form submission event.
+   */
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     router.push("/dashboard");

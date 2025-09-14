@@ -1,10 +1,15 @@
-// Import the functions you need from the SDKs you need
+/**
+ * @file This file handles the initialization of the Firebase app instance.
+ * It reads Firebase configuration from environment variables and ensures that
+ * the app is initialized only once (singleton pattern).
+ */
 import { initializeApp, getApps, getApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+/**
+ * Your web app's Firebase configuration.
+ * For Firebase JS SDK v7.20.0 and later, measurementId is optional.
+ * These values are pulled from environment variables to keep them secure.
+ */
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -14,7 +19,8 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
+// Initialize Firebase.
+// This check prevents the app from being initialized multiple times, which would cause an error.
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 export default app;

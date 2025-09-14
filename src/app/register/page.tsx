@@ -1,3 +1,7 @@
+/**
+ * @file This file defines the new employee registration page.
+ * It features a multi-step wizard to guide users through entering their personal and employment details.
+ */
 "use client";
 
 import { useState } from "react";
@@ -19,18 +23,37 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Logo } from "@/components/logo";
 
+/**
+ * The main component for the registration wizard.
+ * It manages the state for the current step and handles navigation between steps.
+ * @returns {JSX.Element} The rendered registration wizard.
+ */
 export default function RegistrationWizard() {
   const [step, setStep] = useState(1);
   const router = useRouter();
 
+  /**
+   * Advances the wizard to the next step.
+   */
   const handleNext = () => setStep(step + 1);
+  
+  /**
+   * Returns the wizard to the previous step.
+   */
   const handleBack = () => setStep(step - 1);
   
+  /**
+   * Handles the final form submission.
+   * Prevents the default form action and redirects the user to the employee dashboard.
+   * @param {React.FormEvent} e - The form submission event.
+   */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // In a real application, this would send data to a server.
     router.push("/dashboard");
   };
 
+  // Calculate the progress bar value based on the current step.
   const progressValue = (step / 2) * 100;
 
   return (
@@ -48,6 +71,7 @@ export default function RegistrationWizard() {
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
+            {/* Step 1: Personal Details */}
             {step === 1 && (
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -64,6 +88,7 @@ export default function RegistrationWizard() {
                 </div>
               </div>
             )}
+            {/* Step 2: Employment Details */}
             {step === 2 && (
               <div className="space-y-4">
                 <div className="space-y-2">

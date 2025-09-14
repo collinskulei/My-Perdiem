@@ -1,7 +1,14 @@
+/**
+ * @file This file defines a custom React hook `useGeolocation` for accessing the user's
+ * geographical location using the browser's Geolocation API.
+ */
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
 
+/**
+ * Defines the shape of the state object managed by the `useGeolocation` hook.
+ */
 type GeolocationState = {
   loading: boolean;
   accuracy: number | null;
@@ -15,6 +22,11 @@ type GeolocationState = {
   error: GeolocationPositionError | null;
 };
 
+/**
+ * A custom hook to get the user's current geolocation.
+ * @param {PositionOptions} [options={}] - Optional configuration for the Geolocation API.
+ * @returns {{...GeolocationState, getPosition: () => void}} An object containing the geolocation state and a function to manually trigger a position update.
+ */
 export const useGeolocation = (options: PositionOptions = {}) => {
   const [state, setState] = useState<GeolocationState>({
     loading: true,
@@ -30,10 +42,15 @@ export const useGeolocation = (options: PositionOptions = {}) => {
   });
   const optionsRef = useRef(options);
 
+  // Keep the options ref updated if the options prop changes.
   useEffect(() => {
     optionsRef.current = options;
   }, [options]);
 
+  /**
+   * Callback function to handle successful geolocation events.
+   * Updates the state with the new position data.
+   */
   const onEvent = useCallback((event: GeolocationPosition) => {
     setState({
       loading: false,
@@ -49,6 +66,10 @@ export const useGeolocation = (options: PositionOptions = {}) => {
     });
   }, []);
 
+  /**
+   * Callback function to handle geolocation errors.
+   * Updates the state with the error information.
+   */
   const onEventError = useCallback((error: GeolocationPositionError) => {
     setState((s) => ({
       ...s,
@@ -57,6 +78,9 @@ export const useGeolocation = (options: PositionOptions = {}) => {
     }));
   }, []);
 
+  /**
+   * Manually triggers a request for the user's current position.
+   */
   const getPosition = useCallback(() => {
     if (!navigator.geolocation) {
       onEventError({
