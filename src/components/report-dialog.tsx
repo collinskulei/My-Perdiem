@@ -1,7 +1,7 @@
 /**
  * @file This file defines the ReportDialog component.
  * It's a reusable dialog that allows users to filter data by date range and venue,
- * and then trigger a download action to generate a PDF report.
+ * and then trigger a download action to generate a PDF or CSV report.
  */
 "use client";
 
@@ -46,7 +46,7 @@ interface ReportDialogProps {
   /** A list of available venues for the filter dropdown. */
   venues: Venue[];
   /** Callback function that is triggered to download the report with the filtered data. */
-  onDownload: (filteredData: PerdiemRequest[]) => void;
+  onDownload: (filteredData: PerdiemRequest[], format: 'pdf' | 'csv') => void;
 }
 
 /**
@@ -62,9 +62,10 @@ export function ReportDialog({ reportData, venues, onDownload }: ReportDialogPro
   /**
    * Handles the report generation process.
    * It filters the `reportData` based on the selected date range and venue,
-   * then calls the `onDownload` callback with the filtered results.
+   * then calls the `onDownload` callback with the filtered results and the chosen format.
+   * @param {'pdf' | 'csv'} format - The desired report format.
    */
-  const handleGenerateReport = () => {
+  const handleGenerateReport = (format: 'pdf' | 'csv') => {
     let filteredData = reportData;
 
     // Filter by date range if selected
@@ -84,7 +85,7 @@ export function ReportDialog({ reportData, venues, onDownload }: ReportDialogPro
     }
     
     // Trigger the download with the filtered data and close the dialog
-    onDownload(filteredData);
+    onDownload(filteredData, format);
     setIsOpen(false);
   };
 
@@ -100,7 +101,7 @@ export function ReportDialog({ reportData, venues, onDownload }: ReportDialogPro
         <DialogHeader>
           <DialogTitle>Generate Report</DialogTitle>
           <DialogDescription>
-            Filter the data for your report and download it as a PDF.
+            Filter the data for your report and download it as a PDF or CSV.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -165,7 +166,8 @@ export function ReportDialog({ reportData, venues, onDownload }: ReportDialogPro
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={handleGenerateReport}>Generate PDF</Button>
+          <Button onClick={() => handleGenerateReport('csv')} variant="outline">Generate CSV</Button>
+          <Button onClick={() => handleGenerateReport('pdf')}>Generate PDF</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

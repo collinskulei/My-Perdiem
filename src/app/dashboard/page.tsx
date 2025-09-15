@@ -29,10 +29,37 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { venues as initialVenues } from "@/lib/data";
 import type { PerdiemRequest, Venue } from "@/lib/data";
 import { ReportDialog } from "@/components/report-dialog";
 import { getPerDiemRequestsByEmployee, getVenues } from "@/lib/firebase/firestore";
+
+/**
+ * Converts an array of objects to a CSV formatted string.
+ * @param {any[]} data - The array of objects to convert.
+ * @param {string[]} columns - The columns to include in the CSV.
+ * @param {string[]} columnHeaders - The display headers for the columns.
+ * @returns {string} A string in CSV format.
+ */
+const toCSV = (data: any[], columns: string[], columnHeaders: string[]): string => {
+  const header = columnHeaders.join(',') + '\n';
+  const rows = data.map(row =>
+    columns.map(colName => {
+      let cellData = row[colName];
+      // Handle cases where data might be missing or needs formatting
+      if (cellData === null || cellData === undefined) {
+        return '""';
+      }
+      // Escape commas and quotes
+      cellData = String(cellData).replace(/"/g, '""');
+      if (String(cellData).includes(',')) {
+        cellData = `"${cellData}"`;
+      }
+      return cellData;
+    }).join(',')
+  ).join('\n');
+
+  return header + rows;
+};
 
 /**
  * The main dashboard component for an employee.
@@ -63,34 +90,51 @@ export default function EmployeeDashboard() {
   
 
   /**
-   * Generates and downloads a PDF report of the user's per diem requests.
+   * Generates and downloads a report of the user's per diem requests.
    * @param {PerdiemRequest[]} filteredData - The data to include in the report, pre-filtered by the ReportDialog.
+   * @param {'pdf' | 'csv'} format - The desired report format.
    */
-  const handleDownloadReport = (filteredData: PerdiemRequest[]) => {
-    const doc = new jsPDF();
-    doc.text("My Perdiem Requests Report", 14, 16);
-    
-    const tableColumn = ["Date", "Event", "Location", "Amount", "Status"];
-    const tableRows: (string | number)[][] = [];
-
-    filteredData.forEach(request => {
-      const requestData = [
-        request.date,
-        request.eventName,
-        request.location,
-        `Ksh ${request.totalPerdiem.toLocaleString()}`,
-        request.status
-      ];
-      tableRows.push(requestData);
-    });
-
-    (doc as any).autoTable({
-        head: [tableColumn],
-        body: tableRows,
-        startY: 20,
-    });
-    
-    doc.save("my_perdiem_requests_report.pdf");
+  const handleDownloadReport = (filteredData: PerdiemRequest[], format: 'pdf' | 'csv') => {
+    if (format === 'pdf') {
+      const doc = new jsPDF();
+      doc.text("My Perdiem Requests Report", 14, 16);
+      
+      const tableColumn = ["Date", "Event", "Location", "Amount", "Status"];
+      const tableRows: (string | number)[][] = [];
+  
+      filteredData.forEach(request => {
+        const requestData = [
+          request.date,
+          request.eventName,
+          request.location,
+          `Ksh ${request.totalPerdiem.toLocaleString()}`,
+          request.status
+        ];
+        tableRows.push(requestData);
+      });
+  
+      (doc as any).autoTable({
+          head: [tableColumn],
+          body: tableRows,
+          startY: 20,
+      });
+      
+      doc.save("my_perdiem_requests_report.pdf");
+    } else if (format === 'csv') {
+      const columns = ["date", "eventName", "location", "totalPerdiem", "status"];
+      const columnHeaders = ["Date", "Event", "Location", "Amount (Ksh)", "Status"];
+      const csvData = toCSV(filteredData, columns, columnHeaders);
+      
+      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', 'my_perdiem_requests_report.csv');
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   return (
