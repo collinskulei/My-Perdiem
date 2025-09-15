@@ -22,6 +22,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Logo } from "@/components/logo";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
 
 /**
  * The main component for the registration wizard.
@@ -61,6 +69,19 @@ export default function RegistrationWizard() {
     // In a real application, this would send data to a server.
     router.push("/dashboard");
   };
+
+  const designations = [
+    "Medical Director",
+    "Chief Nursing Officer",
+    "Resident Doctor",
+    "Registered Nurse",
+    "Clinical Officer",
+    "Pharmacist",
+    "Laboratory Technologist",
+    "Radiographer",
+    "Physiotherapist",
+    "Hospital Administrator",
+  ];
 
   // Calculate the progress bar value based on the current step.
   const progressValue = (step / 2) * 100;
@@ -133,8 +154,19 @@ export default function RegistrationWizard() {
                   <Input id="employee-number" placeholder="e.g., EMP123" required />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="role">Role</Label>
-                  <Input id="role" placeholder="e.g., Software Engineer" required />
+                  <Label htmlFor="designation">Designation</Label>
+                   <Select required>
+                    <SelectTrigger id="designation">
+                      <SelectValue placeholder="Select a designation" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {designations.map((designation) => (
+                        <SelectItem key={designation} value={designation}>
+                          {designation}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="duty-station">Duty Station</Label>
