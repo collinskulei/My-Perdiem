@@ -90,7 +90,18 @@ export default function RegistrationWizard() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number</Label>
-                  <Input id="phone" type="tel" placeholder="e.g., 0712345678" required />
+                  <div className="flex items-center">
+                    <span className="inline-flex h-10 items-center rounded-l-md border border-r-0 border-input bg-background px-3 text-muted-foreground">
+                      +254
+                    </span>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="712345678"
+                      required
+                      className="rounded-l-none"
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="id-number">ID Number</Label>
