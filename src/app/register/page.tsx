@@ -82,6 +82,15 @@ export default function RegistrationWizard() {
       });
       return;
     }
+    
+    if ((formData.password?.length ?? 0) < 6) {
+      toast({
+        title: "Weak Password",
+        description: "Password must be at least 6 characters long.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     if (!formData.email || !formData.password) {
         toast({
