@@ -19,8 +19,8 @@
     --secondary: 110 65% 58%; /* Green #65D851 */
     --secondary-foreground: 222 47% 11%;
 
-    --muted: 220 13% 91%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 110 60% 95%; /* Faded Green */
+    --muted-foreground: 110 30% 40%;
 
     --accent: 110 65% 58%; /* Green #65D851 */
     --accent-foreground: 222 47% 11%;
