@@ -276,10 +276,8 @@ export default function AdminDashboard() {
                       <TableCell>{request.eventName}</TableCell>
                       <TableCell>
                         <Badge variant={
-                          request.status === "Approved" ? "default" :
-                          request.status === "Pending" ? "secondary" : "destructive"
-                        } className={
-                          request.status === "Approved" ? "bg-green-600/80" : ""
+                          request.status === "Approved" ? "secondary" :
+                          request.status === "Pending" ? "outline" : "destructive"
                         }>
                           {request.status}
                         </Badge>
