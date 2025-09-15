@@ -30,12 +30,21 @@ import { Logo } from "@/components/logo";
  */
 export default function RegistrationWizard() {
   const [step, setStep] = useState(1);
+  const [idNumber, setIdNumber] = useState("");
   const router = useRouter();
 
   /**
-   * Advances the wizard to the next step.
+   * Advances the wizard to the next step, validating the ID number.
    */
-  const handleNext = () => setStep(step + 1);
+  const handleNext = () => {
+    if (step === 1) {
+      if (!/^\d{8}$/.test(idNumber)) {
+        alert("Please enter a valid 8-digit ID number.");
+        return;
+      }
+    }
+    setStep(step + 1);
+  };
   
   /**
    * Returns the wizard to the previous step.
@@ -105,7 +114,14 @@ export default function RegistrationWizard() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="id-number">ID Number</Label>
-                  <Input id="id-number" placeholder="e.g., 12345678" required />
+                  <Input 
+                    id="id-number" 
+                    placeholder="e.g., 12345678" 
+                    required 
+                    value={idNumber}
+                    onChange={(e) => setIdNumber(e.target.value)}
+                    maxLength={8}
+                  />
                 </div>
               </div>
             )}
