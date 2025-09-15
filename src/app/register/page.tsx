@@ -83,6 +83,19 @@ export default function RegistrationWizard() {
     "Hospital Administrator",
   ];
 
+  const emails = [
+    "medicaldirector@health.org",
+    "chiefnursingofficer@health.org",
+    "residentdoctor@health.org",
+    "registerednurse@health.org",
+    "clinicalofficer@health.org",
+    "pharmacist@health.org",
+    "laboratorytechnologist@health.org",
+    "radiographer@health.org",
+    "physiotherapist@health.org",
+    "hospitaladministrator@health.org",
+  ];
+
   // Calculate the progress bar value based on the current step.
   const progressValue = (step / 2) * 100;
 
@@ -152,6 +165,21 @@ export default function RegistrationWizard() {
                 <div className="space-y-2">
                   <Label htmlFor="employee-number">Employee Number</Label>
                   <Input id="employee-number" placeholder="e.g., EMP123" required />
+                </div>
+                 <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                   <Select required>
+                    <SelectTrigger id="email">
+                      <SelectValue placeholder="Select an email" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {emails.map((email) => (
+                        <SelectItem key={email} value={email}>
+                          {email}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="designation">Designation</Label>
