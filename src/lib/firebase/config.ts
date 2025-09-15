@@ -5,6 +5,12 @@
  */
 import { initializeApp, getApps, getApp } from "firebase/app";
 
+// Check if the essential Firebase API key is provided in the environment variables.
+if (!process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+  console.error("Firebase API key is missing. Please add NEXT_PUBLIC_FIREBASE_API_KEY to your .env file.");
+}
+
+
 /**
  * Your web app's Firebase configuration.
  * For Firebase JS SDK v7.20.0 and later, measurementId is optional.
