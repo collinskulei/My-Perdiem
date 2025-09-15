@@ -50,9 +50,10 @@ import { Calendar } from "@/components/ui/calendar";
 import { Switch } from "@/components/ui/switch";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { cn } from "@/lib/utils";
-import { venues as initialVenues, employees, dutyStationCoordinates } from "@/lib/data";
+import { dutyStationCoordinates } from "@/lib/data";
 import type { Venue } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
+import { getVenues } from "@/lib/firebase/firestore";
 
 /**
  * Zod schema for validating the per diem request form fields.
@@ -143,13 +144,18 @@ export default function PerdiemRequestWizard() {
     trigger,
   } = form;
 
-  const fetchVenues = useCallback(() => {
-    const allVenues = initialVenues;
-    setVenues(allVenues);
-    if (allVenues.length > 0 && !getValues("venueId")) {
-      setValue("venueId", allVenues[0].id);
+  // Fetch venues from Firestore on component mount
+  useEffect(() => {
+    async function fetchVenues() {
+      const venuesData = await getVenues();
+      setVenues(venuesData);
+      if (venuesData.length > 0 && !getValues("venueId")) {
+        setValue("venueId", venuesData[0].id);
+      }
     }
+    fetchVenues();
   }, [setValue, getValues]);
+
 
   const geoOptions = useMemo(() => ({
     enableHighAccuracy: true,
@@ -158,20 +164,6 @@ export default function PerdiemRequestWizard() {
   }), []);
 
   const { latitude, longitude, error: geoError, getPosition, loading: geoLoading } = useGeolocation(geoOptions);
-
-  // Fetch venues when the component mounts and on browser tab visibility change.
-  useEffect(() => {
-    fetchVenues();
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        fetchVenues();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [fetchVenues]);
 
   const watchedValues = watch();
 
@@ -182,8 +174,9 @@ export default function PerdiemRequestWizard() {
   // Automatically calculate mileage when a venue is selected.
   useEffect(() => {
     if (selectedVenue) {
-      const currentUser = employees[0]; // Mocked current user
-      const stationCoords = dutyStationCoordinates[currentUser.dutyStation];
+      // Mocked current user's duty station. In a real app, this would come from the user's profile.
+      const dutyStation = "Nairobi"; 
+      const stationCoords = dutyStationCoordinates[dutyStation];
       if (stationCoords) {
         const dist = getDistance(
           stationCoords.latitude,

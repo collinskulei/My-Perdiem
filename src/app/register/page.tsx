@@ -29,6 +29,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { addEmployee, EmployeeData } from "@/lib/firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
 
 
 /**
@@ -39,7 +41,9 @@ import {
 export default function RegistrationWizard() {
   const [step, setStep] = useState(1);
   const [idNumber, setIdNumber] = useState("");
+  const [formData, setFormData] = useState<Partial<EmployeeData>>({});
   const router = useRouter();
+  const { toast } = useToast();
 
   /**
    * Advances the wizard to the next step, validating the ID number.
@@ -58,16 +62,58 @@ export default function RegistrationWizard() {
    * Returns the wizard to the previous step.
    */
   const handleBack = () => setStep(step - 1);
+
+  /**
+   * Handles input changes and updates the form data state.
+   * @param {React.ChangeEvent<HTMLInputElement>} e - The input change event.
+   */
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target;
+    setFormData(prev => ({ ...prev, [id]: value }));
+  };
+
+  /**
+   * Handles select changes and updates the form data state.
+   * @param {string} id - The id of the select component.
+   * @param {string} value - The selected value.
+   */
+  const handleSelectChange = (id: string, value: string) => {
+    setFormData(prev => ({ ...prev, [id]: value }));
+  };
   
   /**
    * Handles the final form submission.
    * Prevents the default form action and redirects the user to the employee dashboard.
    * @param {React.FormEvent} e - The form submission event.
    */
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real application, this would send data to a server.
-    router.push("/dashboard");
+    
+    const registrationData = {
+        name: `${formData.firstName} ${formData.sirName}`,
+        phoneNumber: `+254${formData.phone}`,
+        idNumber: formData.idNumber,
+        employeeNumber: formData.employeeNumber,
+        role: formData.designation,
+        dutyStation: formData.dutyStation,
+        email: formData.email,
+    } as EmployeeData;
+
+    try {
+        await addEmployee(registrationData);
+        toast({
+            title: "Registration Successful",
+            description: "Your employee profile has been created.",
+        });
+        router.push("/dashboard");
+    } catch (error) {
+        console.error("Registration failed:", error);
+        toast({
+            title: "Registration Failed",
+            description: "Could not create your employee profile. Please try again.",
+            variant: "destructive",
+        });
+    }
   };
 
   const designations = [
@@ -119,16 +165,16 @@ export default function RegistrationWizard() {
               <div className="space-y-4">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                   <div className="space-y-2">
-                    <Label htmlFor="first-name">First Name</Label>
-                    <Input id="first-name" placeholder="e.g., John" required />
+                    <Label htmlFor="firstName">First Name</Label>
+                    <Input id="firstName" placeholder="e.g., John" required onChange={handleInputChange} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="middle-name">Middle Name</Label>
-                    <Input id="middle-name" placeholder="e.g., Owuor" />
+                    <Label htmlFor="middleName">Middle Name</Label>
+                    <Input id="middleName" placeholder="e.g., Owuor" onChange={handleInputChange} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="sir-name">Surname</Label>
-                    <Input id="sir-name" placeholder="e.g., Doe" required />
+                    <Label htmlFor="sirName">Surname</Label>
+                    <Input id="sirName" placeholder="e.g., Doe" required onChange={handleInputChange} />
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -143,17 +189,21 @@ export default function RegistrationWizard() {
                       placeholder="712345678"
                       required
                       className="rounded-l-none"
+                      onChange={handleInputChange}
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="id-number">ID Number</Label>
+                  <Label htmlFor="idNumber">ID Number</Label>
                   <Input 
-                    id="id-number" 
+                    id="idNumber" 
                     placeholder="e.g., 12345678" 
                     required 
                     value={idNumber}
-                    onChange={(e) => setIdNumber(e.target.value)}
+                    onChange={(e) => {
+                      setIdNumber(e.target.value);
+                      handleInputChange(e);
+                    }}
                     maxLength={8}
                   />
                 </div>
@@ -163,12 +213,12 @@ export default function RegistrationWizard() {
             {step === 2 && (
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="employee-number">Employee Number</Label>
-                  <Input id="employee-number" placeholder="e.g., EMP123" required />
+                  <Label htmlFor="employeeNumber">Employee Number</Label>
+                  <Input id="employeeNumber" placeholder="e.g., EMP123" required onChange={handleInputChange} />
                 </div>
                  <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                   <Select required>
+                   <Select required onValueChange={(value) => handleSelectChange('email', value)}>
                     <SelectTrigger id="email">
                       <SelectValue placeholder="Select an email" />
                     </SelectTrigger>
@@ -183,7 +233,7 @@ export default function RegistrationWizard() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="designation">Designation</Label>
-                   <Select required>
+                   <Select required onValueChange={(value) => handleSelectChange('designation', value)}>
                     <SelectTrigger id="designation">
                       <SelectValue placeholder="Select a designation" />
                     </SelectTrigger>
@@ -197,8 +247,8 @@ export default function RegistrationWizard() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="duty-station">Duty Station</Label>
-                  <Input id="duty-station" placeholder="e.g., Nairobi" required />
+                  <Label htmlFor="dutyStation">Duty Station</Label>
+                  <Input id="dutyStation" placeholder="e.g., Nairobi" required onChange={handleInputChange} />
                 </div>
               </div>
             )}

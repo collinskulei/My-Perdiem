@@ -9,6 +9,7 @@ import Link from "next/link";
 import { PlusCircle } from "lucide-react";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import { useState, useEffect } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,9 +29,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { perdiemRequests, venues } from "@/lib/data";
-import type { PerdiemRequest } from "@/lib/data";
+import { venues as initialVenues } from "@/lib/data";
+import type { PerdiemRequest, Venue } from "@/lib/data";
 import { ReportDialog } from "@/components/report-dialog";
+import { getPerDiemRequestsByEmployee, getVenues } from "@/lib/firebase/firestore";
 
 /**
  * The main dashboard component for an employee.
@@ -38,8 +40,27 @@ import { ReportDialog } from "@/components/report-dialog";
  * @returns {JSX.Element} The rendered employee dashboard page.
  */
 export default function EmployeeDashboard() {
-  // Filters requests to show only those belonging to the current user (mocked as user '1' or '2').
-  const userRequests = perdiemRequests.filter(req => req.employeeId === '1' || req.employeeId === '2');
+  const [userRequests, setUserRequests] = useState<PerdiemRequest[]>([]);
+  const [venues, setVenues] = useState<Venue[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Mocked employee ID for demonstration. In a real app, this would come from auth state.
+  const employeeId = "1";
+
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true);
+      const [requests, venuesData] = await Promise.all([
+        getPerDiemRequestsByEmployee(employeeId), // Fetching for a specific employee
+        getVenues()
+      ]);
+      setUserRequests(requests);
+      setVenues(venuesData);
+      setLoading(false);
+    }
+    fetchData();
+  }, [employeeId]);
+  
 
   /**
    * Generates and downloads a PDF report of the user's per diem requests.
@@ -112,7 +133,13 @@ export default function EmployeeDashboard() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {userRequests.map((request) => (
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="h-24 text-center">
+                    Loading your requests...
+                  </TableCell>
+                </TableRow>
+              ) : userRequests.map((request) => (
                 <TableRow key={request.id}>
                   <TableCell>
                     <div className="font-medium">{request.eventName}</div>

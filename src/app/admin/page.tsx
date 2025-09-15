@@ -47,10 +47,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { employees, perdiemRequests, venues as initialVenues } from "@/lib/data";
-import type { PerdiemRequest, Venue } from "@/lib/data";
+import type { PerdiemRequest, Venue, Employee } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { ReportDialog } from "@/components/report-dialog";
+import { getVenues, addVenue, getEmployees, getPerDiemRequests } from "@/lib/firebase/firestore";
 
 /**
  * A default template for creating a new venue.
@@ -64,19 +64,29 @@ const defaultNewVenue = { name: "Test Venue", city: "Test City", latitude: "0", 
  * @returns {JSX.Element} The rendered admin dashboard.
  */
 export default function AdminDashboard() {
-  const [venues, setVenues] = useState<Venue[]>(initialVenues);
+  const [venues, setVenues] = useState<Venue[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [perdiemRequests, setPerdiemRequests] = useState<PerdiemRequest[]>([]);
   const [isAddVenueOpen, setIsAddVenueOpen] = useState(false);
   const [newVenue, setNewVenue] = useState(defaultNewVenue);
-  const [loadingVenues, setLoadingVenues] = useState(true);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   
-  // Effect to simulate fetching venue data on component mount.
+  // Effect to fetch all necessary data on component mount.
   useEffect(() => {
-    setLoadingVenues(true);
-    setTimeout(() => {
-      setVenues(initialVenues);
-      setLoadingVenues(false);
-    }, 500);
+    async function fetchData() {
+      setLoading(true);
+      const [venuesData, employeesData, requestsData] = await Promise.all([
+        getVenues(),
+        getEmployees(),
+        getPerDiemRequests()
+      ]);
+      setVenues(venuesData);
+      setEmployees(employeesData);
+      setPerdiemRequests(requestsData);
+      setLoading(false);
+    }
+    fetchData();
   }, []);
 
   // Effect to reset the new venue form when the dialog is opened.
@@ -100,24 +110,33 @@ export default function AdminDashboard() {
       });
       return;
     }
+    
     const venueToAdd = {
-      id: `venue-${Date.now()}`,
       name: newVenue.name,
       city: newVenue.city,
       latitude: parseFloat(newVenue.latitude) || 0,
       longitude: parseFloat(newVenue.longitude) || 0,
     };
     
-    // Add to both the state and the initialVenues array to persist during the session
-    setVenues(prevVenues => [...prevVenues, venueToAdd]);
-    initialVenues.push(venueToAdd);
-
-    setNewVenue(defaultNewVenue);
-    setIsAddVenueOpen(false);
-    toast({
-      title: "Success",
-      description: "Venue added successfully for this session.",
-    });
+    try {
+      const newVenueId = await addVenue(venueToAdd);
+      const newlyAddedVenue = { id: newVenueId, ...venueToAdd };
+      setVenues(prevVenues => [...prevVenues, newlyAddedVenue]);
+      
+      setNewVenue(defaultNewVenue);
+      setIsAddVenueOpen(false);
+      toast({
+        title: "Success",
+        description: "Venue added successfully.",
+      });
+    } catch (error) {
+      console.error("Error adding venue: ", error);
+      toast({
+        title: "Error",
+        description: "Failed to add venue.",
+        variant: "destructive",
+      });
+    }
   };
 
   /**
@@ -193,7 +212,13 @@ export default function AdminDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {perdiemRequests.map((request) => (
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-24 text-center">
+                        Loading requests...
+                      </TableCell>
+                    </TableRow>
+                  ) : perdiemRequests.map((request) => (
                     <TableRow key={request.id}>
                       <TableCell>
                         <div className="font-medium">{request.employeeName}</div>
@@ -271,7 +296,13 @@ export default function AdminDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {employees.map((employee) => (
+                   {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-24 text-center">
+                        Loading employees...
+                      </TableCell>
+                    </TableRow>
+                  ) : employees.map((employee) => (
                     <TableRow key={employee.id}>
                       <TableCell className="hidden sm:table-cell">
                         <Image
@@ -412,7 +443,7 @@ export default function AdminDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {loadingVenues ? (
+                  {loading ? (
                     <TableRow>
                       <TableCell colSpan={4} className="h-24 text-center">
                         Loading venues...

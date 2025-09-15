@@ -19,6 +19,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { SuccessDialog } from '@/components/success-dialog';
+import { addPerDiemRequest, PerDiemRequestData } from '@/lib/firebase/firestore';
 
 // Constants for per diem calculation.
 const MILEAGE_RATE_KSH = 45;
@@ -78,20 +79,31 @@ function ReviewPageContents() {
    */
   const handleSubmit = async () => {
     setIsSubmitting(true);
-    const submittedData = {
-      ...formData,
+    
+    // Mocked employee data. In a real app, this would come from an auth context.
+    const employeeId = '1';
+    const employeeName = 'John Doe';
+
+    const requestData: PerDiemRequestData = {
+      employeeId,
+      employeeName,
+      eventName: formData.eventName,
       location: formData.venueCity,
-      checkInTimestamp: Date.now(), // Records the final submission time
+      date: formData.date.toISOString().split('T')[0], // Format as YYYY-MM-DD
       totalPerdiem,
+      status: 'Pending',
+      checkInTimestamp: Date.now(),
     };
     
-    console.log("Submitting:", submittedData);
-
-    // Simulate API call latency
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    setIsSubmitting(false);
-    setIsSuccess(true);
+    try {
+      await addPerDiemRequest(requestData);
+      setIsSubmitting(false);
+      setIsSuccess(true);
+    } catch (error) {
+      console.error("Error submitting request: ", error);
+      setIsSubmitting(false);
+      // Optionally show an error toast
+    }
   };
   
   /**

@@ -2,9 +2,9 @@
  * @file This file contains helper functions for interacting with Cloud Firestore.
  * It abstracts the logic for common database operations like getting and adding documents.
  */
-import { getFirestore, collection, getDocs, addDoc } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, addDoc, query, where } from 'firebase/firestore';
 import app from './config';
-import type { Venue } from '../data';
+import type { Venue, PerdiemRequest, Employee } from '../data';
 
 // Get a Firestore instance from the initialized Firebase app.
 const db = getFirestore(app);
@@ -16,10 +16,15 @@ const db = getFirestore(app);
  * @returns {Promise<Venue[]>} A promise that resolves to an array of venue objects.
  */
 export const getVenues = async (): Promise<Venue[]> => {
-    const venuesCol = collection(db, 'venues');
-    const venueSnapshot = await getDocs(venuesCol);
-    const venueList = venueSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Venue));
-    return venueList;
+    try {
+        const venuesCol = collection(db, 'venues');
+        const venueSnapshot = await getDocs(venuesCol);
+        const venueList = venueSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Venue));
+        return venueList;
+    } catch (error) {
+        console.error("Error fetching venues: ", error);
+        return [];
+    }
 };
 
 /**
@@ -35,5 +40,100 @@ type VenueData = Omit<Venue, 'id'>;
 export const addVenue = async (venue: VenueData): Promise<string> => {
     const venuesCol = collection(db, 'venues');
     const docRef = await addDoc(venuesCol, venue);
+    return docRef.id;
+};
+
+
+// --- EMPLOYEES COLLECTION ---
+
+/**
+ * Fetches all employees from the 'employees' collection in Firestore.
+ * @returns {Promise<Employee[]>} A promise that resolves to an array of employee objects.
+ */
+export const getEmployees = async (): Promise<Employee[]> => {
+    try {
+        const employeesCol = collection(db, 'employees');
+        const employeeSnapshot = await getDocs(employeesCol);
+        const employeeList = employeeSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee));
+        return employeeList;
+    } catch (error) {
+        console.error("Error fetching employees: ", error);
+        return [];
+    }
+};
+
+/**
+ * The data required to create a new employee, excluding the auto-generated ID.
+ */
+export type EmployeeData = Omit<Employee, 'id' | 'avatarUrl'>;
+
+
+/**
+ * Adds a new employee document to the 'employees' collection.
+ * @param {EmployeeData} employee - The employee data to add.
+ * @returns {Promise<string>} A promise that resolves to the new document's ID.
+ */
+export const addEmployee = async (employee: EmployeeData): Promise<string> => {
+    const employeesCol = collection(db, 'employees');
+    // Add avatarUrl placeholder
+    const employeeWithAvatar = {
+        ...employee,
+        avatarUrl: `https://picsum.photos/seed/${Math.random()}/100/100`,
+    };
+    const docRef = await addDoc(employeesCol, employeeWithAvatar);
+    return docRef.id;
+};
+
+
+// --- PER DIEM REQUESTS COLLECTION ---
+
+/**
+ * Fetches all per diem requests from the 'perdiemRequests' collection in Firestore.
+ * @returns {Promise<PerdiemRequest[]>} A promise that resolves to an array of per diem request objects.
+ */
+export const getPerDiemRequests = async (): Promise<PerdiemRequest[]> => {
+    try {
+        const requestsCol = collection(db, 'perdiemRequests');
+        const requestSnapshot = await getDocs(requestsCol);
+        const requestList = requestSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PerdiemRequest));
+        return requestList;
+    } catch (error) {
+        console.error("Error fetching per diem requests: ", error);
+        return [];
+    }
+};
+
+/**
+ * Fetches per diem requests for a specific employee.
+ * @param {string} employeeId - The ID of the employee whose requests are to be fetched.
+ * @returns {Promise<PerdiemRequest[]>} A promise that resolves to an array of per diem request objects.
+ */
+export const getPerDiemRequestsByEmployee = async (employeeId: string): Promise<PerdiemRequest[]> => {
+    try {
+        const requestsCol = collection(db, 'perdiemRequests');
+        const q = query(requestsCol, where("employeeId", "==", employeeId));
+        const requestSnapshot = await getDocs(q);
+        const requestList = requestSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PerdiemRequest));
+        return requestList;
+    } catch (error) {
+        console.error("Error fetching employee per diem requests: ", error);
+        return [];
+    }
+}
+
+
+/**
+ * The data required to create a new per diem request, excluding the auto-generated ID.
+ */
+export type PerDiemRequestData = Omit<PerdiemRequest, 'id'>;
+
+/**
+ * Adds a new per diem request document to the 'perdiemRequests' collection.
+ * @param {PerDiemRequestData} request - The request data to add.
+ * @returns {Promise<string>} A promise that resolves to the new document's ID.
+ */
+export const addPerDiemRequest = async (request: PerDiemRequestData): Promise<string> => {
+    const requestsCol = collection(db, 'perdiemRequests');
+    const docRef = await addDoc(requestsCol, request);
     return docRef.id;
 };
