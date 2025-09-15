@@ -8,6 +8,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +32,9 @@ import {
 } from "@/components/ui/select";
 import { addEmployee, EmployeeData } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
+import app from "@/lib/firebase/config";
+
+const auth = getAuth(app);
 
 
 /**
@@ -41,7 +45,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function RegistrationWizard() {
   const [step, setStep] = useState(1);
   const [idNumber, setIdNumber] = useState("");
-  const [formData, setFormData] = useState<Partial<EmployeeData>>({});
+  const [formData, setFormData] = useState<Partial<EmployeeData & { password?: string, confirmPassword?: string }>>({});
   const router = useRouter();
   const { toast } = useToast();
 
@@ -51,7 +55,11 @@ export default function RegistrationWizard() {
   const handleNext = () => {
     if (step === 1) {
       if (!/^\d{8}$/.test(idNumber)) {
-        alert("Please enter a valid 8-digit ID number.");
+        toast({
+          title: "Invalid ID Number",
+          description: "Please enter a valid 8-digit ID number.",
+          variant: "destructive",
+        });
         return;
       }
     }
@@ -83,34 +91,59 @@ export default function RegistrationWizard() {
   
   /**
    * Handles the final form submission.
-   * Prevents the default form action and redirects the user to the employee dashboard.
+   * Creates a user in Firebase Auth and then saves their profile to Firestore.
    * @param {React.FormEvent} e - The form submission event.
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const registrationData = {
-        name: `${formData.firstName} ${formData.sirName}`,
-        phoneNumber: `+254${formData.phone}`,
-        idNumber: formData.idNumber,
-        employeeNumber: formData.employeeNumber,
-        role: formData.designation,
-        dutyStation: formData.dutyStation,
-        email: formData.email,
-    } as EmployeeData;
 
-    try {
-        await addEmployee(registrationData);
+    if (formData.password !== formData.confirmPassword) {
+      toast({
+        title: "Passwords do not match",
+        description: "Please ensure your passwords match.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.email || !formData.password) {
         toast({
-            title: "Registration Successful",
-            description: "Your employee profile has been created.",
+            title: "Missing required fields",
+            description: "Please fill out all fields.",
+            variant: "destructive",
         });
-        router.push("/dashboard");
-    } catch (error) {
+        return;
+    }
+    
+    try {
+      // 1. Create user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+      const user = userCredential.user;
+
+      // 2. Save additional employee details to Firestore
+      const registrationData: EmployeeData = {
+          name: `${formData.firstName} ${formData.sirName}`,
+          phoneNumber: `+254${formData.phone}`,
+          idNumber: formData.idNumber,
+          employeeNumber: formData.employeeNumber,
+          role: formData.designation,
+          dutyStation: formData.dutyStation,
+          email: user.email!, // Use email from the created user
+      };
+
+      await addEmployee(registrationData, user.uid);
+      
+      toast({
+          title: "Registration Successful",
+          description: "Your employee account has been created.",
+      });
+      router.push("/dashboard");
+
+    } catch (error: any) {
         console.error("Registration failed:", error);
         toast({
             title: "Registration Failed",
-            description: "Could not create your employee profile. Please try again.",
+            description: error.message || "Could not create your employee account. Please try again.",
             variant: "destructive",
         });
     }
@@ -154,7 +187,7 @@ export default function RegistrationWizard() {
           </div>
           <CardTitle className="text-2xl">New Employee Registration</CardTitle>
           <CardDescription>
-            Step {step} of 2: {step === 1 ? "Personal Details" : "Employment Details"}
+            Step {step} of 2: {step === 1 ? "Personal Details" : "Employment & Security"}
           </CardDescription>
           <Progress value={progressValue} className="mt-2" />
         </CardHeader>
@@ -212,44 +245,54 @@ export default function RegistrationWizard() {
             {/* Step 2: Employment Details */}
             {step === 2 && (
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="employeeNumber">Employee Number</Label>
-                  <Input id="employeeNumber" placeholder="e.g., EMP123" required onChange={handleInputChange} />
-                </div>
-                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                   <Select required onValueChange={(value) => handleSelectChange('email', value)}>
-                    <SelectTrigger id="email">
-                      <SelectValue placeholder="Select an email" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {emails.map((email) => (
-                        <SelectItem key={email} value={email}>
-                          {email}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="designation">Designation</Label>
-                   <Select required onValueChange={(value) => handleSelectChange('designation', value)}>
-                    <SelectTrigger id="designation">
-                      <SelectValue placeholder="Select a designation" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {designations.map((designation) => (
-                        <SelectItem key={designation} value={designation}>
-                          {designation}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="dutyStation">Duty Station</Label>
-                  <Input id="dutyStation" placeholder="e.g., Nairobi" required onChange={handleInputChange} />
-                </div>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="employeeNumber">Employee Number</Label>
+                      <Input id="employeeNumber" placeholder="e.g., EMP123" required onChange={handleInputChange} />
+                    </div>
+                     <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                       <Select required onValueChange={(value) => handleSelectChange('email', value)}>
+                        <SelectTrigger id="email">
+                          <SelectValue placeholder="Select an email" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {emails.map((email) => (
+                            <SelectItem key={email} value={email}>
+                              {email}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="designation">Designation</Label>
+                       <Select required onValueChange={(value) => handleSelectChange('designation', value)}>
+                        <SelectTrigger id="designation">
+                          <SelectValue placeholder="Select a designation" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {designations.map((designation) => (
+                            <SelectItem key={designation} value={designation}>
+                              {designation}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="dutyStation">Duty Station</Label>
+                      <Input id="dutyStation" placeholder="e.g., Nairobi" required onChange={handleInputChange} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="password">Password</Label>
+                        <Input id="password" type="password" required onChange={handleInputChange} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="confirmPassword">Confirm Password</Label>
+                        <Input id="confirmPassword" type="password" required onChange={handleInputChange} />
+                    </div>
+                 </div>
               </div>
             )}
           </CardContent>

@@ -2,7 +2,7 @@
  * @file This file contains helper functions for interacting with Cloud Firestore.
  * It abstracts the logic for common database operations like getting and adding documents.
  */
-import { getFirestore, collection, getDocs, addDoc, query, where } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, addDoc, query, where, doc, setDoc } from 'firebase/firestore';
 import app from './config';
 import type { Venue, PerdiemRequest, Employee } from '../data';
 
@@ -70,18 +70,20 @@ export type EmployeeData = Omit<Employee, 'id' | 'avatarUrl'>;
 
 /**
  * Adds a new employee document to the 'employees' collection.
+ * The document ID is set to the user's UID from Firebase Authentication.
  * @param {EmployeeData} employee - The employee data to add.
- * @returns {Promise<string>} A promise that resolves to the new document's ID.
+ * @param {string} uid - The user's unique ID from Firebase Auth.
+ * @returns {Promise<void>} A promise that resolves when the document is successfully created.
  */
-export const addEmployee = async (employee: EmployeeData): Promise<string> => {
+export const addEmployee = async (employee: EmployeeData, uid: string): Promise<void> => {
     const employeesCol = collection(db, 'employees');
     // Add avatarUrl placeholder
     const employeeWithAvatar = {
         ...employee,
-        avatarUrl: `https://picsum.photos/seed/${Math.random()}/100/100`,
+        avatarUrl: `https://picsum.photos/seed/${uid}/100/100`,
     };
-    const docRef = await addDoc(employeesCol, employeeWithAvatar);
-    return docRef.id;
+    // Use the uid from Auth as the document ID
+    await setDoc(doc(employeesCol, uid), employeeWithAvatar);
 };
 
 

@@ -5,6 +5,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,6 +19,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Logo } from "@/components/logo";
+import app from "@/lib/firebase/config";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
+
+const auth = getAuth(app);
 
 /**
  * The main component for the login page, featuring separate tabs for employee and admin login.
@@ -25,15 +31,30 @@ import { Logo } from "@/components/logo";
  */
 export default function LoginPage() {
   const router = useRouter();
+  const { toast } = useToast();
+  const [employeeEmail, setEmployeeEmail] = useState("");
+  const [employeePassword, setEmployeePassword] = useState("");
+  const [adminEmail, setAdminEmail] = useState("admin@example.com");
+  const [adminPassword, setAdminPassword] = useState("password");
+
 
   /**
    * Handles the employee login form submission.
    * Prevents the default form submission and redirects the user to the employee dashboard.
    * @param {React.FormEvent} e - The form submission event.
    */
-  const handleEmployeeLogin = (e: React.FormEvent) => {
+  const handleEmployeeLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    router.push("/dashboard");
+    try {
+      await signInWithEmailAndPassword(auth, employeeEmail, employeePassword);
+      router.push("/dashboard");
+    } catch (error: any) {
+      toast({
+        title: "Login Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   /**
@@ -41,9 +62,22 @@ export default function LoginPage() {
    * Prevents the default form submission and redirects the user to the admin dashboard.
    * @param {React.FormEvent} e - The form submission event.
    */
-  const handleAdminLogin = (e: React.FormEvent) => {
+  const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    router.push("/admin");
+     try {
+      // Using a hardcoded admin check for now, but will replace with real auth
+      if (adminEmail === 'admin@example.com' && adminPassword === 'password') {
+         router.push("/admin");
+      } else {
+        throw new Error("Invalid admin credentials.");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Login Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -68,12 +102,14 @@ export default function LoginPage() {
               <form onSubmit={handleEmployeeLogin}>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label htmlFor="employee-number">Employee Number</Label>
+                    <Label htmlFor="employee-email">Email</Label>
                     <Input
-                      id="employee-number"
-                      placeholder="Your employee number"
+                      id="employee-email"
+                      type="email"
+                      placeholder="your-email@health.org"
                       required
-                      defaultValue="EMP123"
+                      value={employeeEmail}
+                      onChange={(e) => setEmployeeEmail(e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
@@ -82,7 +118,8 @@ export default function LoginPage() {
                       id="password"
                       type="password"
                       required
-                      defaultValue="password"
+                      value={employeePassword}
+                      onChange={(e) => setEmployeePassword(e.target.value)}
                     />
                   </div>
                 </div>
@@ -101,7 +138,8 @@ export default function LoginPage() {
                       type="email"
                       placeholder="admin@example.com"
                       required
-                      defaultValue="admin@example.com"
+                      value={adminEmail}
+                      onChange={(e) => setAdminEmail(e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
@@ -110,7 +148,8 @@ export default function LoginPage() {
                       id="admin-password"
                       type="password"
                       required
-                      defaultValue="password"
+                      value={adminPassword}
+                      onChange={(e) => setAdminPassword(e.target.value)}
                     />
                   </div>
                 </div>
