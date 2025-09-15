@@ -69,21 +69,21 @@ export type EmployeeData = Omit<Employee, 'id' | 'avatarUrl'>;
 
 
 /**
- * Adds a new employee document to the 'employees' collection.
+ * Adds a new employee or admin document to the 'users' collection.
  * The document ID is set to the user's UID from Firebase Authentication.
- * @param {EmployeeData} employee - The employee data to add.
+ * @param {object} userData - The user data to add.
  * @param {string} uid - The user's unique ID from Firebase Auth.
  * @returns {Promise<void>} A promise that resolves when the document is successfully created.
  */
-export const addEmployee = async (employee: EmployeeData, uid: string): Promise<void> => {
-    const employeesCol = collection(db, 'employees');
+export const addEmployee = async (userData: any, uid: string): Promise<void> => {
+    const usersCol = collection(db, 'users');
     // Add avatarUrl placeholder
-    const employeeWithAvatar = {
-        ...employee,
+    const userWithAvatar = {
+        ...userData,
         avatarUrl: `https://picsum.photos/seed/${uid}/100/100`,
     };
     // Use the uid from Auth as the document ID
-    await setDoc(doc(employeesCol, uid), employeeWithAvatar);
+    await setDoc(doc(usersCol, uid), userWithAvatar);
 };
 
 

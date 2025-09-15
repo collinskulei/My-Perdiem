@@ -16,6 +16,7 @@ export type Employee = {
   dutyStation: string;
   avatarUrl: string;
   email: string;
+  gender: string;
 };
 
 /**

@@ -1,6 +1,6 @@
 /**
- * @file This file defines the new employee registration page.
- * It features a multi-step wizard to guide users through entering their personal and employment details.
+ * @file This file defines the new user registration page.
+ * It features a dynamic form that adapts based on whether the user is registering as an Employee or an Admin.
  */
 "use client";
 
@@ -21,7 +21,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
 import { Logo } from "@/components/logo";
 import {
   Select,
@@ -30,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { addEmployee, EmployeeData } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import app from "@/lib/firebase/config";
@@ -43,33 +43,10 @@ const auth = getAuth(app);
  * @returns {JSX.Element} The rendered registration wizard.
  */
 export default function RegistrationWizard() {
-  const [step, setStep] = useState(1);
-  const [idNumber, setIdNumber] = useState("");
-  const [formData, setFormData] = useState<Partial<EmployeeData & { password?: string, confirmPassword?: string }>>({});
+  const [role, setRole] = useState("employee");
+  const [formData, setFormData] = useState<Partial<EmployeeData & { password?: string, confirmPassword?: string, organizationName?: string }>>({});
   const router = useRouter();
   const { toast } = useToast();
-
-  /**
-   * Advances the wizard to the next step, validating the ID number.
-   */
-  const handleNext = () => {
-    if (step === 1) {
-      if (!/^\d{8}$/.test(idNumber)) {
-        toast({
-          title: "Invalid ID Number",
-          description: "Please enter a valid 8-digit ID number.",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-    setStep(step + 1);
-  };
-  
-  /**
-   * Returns the wizard to the previous step.
-   */
-  const handleBack = () => setStep(step - 1);
 
   /**
    * Handles input changes and updates the form data state.
@@ -121,29 +98,50 @@ export default function RegistrationWizard() {
       const user = userCredential.user;
 
       // 2. Save additional employee details to Firestore
-      const registrationData: EmployeeData = {
+      const commonData = {
           name: `${formData.firstName} ${formData.sirName}`,
           phoneNumber: `+254${formData.phone}`,
           idNumber: formData.idNumber,
-          employeeNumber: formData.employeeNumber,
-          role: formData.designation,
-          dutyStation: formData.dutyStation,
           email: user.email!, // Use email from the created user
+          gender: formData.gender,
       };
+
+      let registrationData: any;
+
+      if (role === 'employee') {
+        registrationData = {
+          ...commonData,
+          role: formData.designation,
+          employeeNumber: formData.employeeNumber,
+          dutyStation: formData.dutyStation,
+        };
+      } else { // Admin role
+        registrationData = {
+          ...commonData,
+          role: 'Admin',
+          organizationName: formData.organizationName,
+        };
+      }
 
       await addEmployee(registrationData, user.uid);
       
       toast({
           title: "Registration Successful",
-          description: "Your employee account has been created.",
+          description: `Your ${role} account has been created.`,
       });
-      router.push("/dashboard");
+
+      if (role === 'employee') {
+        router.push("/dashboard");
+      } else {
+        router.push("/admin");
+      }
+
 
     } catch (error: any) {
         console.error("Registration failed:", error);
         toast({
             title: "Registration Failed",
-            description: error.message || "Could not create your employee account. Please try again.",
+            description: error.message || `Could not create your ${role} account. Please try again.`,
             variant: "destructive",
         });
     }
@@ -173,10 +171,8 @@ export default function RegistrationWizard() {
     "radiographer@health.org",
     "physiotherapist@health.org",
     "hospitaladministrator@health.org",
+    "admin@example.com",
   ];
-
-  // Calculate the progress bar value based on the current step.
-  const progressValue = (step / 2) * 100;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -185,136 +181,155 @@ export default function RegistrationWizard() {
           <div className="mb-4 flex justify-center">
             <Logo />
           </div>
-          <CardTitle className="text-2xl">New Employee Registration</CardTitle>
+          <CardTitle className="text-2xl">Create an Account</CardTitle>
           <CardDescription>
-            Step {step} of 2: {step === 1 ? "Personal Details" : "Employment & Security"}
+            Fill out the form below to register.
           </CardDescription>
-          <Progress value={progressValue} className="mt-2" />
         </CardHeader>
         <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
-            {/* Step 1: Personal Details */}
-            {step === 1 && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name</Label>
-                    <Input id="firstName" placeholder="e.g., John" required onChange={handleInputChange} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="middleName">Middle Name</Label>
-                    <Input id="middleName" placeholder="e.g., Owuor" onChange={handleInputChange} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="sirName">Surname</Label>
-                    <Input id="sirName" placeholder="e.g., Doe" required onChange={handleInputChange} />
-                  </div>
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+                <Label>Register as:</Label>
+                <RadioGroup defaultValue="employee" onValueChange={setRole} className="flex gap-4">
+                    <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="employee" id="role-employee" />
+                        <Label htmlFor="role-employee">Employee</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="admin" id="role-admin" />
+                        <Label htmlFor="role-admin">Admin</Label>
+                    </div>
+                </RadioGroup>
+            </div>
+            
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name</Label>
+                <Input id="firstName" placeholder="e.g., John" required onChange={handleInputChange} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="middleName">Middle Name</Label>
+                <Input id="middleName" placeholder="e.g., Owuor" onChange={handleInputChange} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sirName">Surname</Label>
+                <Input id="sirName" placeholder="e.g., Doe" required onChange={handleInputChange} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor="gender">Gender</Label>
+                    <Select required onValueChange={(value) => handleSelectChange('gender', value)}>
+                        <SelectTrigger id="gender">
+                        <SelectValue placeholder="Select gender" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="male">Male</SelectItem>
+                            <SelectItem value="female">Female</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <div className="flex items-center">
+                        <span className="inline-flex h-10 items-center rounded-l-md border border-r-0 border-input bg-background px-3 text-muted-foreground">
+                        +254
+                        </span>
+                        <Input
+                        id="phone"
+                        type="tel"
+                        placeholder="712345678"
+                        required
+                        className="rounded-l-none"
+                        onChange={handleInputChange}
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="idNumber">ID Number</Label>
+              <Input 
+                id="idNumber" 
+                placeholder="e.g., 12345678" 
+                required 
+                onChange={handleInputChange}
+                maxLength={8}
+              />
+            </div>
+            
+            {role === 'employee' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="employeeNumber">Employee Number</Label>
+                  <Input id="employeeNumber" placeholder="e.g., EMP123" required onChange={handleInputChange} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <div className="flex items-center">
-                    <span className="inline-flex h-10 items-center rounded-l-md border border-r-0 border-input bg-background px-3 text-muted-foreground">
-                      +254
-                    </span>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="712345678"
-                      required
-                      className="rounded-l-none"
-                      onChange={handleInputChange}
-                    />
-                  </div>
+                  <Label htmlFor="designation">Designation</Label>
+                   <Select required onValueChange={(value) => handleSelectChange('designation', value)}>
+                    <SelectTrigger id="designation">
+                      <SelectValue placeholder="Select a designation" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {designations.map((designation) => (
+                        <SelectItem key={designation} value={designation}>
+                          {designation}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="idNumber">ID Number</Label>
-                  <Input 
-                    id="idNumber" 
-                    placeholder="e.g., 12345678" 
-                    required 
-                    value={idNumber}
-                    onChange={(e) => {
-                      setIdNumber(e.target.value);
-                      handleInputChange(e);
-                    }}
-                    maxLength={8}
-                  />
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="dutyStation">Duty Station</Label>
+                  <Input id="dutyStation" placeholder="e.g., Nairobi" required onChange={handleInputChange} />
                 </div>
               </div>
             )}
-            {/* Step 2: Employment Details */}
-            {step === 2 && (
-              <div className="space-y-4">
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="employeeNumber">Employee Number</Label>
-                      <Input id="employeeNumber" placeholder="e.g., EMP123" required onChange={handleInputChange} />
-                    </div>
-                     <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                       <Select required onValueChange={(value) => handleSelectChange('email', value)}>
-                        <SelectTrigger id="email">
-                          <SelectValue placeholder="Select an email" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {emails.map((email) => (
-                            <SelectItem key={email} value={email}>
-                              {email}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="designation">Designation</Label>
-                       <Select required onValueChange={(value) => handleSelectChange('designation', value)}>
-                        <SelectTrigger id="designation">
-                          <SelectValue placeholder="Select a designation" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {designations.map((designation) => (
-                            <SelectItem key={designation} value={designation}>
-                              {designation}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="dutyStation">Duty Station</Label>
-                      <Input id="dutyStation" placeholder="e.g., Nairobi" required onChange={handleInputChange} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="password">Password</Label>
-                        <Input id="password" type="password" required onChange={handleInputChange} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="confirmPassword">Confirm Password</Label>
-                        <Input id="confirmPassword" type="password" required onChange={handleInputChange} />
-                    </div>
-                 </div>
-              </div>
+            
+            {role === 'admin' && (
+                <div className="space-y-2">
+                    <Label htmlFor="organizationName">Organization Name</Label>
+                    <Input id="organizationName" placeholder="e.g., Health Org Inc." required onChange={handleInputChange} />
+                </div>
             )}
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Select required onValueChange={(value) => handleSelectChange('email', value)}>
+                    <SelectTrigger id="email">
+                        <SelectValue placeholder="Select an email" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {emails.map((email) => (
+                        <SelectItem key={email} value={email}>
+                            {email}
+                        </SelectItem>
+                        ))}
+                    </SelectContent>
+                    </Select>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input id="password" type="password" required onChange={handleInputChange} />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirm Password</Label>
+                    <Input id="confirmPassword" type="password" required onChange={handleInputChange} />
+                </div>
+            </div>
           </CardContent>
           <CardFooter className="flex justify-between">
-            {step > 1 ? (
-              <Button type="button" variant="outline" onClick={handleBack}>
-                <ArrowLeft className="mr-2 h-4 w-4" /> Back
-              </Button>
-            ) : (
-                <Button variant="ghost" asChild>
-                    <Link href="/">Cancel</Link>
-                </Button>
-            )}
-            {step < 2 ? (
-              <Button type="button" onClick={handleNext}>
-                Next
-              </Button>
-            ) : (
-              <Button type="submit">
-                Submit Registration
-              </Button>
-            )}
+            <Button variant="ghost" asChild>
+                <Link href="/">Cancel</Link>
+            </Button>
+            <Button type="submit">
+              Submit Registration
+            </Button>
           </CardFooter>
         </form>
       </Card>
