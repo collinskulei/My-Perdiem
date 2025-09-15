@@ -58,7 +58,7 @@ export default function RegistrationWizard() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-2xl">
         <CardHeader>
           <div className="mb-4 flex justify-center">
             <Logo />
@@ -74,9 +74,19 @@ export default function RegistrationWizard() {
             {/* Step 1: Personal Details */}
             {step === 1 && (
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input id="name" placeholder="e.g., John Doe" required />
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="first-name">First Name</Label>
+                    <Input id="first-name" placeholder="e.g., John" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="middle-name">Middle Name</Label>
+                    <Input id="middle-name" placeholder="e.g., Owuor" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="sir-name">Surname</Label>
+                    <Input id="sir-name" placeholder="e.g., Doe" required />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number</Label>
