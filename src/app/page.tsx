@@ -1,11 +1,9 @@
 /**
  * @file This file defines the main login page for the application.
- * It presents a form for users to enter their employee number and password.
- * It also includes links to the admin login and registration pages.
+ * It presents a tabbed interface for users to log in as either an Employee or an Admin.
  */
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,23 +16,34 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Logo } from "@/components/logo";
 
 /**
- * The main component for the login page.
+ * The main component for the login page, featuring separate tabs for employee and admin login.
  * @returns {JSX.Element} The rendered login page.
  */
 export default function LoginPage() {
   const router = useRouter();
 
   /**
-   * Handles the login form submission.
+   * Handles the employee login form submission.
    * Prevents the default form submission and redirects the user to the employee dashboard.
    * @param {React.FormEvent} e - The form submission event.
    */
-  const handleLogin = (e: React.FormEvent) => {
+  const handleEmployeeLogin = (e: React.FormEvent) => {
     e.preventDefault();
     router.push("/dashboard");
+  };
+
+  /**
+   * Handles the admin login form submission.
+   * Prevents the default form submission and redirects the user to the admin dashboard.
+   * @param {React.FormEvent} e - The form submission event.
+   */
+  const handleAdminLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    router.push("/admin");
   };
 
   return (
@@ -44,50 +53,82 @@ export default function LoginPage() {
           <div className="mb-4 flex justify-center">
             <Logo />
           </div>
-          <CardTitle className="text-2xl">Welcome to My Perdiem</CardTitle>
+          <CardTitle className="text-2xl">Welcome Back</CardTitle>
           <CardDescription>
-            Enter your credentials to access your account.
+            Select your role to access your account.
           </CardDescription>
         </CardHeader>
-        <form onSubmit={handleLogin}>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="employee-number">Employee Number</Label>
-              <Input
-                id="employee-number"
-                placeholder="Your employee number"
-                required
-                defaultValue="EMP123"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                required
-                defaultValue="password"
-              />
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full">
-              Login
-            </Button>
-            <Button variant="outline" className="w-full" asChild>
-              <Link href="/admin">Login as Admin</Link>
-            </Button>
-            <p className="text-center text-sm text-muted-foreground">
-              Don't have an account?{" "}
-              <Link
-                href="/register"
-                className="font-medium text-primary underline-offset-4 hover:underline"
-              >
-                Register
-              </Link>
-            </p>
-          </CardFooter>
-        </form>
+        <CardContent>
+          <Tabs defaultValue="employee" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="employee">Employee</TabsTrigger>
+              <TabsTrigger value="admin">Admin</TabsTrigger>
+            </TabsList>
+            <TabsContent value="employee">
+              <form onSubmit={handleEmployeeLogin}>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="employee-number">Employee Number</Label>
+                    <Input
+                      id="employee-number"
+                      placeholder="Your employee number"
+                      required
+                      defaultValue="EMP123"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      required
+                      defaultValue="password"
+                    />
+                  </div>
+                </div>
+                <Button type="submit" className="w-full">
+                  Login as Employee
+                </Button>
+              </form>
+            </TabsContent>
+            <TabsContent value="admin">
+              <form onSubmit={handleAdminLogin}>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="admin@example.com"
+                      required
+                      defaultValue="admin@example.com"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="admin-password">Password</Label>
+                    <Input
+                      id="admin-password"
+                      type="password"
+                      required
+                      defaultValue="password"
+                    />
+                  </div>
+                </div>
+                <Button type="submit" className="w-full">
+                  Login as Admin
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+        <CardFooter className="flex justify-center text-sm text-muted-foreground">
+          <p>
+            Don't have an account?&nbsp;
+            <a href="/register" className="text-primary underline-offset-4 hover:underline">
+              Register
+            </a>
+          </p>
+        </CardFooter>
       </Card>
     </div>
   );
