@@ -23,10 +23,12 @@ import app from "@/lib/firebase/config";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { getEmployeeById } from "@/lib/firebase/firestore";
+import * as mock from "@/lib/mock-data";
 import { Switch } from "@/components/ui/switch";
 import { isTestMode, setTestMode } from "@/lib/test-mode";
 
 const auth = getAuth(app);
+const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
 
 /**
  * The main component for the login page, featuring separate tabs for employee and admin login.
@@ -43,13 +45,15 @@ export default function LoginPage() {
 
   useEffect(() => {
     setTestModeState(isTestMode());
+    if (isTestMode()) {
+      // Clear any previous test session on login page load
+      localStorage.removeItem(TEST_USER_ID_KEY);
+    }
   }, []);
 
   const handleTestModeChange = (checked: boolean) => {
     setTestMode(checked);
     setTestModeState(checked);
-    // You might want to reload or inform the user that a refresh is needed
-    // for the full effect, but for now, we'll just set the state.
     window.location.reload(); 
   };
 
@@ -61,6 +65,21 @@ export default function LoginPage() {
    */
   const handleEmployeeLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isTestMode()) {
+        const mockUsers = await mock.getEmployees();
+        const user = mockUsers.find(u => u.email === employeeEmail && u.role !== 'Admin');
+        if (user) {
+            localStorage.setItem(TEST_USER_ID_KEY, user.id);
+            router.push("/dashboard");
+        } else {
+            toast({
+                title: "Login Failed",
+                description: "No mock employee found with that email.",
+                variant: "destructive",
+            });
+        }
+        return;
+    }
     try {
       await signInWithEmailAndPassword(auth, employeeEmail, employeePassword);
       router.push("/dashboard");
@@ -80,6 +99,21 @@ export default function LoginPage() {
    */
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isTestMode()) {
+        const mockUsers = await mock.getEmployees();
+        const user = mockUsers.find(u => u.email === adminEmail && u.role === 'Admin');
+        if (user) {
+            localStorage.setItem(TEST_USER_ID_KEY, user.id);
+            router.push("/admin");
+        } else {
+            toast({
+                title: "Login Failed",
+                description: "No mock admin found with that email.",
+                variant: "destructive",
+            });
+        }
+        return;
+    }
      try {
       const userCredential = await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
       const user = userCredential.user;
@@ -133,16 +167,18 @@ export default function LoginPage() {
                       onChange={(e) => setEmployeeEmail(e.target.value)}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      required
-                      value={employeePassword}
-                      onChange={(e) => setEmployeePassword(e.target.value)}
-                    />
-                  </div>
+                  {!isTestMode() && (
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Password</Label>
+                      <Input
+                        id="password"
+                        type="password"
+                        required
+                        value={employeePassword}
+                        onChange={(e) => setEmployeePassword(e.target.value)}
+                      />
+                    </div>
+                  )}
                 </div>
                 <Button type="submit" className="w-full">
                   Login as Employee
@@ -153,9 +189,9 @@ export default function LoginPage() {
               <form onSubmit={handleAdminLogin}>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="admin-email">Email</Label>
                     <Input
-                      id="email"
+                      id="admin-email"
                       type="email"
                       placeholder="admin@example.com"
                       required
@@ -163,16 +199,18 @@ export default function LoginPage() {
                       onChange={(e) => setAdminEmail(e.target.value)}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="admin-password">Password</Label>
-                    <Input
-                      id="admin-password"
-                      type="password"
-                      required
-                      value={adminPassword}
-                      onChange={(e) => setAdminPassword(e.target.value)}
-                    />
-                  </div>
+                  {!isTestMode() && (
+                    <div className="space-y-2">
+                      <Label htmlFor="admin-password">Password</Label>
+                      <Input
+                        id="admin-password"
+                        type="password"
+                        required
+                        value={adminPassword}
+                        onChange={(e) => setAdminPassword(e.target.value)}
+                      />
+                    </div>
+                  )}
                 </div>
                 <Button type="submit" className="w-full">
                   Login as Admin

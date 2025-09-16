@@ -72,59 +72,66 @@ const initialPerDiemRequests: PerdiemRequest[] = [];
 
 // --- Database Initialization and Management ---
 
-let db: MockDatabase;
+let db: MockDatabase | null = null;
 
-const initializeDb = (): MockDatabase => {
-  const now = Date.now();
-  const storedTimestamp = localStorage.getItem(TIMESTAMP_KEY);
-  const storedData = localStorage.getItem(MOCK_DATA_KEY);
+const getDb = (): MockDatabase => {
+    if (typeof window === 'undefined') {
+        // Return a temporary, empty structure on the server
+        return { venues: [], employees: [], events: [], perdiemRequests: [] };
+    }
 
-  if (storedData && storedTimestamp && (now - parseInt(storedTimestamp, 10) < ONE_WEEK_MS)) {
-    // Data exists and is not expired
-    return JSON.parse(storedData);
-  } else {
-    // Data is expired or doesn't exist, reset to initial state
-    const initialDb: MockDatabase = {
-      venues: initialVenues,
-      employees: initialEmployees,
-      events: initialEvents,
-      perdiemRequests: initialPerDiemRequests,
-    };
-    localStorage.setItem(MOCK_DATA_KEY, JSON.stringify(initialDb));
-    localStorage.setItem(TIMESTAMP_KEY, now.toString());
-    return initialDb;
-  }
+    if (db) {
+        return db;
+    }
+
+    const now = Date.now();
+    const storedTimestamp = localStorage.getItem(TIMESTAMP_KEY);
+    const storedData = localStorage.getItem(MOCK_DATA_KEY);
+
+    if (storedData && storedTimestamp && (now - parseInt(storedTimestamp, 10) < ONE_WEEK_MS)) {
+        db = JSON.parse(storedData);
+    } else {
+        const initialDb: MockDatabase = {
+            venues: initialVenues,
+            employees: initialEmployees,
+            events: initialEvents,
+            perdiemRequests: initialPerDiemRequests,
+        };
+        localStorage.setItem(MOCK_DATA_KEY, JSON.stringify(initialDb));
+        localStorage.setItem(TIMESTAMP_KEY, now.toString());
+        db = initialDb;
+    }
+    return db;
 };
+
 
 const saveDb = () => {
-  localStorage.setItem(MOCK_DATA_KEY, JSON.stringify(db));
+    if (typeof window !== 'undefined') {
+        localStorage.setItem(MOCK_DATA_KEY, JSON.stringify(getDb()));
+    }
 };
-
-// Initialize the DB on module load
-db = initializeDb();
-
 
 // --- Mock API Implementation ---
 
 const generateId = () => `mock-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
 export const getVenues = async (): Promise<Venue[]> => {
-  return [...db.venues];
+  return [...getDb().venues];
 };
 
 export const addVenue = async (venue: VenueData): Promise<string> => {
   const newVenue: Venue = { id: generateId(), ...venue };
-  db.venues.push(newVenue);
+  getDb().venues.push(newVenue);
   saveDb();
   return newVenue.id;
 };
 
 export const getEmployees = async (): Promise<Employee[]> => {
-  return [...db.employees];
+  return [...getDb().employees];
 };
 
 export const getEmployeeById = async (uid: string): Promise<Employee | null> => {
-    const employee = db.employees.find(emp => emp.id === uid) || null;
+    const employee = getDb().employees.find(emp => emp.id === uid) || null;
     return employee ? {...employee} : null;
 };
 
@@ -134,14 +141,15 @@ export const addEmployee = async (userData: any, uid: string): Promise<void> => 
     avatarUrl: `https://picsum.photos/seed/${uid}/100/100`,
     ...userData,
   };
-  db.employees.push(newEmployee);
+  getDb().employees.push(newEmployee);
   saveDb();
 };
 
 export const updateEmployee = async (uid: string, dataToUpdate: Partial<Employee>): Promise<void> => {
-  const index = db.employees.findIndex(emp => emp.id === uid);
+  const dbInstance = getDb();
+  const index = dbInstance.employees.findIndex(emp => emp.id === uid);
   if (index !== -1) {
-    db.employees[index] = { ...db.employees[index], ...dataToUpdate };
+    dbInstance.employees[index] = { ...dbInstance.employees[index], ...dataToUpdate };
     saveDb();
   } else {
     throw new Error("Employee not found");
@@ -150,27 +158,28 @@ export const updateEmployee = async (uid: string, dataToUpdate: Partial<Employee
 
 export const addEvent = async (event: EventData): Promise<string> => {
     const newEvent: AppEvent = { id: generateId(), ...event };
-    db.events.push(newEvent);
+    getDb().events.push(newEvent);
     saveDb();
     return newEvent.id;
 };
 
 export const getEvents = async (): Promise<AppEvent[]> => {
-    return [...db.events];
+    return [...getDb().events];
 };
 
 export const getEventsByEmployee = async (employeeId: string): Promise<AppEvent[]> => {
-    const employeeEvents = db.events.filter(event => event.allocatedEmployees.includes(employeeId));
+    const employeeEvents = getDb().events.filter(event => event.allocatedEmployees.includes(employeeId));
     return JSON.parse(JSON.stringify(employeeEvents)); // Deep copy
 };
 
 export const checkInToEvent = async (eventId: string, employeeId: string): Promise<void> => {
-    const eventIndex = db.events.findIndex(e => e.id === eventId);
+    const dbInstance = getDb();
+    const eventIndex = dbInstance.events.findIndex(e => e.id === eventId);
     if (eventIndex !== -1) {
-        if (!db.events[eventIndex].checkedInEmployees) {
-            db.events[eventIndex].checkedInEmployees = {};
+        if (!dbInstance.events[eventIndex].checkedInEmployees) {
+            dbInstance.events[eventIndex].checkedInEmployees = {};
         }
-        db.events[eventIndex].checkedInEmployees![employeeId] = Date.now();
+        dbInstance.events[eventIndex].checkedInEmployees![employeeId] = Date.now();
         saveDb();
     } else {
         throw new Error("Event not found");
@@ -178,17 +187,17 @@ export const checkInToEvent = async (eventId: string, employeeId: string): Promi
 };
 
 export const getPerDiemRequests = async (): Promise<PerdiemRequest[]> => {
-    return [...db.perdiemRequests];
+    return [...getDb().perdiemRequests];
 };
 
 export const getPerDiemRequestsByEmployee = async (employeeId: string): Promise<PerdiemRequest[]> => {
-    const requests = db.perdiemRequests.filter(req => req.employeeId === employeeId);
+    const requests = getDb().perdiemRequests.filter(req => req.employeeId === employeeId);
     return JSON.parse(JSON.stringify(requests));
 };
 
 export const addPerDiemRequest = async (request: PerDiemRequestData): Promise<string> => {
     const newRequest: PerdiemRequest = { id: generateId(), ...request };
-    db.perdiemRequests.push(newRequest);
+    getDb().perdiemRequests.push(newRequest);
     saveDb();
     return newRequest.id;
 };

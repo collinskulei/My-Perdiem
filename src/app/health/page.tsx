@@ -18,6 +18,13 @@ import * as firestore from '@/lib/firebase/firestore';
 import * as mock from '@/lib/mock-data';
 
 const auth = getAuth(app);
+const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
+
+// Mock User shape that is compatible with Firebase User
+type MockUser = {
+    uid: string;
+}
+
 
 /**
  * The main component for the Firebase health check page.
@@ -27,7 +34,7 @@ export default function HealthCheckPage() {
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [error, setError] = useState<Error | null>(null);
   const [projectId, setProjectId] = useState<string | null>(null);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | MockUser | null>(null);
   const [testMode, setTestMode] = useState(false);
   
   const dataProvider = isTestMode() ? mock : firestore;
@@ -36,10 +43,17 @@ export default function HealthCheckPage() {
   useEffect(() => {
     setTestMode(isTestMode());
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setCurrentUser(user);
-    });
-    return () => unsubscribe();
+    if (isTestMode()) {
+        const testUserId = localStorage.getItem(TEST_USER_ID_KEY);
+        if (testUserId) {
+            setCurrentUser({ uid: testUserId });
+        }
+    } else {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            setCurrentUser(user);
+        });
+        return () => unsubscribe();
+    }
   }, []);
 
   useEffect(() => {

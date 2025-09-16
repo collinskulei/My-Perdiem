@@ -31,6 +31,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const dataProvider = isTestMode() ? mock : firestore;
 const auth = getAuth(app);
+const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
+
+// Mock User shape that is compatible with Firebase User
+type MockUser = {
+    uid: string;
+}
 
 // Form values type, making some fields optional for the form state
 type ProfileFormValues = Omit<Employee, "id" | "avatarUrl" | "email">;
@@ -41,7 +47,7 @@ type ProfileFormValues = Omit<Employee, "id" | "avatarUrl" | "email">;
  * @returns {JSX.Element} The rendered profile page.
  */
 export default function ProfilePage() {
-  const [authUser, setAuthUser] = useState<User | null>(null);
+  const [authUser, setAuthUser] = useState<User | MockUser | null>(null);
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -57,14 +63,23 @@ export default function ProfilePage() {
 
   // Authenticate user
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setAuthUser(user);
-      } else {
-        router.push("/"); // Redirect to login if not authenticated
-      }
-    });
-    return () => unsubscribe();
+    if (isTestMode()) {
+        const testUserId = localStorage.getItem(TEST_USER_ID_KEY);
+        if (testUserId) {
+            setAuthUser({ uid: testUserId });
+        } else {
+            router.push("/");
+        }
+    } else {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            if (user) {
+                setAuthUser(user);
+            } else {
+                router.push("/"); // Redirect to login if not authenticated
+            }
+        });
+        return () => unsubscribe();
+    }
   }, [router]);
 
   // Fetch employee data once authenticated

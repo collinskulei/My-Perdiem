@@ -37,25 +37,41 @@ import { cn } from "@/lib/utils";
 
 const dataProvider = isTestMode() ? mock : firestore;
 const auth = getAuth(app);
+const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
 const MILEAGE_RATE_KSH = 45;
 const DAILY_ALLOWANCE = 5000;
+
+// Mock User shape that is compatible with Firebase User
+type MockUser = {
+    uid: string;
+}
 
 export default function EmployeeDashboard() {
   const [userRequests, setUserRequests] = useState<PerdiemRequest[]>([]);
   const [myEvents, setMyEvents] = useState<AppEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<Employee | null>(null);
-  const [authUser, setAuthUser] = useState<User | null>(null);
+  const [authUser, setAuthUser] = useState<User | MockUser | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState({ title: "", description: "" });
   const { toast } = useToast();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setAuthUser(user);
-    });
-    return () => unsubscribe();
+    if (isTestMode()) {
+        const testUserId = localStorage.getItem(TEST_USER_ID_KEY);
+        if (testUserId) {
+            setAuthUser({ uid: testUserId });
+        } else {
+            // Handle case where user is not "logged in" in test mode
+            setLoading(false);
+        }
+    } else {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            setAuthUser(user);
+        });
+        return () => unsubscribe();
+    }
   }, []);
 
   const fetchData = async () => {
