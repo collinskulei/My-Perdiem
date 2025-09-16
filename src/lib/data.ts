@@ -61,10 +61,22 @@ export type PerdiemRequest = {
   eventName: string;
   location: string;
   date: string;
-  totalPerdiem: number;
   status: 'Approved' | 'Pending' | 'Rejected';
   checkInTimestamp?: number;
+
+  // Detailed financial breakdown from the wizard
+  mileageKm?: number;
+  mileageTotal?: number;
+  airTicketUrl?: string;
+  airTicketFilename?: string;
+  groundTransferUrl?: string;
+  groundTransferFilename?: string;
+  accommodationNights?: number;
+  accommodationTotal?: number;
+  outOfOfficeAllowance?: number;
+  totalPerdiem: number;
 };
+
 
 /**
  * Geographical coordinates for various duty stations. Used for mileage calculation.

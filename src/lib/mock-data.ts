@@ -119,6 +119,11 @@ export const getVenues = async (): Promise<Venue[]> => {
   return [...getDb().venues];
 };
 
+export const getVenueById = async (id: string): Promise<Venue | null> => {
+    const venue = getDb().venues.find(v => v.id === id) || null;
+    return venue ? {...venue} : null;
+};
+
 export const addVenue = async (venue: VenueData): Promise<string> => {
   const newVenue: Venue = { id: generateId(), ...venue };
   getDb().venues.push(newVenue);
@@ -171,6 +176,12 @@ export const getEventsByEmployee = async (employeeId: string): Promise<AppEvent[
     const employeeEvents = getDb().events.filter(event => event.allocatedEmployees.includes(employeeId));
     return JSON.parse(JSON.stringify(employeeEvents)); // Deep copy
 };
+
+export const getEventById = async (eventId: string): Promise<AppEvent | null> => {
+    const event = getDb().events.find(e => e.id === eventId) || null;
+    return event ? {...event} : null;
+};
+
 
 export const checkInToEvent = async (eventId: string, employeeId: string): Promise<void> => {
     const dbInstance = getDb();

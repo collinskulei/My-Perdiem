@@ -6,7 +6,9 @@
 
 import { useState, useEffect } from "react";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
-import { isToday, parseISO } from "date-fns";
+import { isToday, parseISO, isWithinInterval as isWithinDateInterval } from "date-fns";
+import { useRouter } from "next/navigation";
+
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,8 +40,6 @@ import { cn } from "@/lib/utils";
 const dataProvider = isTestMode() ? mock : firestore;
 const auth = getAuth(app);
 const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
-const MILEAGE_RATE_KSH = 45;
-const DAILY_ALLOWANCE = 5000;
 
 // Mock User shape that is compatible with Firebase User
 type MockUser = {
@@ -56,6 +56,7 @@ export default function EmployeeDashboard() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState({ title: "", description: "" });
   const { toast } = useToast();
+  const router = useRouter();
 
   useEffect(() => {
     if (isTestMode()) {
@@ -118,37 +119,8 @@ export default function EmployeeDashboard() {
     }
   };
 
-  const handleRequestPerDiem = async (event: AppEvent) => {
-    if (!authUser || !currentUser) return;
-    setIsSubmitting(event.id);
-
-    const numberOfNights = 1; // Simplified for now
-    const totalPerdiem = DAILY_ALLOWANCE * numberOfNights; // Simplified calculation
-
-    const requestData = {
-        employeeId: authUser.uid,
-        employeeName: currentUser.name,
-        eventId: event.id,
-        eventName: event.name,
-        location: event.venueCity,
-        date: new Date().toISOString().split('T')[0],
-        totalPerdiem: totalPerdiem,
-        status: 'Pending' as const,
-        checkInTimestamp: event.checkedInEmployees?.[authUser.uid],
-    };
-
-    try {
-        await dataProvider.addPerDiemRequest(requestData);
-        setSuccessMessage({ title: "Request Submitted!", description: "Your per diem request has been sent for approval." });
-        setIsSuccess(true);
-        // Refresh data
-        await fetchData();
-    } catch (error) {
-        console.error("Error submitting per diem request:", error);
-        toast({ title: "Submission Failed", description: "Could not submit your per diem request.", variant: "destructive" });
-    } finally {
-        setIsSubmitting(null);
-    }
+  const handleRequestPerDiem = (event: AppEvent) => {
+    router.push(`/request-per-diem/${event.id}`);
   };
 
   const getFirstName = (name: string | undefined) => {
@@ -161,12 +133,9 @@ export default function EmployeeDashboard() {
     today.setHours(0, 0, 0, 0); // Set to midnight to compare dates only
 
     const startDate = parseISO(event.startDate);
-    startDate.setHours(0, 0, 0, 0);
-
     const endDate = parseISO(event.endDate);
-    endDate.setHours(0, 0, 0, 0);
-
-    return today.getTime() >= startDate.getTime() && today.getTime() <= endDate.getTime();
+   
+    return isWithinDateInterval(today, { start: startDate, end: endDate });
   };
   
   const hasRequestedPerDiem = (eventId: string) => {

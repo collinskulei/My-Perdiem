@@ -28,6 +28,26 @@ export const getVenues = async (): Promise<Venue[]> => {
 };
 
 /**
+ * Fetches a single venue by its ID.
+ * @param {string} id - The document ID of the venue.
+ * @returns {Promise<Venue | null>} A promise that resolves to the venue object or null if not found.
+ */
+export const getVenueById = async (id: string): Promise<Venue | null> => {
+    try {
+        const venueDocRef = doc(db, 'venues', id);
+        const venueSnapshot = await getDoc(venueDocRef);
+        if (venueSnapshot.exists()) {
+            return { id: venueSnapshot.id, ...venueSnapshot.data() } as Venue;
+        }
+        return null;
+    } catch (error) {
+        console.error("Error fetching venue by ID: ", error);
+        return null;
+    }
+};
+
+
+/**
  * The data required to create a new venue, excluding the auto-generated ID.
  */
 export type VenueData = Omit<Venue, 'id'>;
@@ -168,6 +188,26 @@ export const getEventsByEmployee = async (employeeId: string): Promise<AppEvent[
         return [];
     }
 };
+
+/**
+ * Fetches a single event by its ID.
+ * @param {string} eventId - The document ID of the event.
+ * @returns {Promise<AppEvent | null>} A promise that resolves to the event object or null if not found.
+ */
+export const getEventById = async (eventId: string): Promise<AppEvent | null> => {
+    try {
+        const eventDocRef = doc(db, 'events', eventId);
+        const eventSnapshot = await getDoc(eventDocRef);
+        if (eventSnapshot.exists()) {
+            return { id: eventSnapshot.id, ...eventSnapshot.data() } as AppEvent;
+        }
+        return null;
+    } catch (error) {
+        console.error("Error fetching event by ID: ", error);
+        return null;
+    }
+};
+
 
 /**
  * Records an employee's check-in for a specific event.
