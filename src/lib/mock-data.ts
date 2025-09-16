@@ -41,6 +41,17 @@ const initialEmployees: Employee[] = [
         organizationName: "PerdiemPro Inc."
     },
     {
+        id: "auth-uid-admin2",
+        name: "Admin Two",
+        email: "admin2@example.com",
+        role: "Admin",
+        avatarUrl: `https://picsum.photos/seed/auth-uid-admin2/100/100`,
+        phoneNumber: "+254700000002",
+        idNumber: "00000002",
+        gender: "female",
+        organizationName: "HealthOrg LLC"
+    },
+    {
         id: "auth-uid-employee-1",
         name: "John Doe",
         email: "employee1@example.com",

@@ -182,6 +182,7 @@ export default function RegistrationWizard() {
     "employee3@example.com",
     "employee4@example.com",
     "admin@example.com",
+    "admin2@example.com",
   ];
 
   return (
