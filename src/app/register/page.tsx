@@ -169,20 +169,6 @@ export default function RegistrationWizard() {
     "Physiotherapist",
     "Hospital Administrator",
   ];
-
-  const emails = [
-    "medicaldirector@health.org",
-    "chiefnursingofficer@health.org",
-    "residentdoctor@health.org",
-    "registerednurse@health.org",
-    "clinicalofficer@health.org",
-    "pharmacist@health.org",
-    "laboratorytechnologist@health.org",
-    "radiographer@health.org",
-    "physiotherapist@health.org",
-    "hospitaladministrator@health.org",
-    "admin@example.com",
-  ];
   
   const jobGroups = ["A", "B1", "B2", "B3", "B4", "B5", "C1", "C2", "C3", "C4", "C5", "D1", "D2", "D3", "D4", "D5", "E1", "E2", "E4", "H", "J", "K", "L", "M", "N", "P", "Q", "R", "S"];
 
@@ -321,22 +307,9 @@ export default function RegistrationWizard() {
                 </div>
             )}
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Select required onValueChange={(value) => handleSelectChange('email', value)}>
-                    <SelectTrigger id="email">
-                        <SelectValue placeholder="Select an email" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {emails.map((email) => (
-                        <SelectItem key={email} value={email}>
-                            {email}
-                        </SelectItem>
-                        ))}
-                    </SelectContent>
-                    </Select>
-                </div>
+            <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" type="email" placeholder="you@example.com" required onChange={handleInputChange} />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
