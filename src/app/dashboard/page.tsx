@@ -117,12 +117,8 @@ export default function EmployeeDashboard() {
     const dateString = format(date, 'yyyy-MM-dd');
     setIsSubmitting(`${event.id}-${dateString}`);
     
-    // In Test Mode, bypass location check.
+    // In Test Mode, bypass location check and give positive feedback.
     if (isTestMode()) {
-      toast({
-        title: "Location Check Overridden",
-        description: "You are in Test Mode. The location check has been bypassed.",
-      });
       proceedWithCheckIn(event.id, authUser.uid, dateString);
       return;
     }
