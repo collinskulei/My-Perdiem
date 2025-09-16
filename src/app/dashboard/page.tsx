@@ -27,7 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { PerdiemRequest, Employee, AppEvent } from "@/lib/data";
+import type { PerdiemRequest, Employee, AppEvent, Venue } from "@/lib/data";
 import * as firestore from '@/lib/firebase/firestore';
 import * as mock from '@/lib/mock-data';
 import { isTestMode } from '@/lib/test-mode';
@@ -35,7 +35,9 @@ import app from "@/lib/firebase/config";
 import { useToast } from "@/hooks/use-toast";
 import { SuccessDialog } from "@/components/success-dialog";
 import { MapPin, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getHaversineDistance } from "@/lib/utils";
+import { useGeolocation } from "@/lib/hooks/use-geolocation";
+
 
 const dataProvider = isTestMode() ? mock : firestore;
 const auth = getAuth(app);
@@ -57,6 +59,7 @@ export default function EmployeeDashboard() {
   const [successMessage, setSuccessMessage] = useState({ title: "", description: "" });
   const { toast } = useToast();
   const router = useRouter();
+  const { latitude, longitude, error: geoError, getPosition } = useGeolocation();
 
   useEffect(() => {
     if (isTestMode()) {
@@ -102,11 +105,68 @@ export default function EmployeeDashboard() {
   }, [authUser, toast]);
   
 
-  const handleCheckIn = async (event: AppEvent) => {
+ const handleCheckIn = (event: AppEvent) => {
     if (!authUser) return;
     setIsSubmitting(event.id);
-    try {
-        await dataProvider.checkInToEvent(event.id, authUser.uid);
+    
+    // In Test Mode, bypass location check.
+    if (isTestMode()) {
+      toast({
+        title: "Location Check Overridden",
+        description: "You are in Test Mode. The location check has been bypassed.",
+      });
+      proceedWithCheckIn(event.id, authUser.uid);
+      return;
+    }
+
+    // Live mode: perform location check.
+    toast({ title: "Verifying Location", description: "Please wait while we check your location..." });
+    getPosition(); 
+  };
+  
+  useEffect(() => {
+    // This effect runs after getPosition() updates the location state.
+    const activeEventId = isSubmitting;
+    if (!activeEventId || latitude === null || longitude === null) return;
+    
+    const event = myEvents.find(e => e.id === activeEventId);
+    if (!event) return;
+
+    if (geoError) {
+        toast({ title: "Location Error", description: geoError.message, variant: "destructive" });
+        setIsSubmitting(null);
+        return;
+    }
+    
+    const checkLocationAndProceed = async () => {
+        const venue = await dataProvider.getVenueById(event.venueId);
+        if (!venue) {
+            toast({ title: "Check-in Failed", description: "Could not find event venue details.", variant: "destructive" });
+            setIsSubmitting(null);
+            return;
+        }
+
+        const distance = getHaversineDistance(latitude, longitude, venue.latitude, venue.longitude);
+        
+        if (distance <= 1000) { // 1000 meters = 1 km
+            proceedWithCheckIn(event.id, authUser!.uid);
+        } else {
+            toast({
+                title: "Check-in Failed",
+                description: `You must be within 1km of the venue to check in. You are currently about ${Math.round(distance / 1000)}km away.`,
+                variant: "destructive",
+            });
+            setIsSubmitting(null);
+        }
+    };
+    
+    checkLocationAndProceed();
+
+  }, [latitude, longitude, geoError, isSubmitting, myEvents, authUser]);
+
+  const proceedWithCheckIn = async (eventId: string, userId: string) => {
+     try {
+        await dataProvider.checkInToEvent(eventId, userId);
         setSuccessMessage({ title: "Check-in Successful!", description: "Your check-in has been recorded." });
         setIsSuccess(true);
         // Refresh data
@@ -117,7 +177,8 @@ export default function EmployeeDashboard() {
     } finally {
         setIsSubmitting(null);
     }
-  };
+  }
+
 
   const handleRequestPerDiem = (event: AppEvent) => {
     router.push(`/request-per-diem/${event.id}`);
