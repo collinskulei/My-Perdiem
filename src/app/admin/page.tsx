@@ -105,18 +105,28 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
-      const [venuesData, employeesData, requestsData] = await Promise.all([
-        getVenues(),
-        getEmployees(),
-        getPerDiemRequests()
-      ]);
-      setVenues(venuesData);
-      setEmployees(employeesData);
-      setPerdiemRequests(requestsData);
-      setLoading(false);
+      try {
+        const [venuesData, employeesData, requestsData] = await Promise.all([
+          getVenues(),
+          getEmployees(),
+          getPerDiemRequests()
+        ]);
+        setVenues(venuesData);
+        setEmployees(employeesData);
+        setPerdiemRequests(requestsData);
+      } catch (error) {
+        console.error("Failed to fetch data:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load data from the database. Please check your connection and permissions.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
     }
     fetchData();
-  }, []);
+  }, [toast]);
 
   // Effect to reset the new venue form when the dialog is opened.
   useEffect(() => {
@@ -335,6 +345,9 @@ export default function AdminDashboard() {
                     <TableHead className="hidden md:table-cell">
                       Duty Station
                     </TableHead>
+                     <TableHead className="hidden md:table-cell">
+                      Job Group
+                    </TableHead>
                     <TableHead>
                       <span className="sr-only">Actions</span>
                     </TableHead>
@@ -368,6 +381,9 @@ export default function AdminDashboard() {
                       <TableCell>{employee.role}</TableCell>
                       <TableCell className="hidden md:table-cell">
                         {employee.dutyStation}
+                      </TableCell>
+                       <TableCell className="hidden md:table-cell">
+                        {employee.jobGroup}
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>

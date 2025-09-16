@@ -123,6 +123,7 @@ export default function RegistrationWizard() {
           role: formData.designation,
           employeeNumber: formData.employeeNumber,
           dutyStation: formData.dutyStation,
+          jobGroup: formData.jobGroup,
         };
       } else { // Admin role
         registrationData = {
@@ -182,6 +183,8 @@ export default function RegistrationWizard() {
     "hospitaladministrator@health.org",
     "admin@example.com",
   ];
+  
+  const jobGroups = ["A", "B1", "B2", "B3", "B4", "B5", "C1", "C2", "C3", "C4", "C5", "D1", "D2", "D3", "D4", "D5", "E1", "E2", "E4", "H", "J", "K", "L", "M", "N", "P", "Q", "R", "S"];
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -289,7 +292,22 @@ export default function RegistrationWizard() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2 md:col-span-2">
+                 <div className="space-y-2">
+                  <Label htmlFor="jobGroup">Job Group</Label>
+                   <Select required onValueChange={(value) => handleSelectChange('jobGroup', value)}>
+                    <SelectTrigger id="jobGroup">
+                      <SelectValue placeholder="Select a job group" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {jobGroups.map((group) => (
+                        <SelectItem key={group} value={group}>
+                          {group}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="dutyStation">Duty Station</Label>
                   <Input id="dutyStation" placeholder="e.g., Nairobi" required onChange={handleInputChange} />
                 </div>

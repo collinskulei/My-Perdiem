@@ -52,7 +52,7 @@ export const addVenue = async (venue: VenueData): Promise<string> => {
  */
 export const getEmployees = async (): Promise<Employee[]> => {
     try {
-        const employeesCol = collection(db, 'employees');
+        const employeesCol = collection(db, 'users');
         const employeeSnapshot = await getDocs(employeesCol);
         const employeeList = employeeSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee));
         return employeeList;
