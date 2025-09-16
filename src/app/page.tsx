@@ -21,8 +21,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Logo } from "@/components/logo";
 import app from "@/lib/firebase/config";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { getEmployeeById } from "@/lib/firebase/firestore";
+import { Switch } from "@/components/ui/switch";
+import { isTestMode, setTestMode } from "@/lib/test-mode";
 
 const auth = getAuth(app);
 
@@ -37,6 +39,19 @@ export default function LoginPage() {
   const [employeePassword, setEmployeePassword] = useState("");
   const [adminEmail, setAdminEmail] = useState("admin@example.com");
   const [adminPassword, setAdminPassword] = useState("password");
+  const [testMode, setTestModeState] = useState(false);
+
+  useEffect(() => {
+    setTestModeState(isTestMode());
+  }, []);
+
+  const handleTestModeChange = (checked: boolean) => {
+    setTestMode(checked);
+    setTestModeState(checked);
+    // You might want to reload or inform the user that a refresh is needed
+    // for the full effect, but for now, we'll just set the state.
+    window.location.reload(); 
+  };
 
 
   /**
@@ -166,13 +181,19 @@ export default function LoginPage() {
             </TabsContent>
           </Tabs>
         </CardContent>
-        <CardFooter className="flex justify-center text-sm text-muted-foreground">
-          <p>
-            Don't have an account?&nbsp;
-            <a href="/register" className="text-primary underline-offset-4 hover:underline">
-              Register
-            </a>
-          </p>
+         <CardFooter className="flex flex-col gap-4">
+            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+              <Switch id="test-mode" checked={testMode} onCheckedChange={handleTestModeChange} />
+              <Label htmlFor="test-mode">Test Mode</Label>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              <p>
+                Don't have an account?&nbsp;
+                <a href="/register" className="text-primary underline-offset-4 hover:underline">
+                  Register
+                </a>
+              </p>
+            </div>
         </CardFooter>
       </Card>
     </div>

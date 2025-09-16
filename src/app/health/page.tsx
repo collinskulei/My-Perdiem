@@ -6,7 +6,7 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { getVenues } from "@/lib/firebase/firestore";
+import { dataProvider } from "@/lib/data-provider";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
 import app from "@/lib/firebase/config";
+import { isTestMode } from "@/lib/test-mode";
 
 const auth = getAuth(app);
 
@@ -27,8 +28,11 @@ export default function HealthCheckPage() {
   const [error, setError] = useState<Error | null>(null);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [testMode, setTestMode] = useState(false);
 
   useEffect(() => {
+    setTestMode(isTestMode());
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
     });
@@ -41,13 +45,13 @@ export default function HealthCheckPage() {
       try {
         // Set project ID from environment variable for display
         const configuredProjectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-        if (!configuredProjectId) {
+        if (!testMode && !configuredProjectId) {
             throw new Error("NEXT_PUBLIC_FIREBASE_PROJECT_ID is not set in your environment variables.");
         }
-        setProjectId(configuredProjectId);
+        setProjectId(configuredProjectId ?? "N/A (Test Mode)");
 
-        // Attempt to fetch data from Firestore
-        await getVenues();
+        // Attempt to fetch data 
+        await dataProvider.getVenues();
 
         setStatus("success");
       } catch (e: any) {
@@ -57,21 +61,32 @@ export default function HealthCheckPage() {
     }
 
     checkFirebase();
-  }, []);
+  }, [testMode]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-2xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            Firebase Health Check
+            Application Health Check
           </CardTitle>
           <CardDescription>
-            This page checks the connectivity between the app and Firebase services.
+            This page checks the connectivity and configuration of the app.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-4">
+             <div className="flex items-center justify-between rounded-lg border p-4">
+                <div className="space-y-1">
+                    <p className="font-medium">Application Mode</p>
+                     <p className="text-sm text-muted-foreground">
+                        Indicates if the app is using live data or local test data.
+                    </p>
+                </div>
+                 <Badge variant={testMode ? "destructive" : "secondary"}>
+                    {testMode ? "Test Mode" : "Live Mode"}
+                </Badge>
+             </div>
              <div className="flex items-center justify-between rounded-lg border p-4">
                 <div className="space-y-1">
                     <p className="font-medium">Project ID</p>
@@ -80,7 +95,7 @@ export default function HealthCheckPage() {
                     </p>
                 </div>
                 {projectId ? (
-                     <Badge variant="secondary">{projectId}</Badge>
+                     <Badge variant={projectId.startsWith("Not") ? "outline" : "secondary"}>{projectId}</Badge>
                 ) : (
                     <Badge variant="destructive">Not Found</Badge>
                 )}
@@ -100,9 +115,9 @@ export default function HealthCheckPage() {
              </div>
              <div className="flex items-center justify-between rounded-lg border p-4">
                 <div className="space-y-1">
-                    <p className="font-medium">Firestore Connectivity</p>
+                    <p className="font-medium">Data Store Connectivity</p>
                      <p className="text-sm text-muted-foreground">
-                        Tests reading data from the 'venues' collection.
+                        Tests reading from the primary data source ({testMode ? 'localStorage' : 'Firestore'}).
                     </p>
                 </div>
                 {status === "loading" && <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />}
@@ -116,7 +131,7 @@ export default function HealthCheckPage() {
                 <CheckCircle2 className="h-4 w-4 !text-green-600" />
               <AlertTitle className="text-green-800 dark:text-green-300">Connection Successful!</AlertTitle>
               <AlertDescription className="text-green-700 dark:text-green-400">
-                The application is successfully connected to your Firebase project and can read data from Firestore.
+                The application is successfully connected to the data source ({testMode ? 'localStorage' : 'Firestore'}).
               </AlertDescription>
             </Alert>
           )}
@@ -126,9 +141,9 @@ export default function HealthCheckPage() {
               <XCircle className="h-4 w-4" />
               <AlertTitle>Connection Failed</AlertTitle>
               <AlertDescription>
-                <p className="mb-2">The application could not connect to Firestore. This is often due to Firestore security rules.</p>
+                <p className="mb-2">The application could not connect to {testMode ? 'localStorage' : 'Firestore'}. {testMode ? 'There might be an issue with your browser.' : 'This is often due to Firestore security rules.'}</p>
                 <p className="font-mono bg-muted p-2 rounded-md text-xs">{error.message}</p>
-                <p className="mt-2">Please ensure your security rules allow authenticated users to read from the collections.</p>
+                {!testMode && <p className="mt-2">Please ensure your security rules allow authenticated users to read from the collections.</p>}
               </AlertDescription>
             </Alert>
           )}

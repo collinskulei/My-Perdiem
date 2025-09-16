@@ -21,7 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { getEmployeeById, updateEmployee } from "@/lib/firebase/firestore";
+import { dataProvider } from "@/lib/data-provider";
 import type { Employee } from "@/lib/data";
 import app from "@/lib/firebase/config";
 import { Loader2 } from "lucide-react";
@@ -69,7 +69,7 @@ export default function ProfilePage() {
     async function fetchEmployeeData() {
       if (authUser) {
         setLoading(true);
-        const employeeData = await getEmployeeById(authUser.uid);
+        const employeeData = await dataProvider.getEmployeeById(authUser.uid);
         setEmployee(employeeData);
         if (employeeData) {
           // Once data is fetched, reset the form with the employee's details
@@ -90,7 +90,7 @@ export default function ProfilePage() {
 
     setIsSaving(true);
     try {
-      await updateEmployee(authUser.uid, data);
+      await dataProvider.updateEmployee(authUser.uid, data);
       setEmployee(prev => prev ? { ...prev, ...data } : null);
       reset(data); // Resets the form's dirty state
       toast({

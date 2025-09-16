@@ -30,7 +30,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { addEmployee, EmployeeData } from "@/lib/firebase/firestore";
+import { dataProvider } from "@/lib/data-provider";
+import type { EmployeeData } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import app from "@/lib/firebase/config";
 
@@ -133,7 +134,7 @@ export default function RegistrationWizard() {
         };
       }
 
-      await addEmployee(registrationData, user.uid);
+      await dataProvider.addEmployee(registrationData, user.uid);
       
       toast({
           title: "Registration Successful",
@@ -177,6 +178,7 @@ export default function RegistrationWizard() {
     "employee2@example.com",
     "employee3@example.com",
     "employee4@example.com",
+    "admin@example.com",
   ];
 
   return (
@@ -326,7 +328,6 @@ export default function RegistrationWizard() {
                                 {email}
                             </SelectItem>
                         ))}
-                         <SelectItem value="admin@example.com">admin@example.com</SelectItem>
                     </SelectContent>
                 </Select>
             </div>

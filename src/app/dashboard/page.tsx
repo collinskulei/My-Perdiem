@@ -26,13 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { PerdiemRequest, Employee, AppEvent } from "@/lib/data";
-import { 
-    getPerDiemRequestsByEmployee, 
-    getEmployeeById,
-    getEventsByEmployee,
-    checkInToEvent,
-    addPerDiemRequest
-} from "@/lib/firebase/firestore";
+import { dataProvider } from "@/lib/data-provider";
 import app from "@/lib/firebase/config";
 import { useToast } from "@/hooks/use-toast";
 import { SuccessDialog } from "@/components/success-dialog";
@@ -67,9 +61,9 @@ export default function EmployeeDashboard() {
       setLoading(true);
       try {
         const [userData, requests, eventsData] = await Promise.all([
-          getEmployeeById(authUser.uid),
-          getPerDiemRequestsByEmployee(authUser.uid),
-          getEventsByEmployee(authUser.uid)
+          dataProvider.getEmployeeById(authUser.uid),
+          dataProvider.getPerDiemRequestsByEmployee(authUser.uid),
+          dataProvider.getEventsByEmployee(authUser.uid)
         ]);
         
         setCurrentUser(userData);
@@ -92,7 +86,7 @@ export default function EmployeeDashboard() {
     if (!authUser) return;
     setIsSubmitting(event.id);
     try {
-        await checkInToEvent(event.id, authUser.uid);
+        await dataProvider.checkInToEvent(event.id, authUser.uid);
         setSuccessMessage({ title: "Check-in Successful!", description: "Your check-in has been recorded." });
         setIsSuccess(true);
         // Refresh data
@@ -125,7 +119,7 @@ export default function EmployeeDashboard() {
     };
 
     try {
-        await addPerDiemRequest(requestData);
+        await dataProvider.addPerDiemRequest(requestData);
         setSuccessMessage({ title: "Request Submitted!", description: "Your per diem request has been sent for approval." });
         setIsSuccess(true);
         // Refresh data
