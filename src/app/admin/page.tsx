@@ -11,7 +11,7 @@ import Image from "next/image";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { DateRange } from "react-day-picker";
-import { format, differenceInCalendarDays, parseISO } from "date-fns";
+import { format, differenceInCalendarDays, parseISO, isWithinInterval, eachDayOfInterval } from "date-fns";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -303,7 +303,18 @@ export default function AdminDashboard() {
     if (!event.checkedInEmployees) return 0;
     return Object.values(event.checkedInEmployees).reduce((total, dailyCheckins) => total + Object.keys(dailyCheckins).length, 0);
   };
+  
+  const getEventDays = (event: AppEvent) => {
+    return eachDayOfInterval({
+        start: parseISO(event.startDate),
+        end: parseISO(event.endDate)
+    });
+  }
 
+  const activeEvents = events.filter(event => {
+    const today = new Date();
+    return isWithinInterval(today, { start: parseISO(event.startDate), end: parseISO(event.endDate) });
+  });
 
   return (
     <>
@@ -316,6 +327,7 @@ export default function AdminDashboard() {
         <TabsList>
           <TabsTrigger value="requests">Perdiem Requests</TabsTrigger>
           <TabsTrigger value="events">Events</TabsTrigger>
+          <TabsTrigger value="checkins">Event Check-ins</TabsTrigger>
           <TabsTrigger value="employees">Employees</TabsTrigger>
           <TabsTrigger value="venues">Venues</TabsTrigger>
         </TabsList>
@@ -428,6 +440,71 @@ export default function AdminDashboard() {
                 </Table>
             </CardContent>
            </Card>
+        </TabsContent>
+
+        <TabsContent value="checkins">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Active Event Check-ins</CardTitle>
+                    <CardDescription>View live attendance for ongoing events.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {activeEvents.length > 0 ? (
+                        <Tabs defaultValue={activeEvents[0].id}>
+                            <TabsList>
+                                {activeEvents.map(event => (
+                                    <TabsTrigger key={event.id} value={event.id}>{event.name}</TabsTrigger>
+                                ))}
+                            </TabsList>
+                            {activeEvents.map(event => {
+                                const eventDays = getEventDays(event);
+                                const allocatedEmployees = employees.filter(emp => event.allocatedEmployees.includes(emp.id));
+
+                                return (
+                                    <TabsContent key={event.id} value={event.id}>
+                                        <Card>
+                                            <CardHeader>
+                                                <CardTitle>{event.name} Attendance</CardTitle>
+                                                <CardDescription>Venue: {event.venueName}, {event.venueCity}</CardDescription>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <TableHead>Employee</TableHead>
+                                                            {eventDays.map(day => (
+                                                                <TableHead key={format(day, 'yyyy-MM-dd')} className="text-center">{format(day, 'MMM d')}</TableHead>
+                                                            ))}
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {allocatedEmployees.map(employee => (
+                                                            <TableRow key={employee.id}>
+                                                                <TableCell>{employee.name}</TableCell>
+                                                                {eventDays.map(day => {
+                                                                    const dateString = format(day, 'yyyy-MM-dd');
+                                                                    const isCheckedIn = !!event.checkedInEmployees?.[employee.id]?.[dateString];
+                                                                    return (
+                                                                        <TableCell key={dateString} className="text-center">
+                                                                            {isCheckedIn && <Check className="h-5 w-5 text-green-500 mx-auto" />}
+                                                                        </TableCell>
+                                                                    )
+                                                                })}
+                                                            </TableRow>
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+                                            </CardContent>
+                                        </Card>
+                                    </TabsContent>
+                                );
+                            })}
+                        </Tabs>
+                    ) : (
+                        <div className="text-center text-muted-foreground py-10">No active events right now.</div>
+                    )}
+                </CardContent>
+            </Card>
         </TabsContent>
 
         <TabsContent value="employees">
