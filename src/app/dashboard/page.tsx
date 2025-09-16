@@ -248,7 +248,7 @@ export default function EmployeeDashboard() {
       />
       <div className="grid flex-1 items-start gap-6">
         <div className="space-y-1">
-            <h1 className="text-3xl font-bold tracking-tight">Welcome Back, {getFirstName(currentUser?.name)}!</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Welcome Back, {getFirstName(currentUser?.name)}! (Employee)</h1>
             <p className="text-muted-foreground">Here's an overview of your events and requests.</p>
         </div>
         

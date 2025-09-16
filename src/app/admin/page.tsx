@@ -309,7 +309,7 @@ export default function AdminDashboard() {
     <>
     <div className="grid flex-1 items-start gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard (Admin)</h1>
         <ReportDialog reportData={perdiemRequests} venues={venues} onDownload={handleDownloadReport} />
       </div>
       <Tabs defaultValue="requests">
