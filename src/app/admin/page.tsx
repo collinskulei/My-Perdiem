@@ -79,6 +79,8 @@ import * as firestore from '@/lib/firebase/firestore';
 import * as mock from '@/lib/mock-data';
 import { isTestMode } from '@/lib/test-mode';
 import { cn } from "@/lib/utils";
+import { Onboarding } from "@/components/onboarding";
+import { adminOnboardingSteps } from "@/lib/onboarding-steps";
 
 const dataProvider = isTestMode() ? mock : firestore;
 
@@ -262,7 +264,7 @@ export default function AdminDashboard() {
                      doc.text(costBreakdown, data.cell.x + 2, data.cell.y + data.cell.height + 2);
                 }
             },
-             addPageContent: (data) => {
+             addPageContent: (data: any) => {
                 // This is a hacky way to add space for the extra details
                 // by increasing the row height. A more robust solution might use a custom theme.
                 (doc as any).autoTable.previous.options.rowHeight = 25; 
@@ -312,6 +314,8 @@ export default function AdminDashboard() {
   };
 
   return (
+    <>
+    <Onboarding steps={adminOnboardingSteps} storageKey="admin-onboarding-seen" />
     <div className="grid flex-1 items-start gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
@@ -511,5 +515,6 @@ export default function AdminDashboard() {
         </TabsContent>
       </Tabs>
     </div>
+    </>
   );
 }

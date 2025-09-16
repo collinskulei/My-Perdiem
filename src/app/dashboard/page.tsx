@@ -37,6 +37,8 @@ import { SuccessDialog } from "@/components/success-dialog";
 import { MapPin, Loader2 } from "lucide-react";
 import { cn, getHaversineDistance } from "@/lib/utils";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
+import { Onboarding } from "@/components/onboarding";
+import { employeeOnboardingSteps } from "@/lib/onboarding-steps";
 
 
 const dataProvider = isTestMode() ? mock : firestore;
@@ -209,6 +211,7 @@ export default function EmployeeDashboard() {
 
   return (
     <>
+      <Onboarding steps={employeeOnboardingSteps} storageKey="employee-onboarding-seen" />
       <SuccessDialog
         isOpen={isSuccess}
         onClose={handleDone}
