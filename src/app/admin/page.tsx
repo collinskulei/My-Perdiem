@@ -70,6 +70,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { PerdiemRequest, Venue, Employee, AppEvent } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
@@ -120,6 +121,7 @@ export default function AdminDashboard() {
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
   const [newEvent, setNewEvent] = useState(defaultNewEvent);
   const [eventDate, setEventDate] = useState<DateRange | undefined>();
+  const [isEmployeeSelectOpen, setEmployeeSelectOpen] = useState(false);
   
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -233,7 +235,9 @@ export default function AdminDashboard() {
     }
   };
 
- const handleEmployeeSelection = (employeeId: string) => {
+  const nonAdminEmployees = employees.filter(e => e.role !== 'Admin');
+
+  const handleEmployeeSelection = (employeeId: string) => {
     setNewEvent(prev => {
         const isSelected = prev.allocatedEmployees.includes(employeeId);
         if (isSelected) {
@@ -244,17 +248,19 @@ export default function AdminDashboard() {
     });
   };
 
-  const handleSelectAll = (isSelectingAll: boolean) => {
-    const nonAdminEmployees = employees.filter(e => e.role !== 'Admin');
-    if (isSelectingAll) {
-      setNewEvent(prev => ({ ...prev, allocatedEmployees: nonAdminEmployees.map(e => e.id) }));
+  const handleSelectAllEmployees = (checked: boolean) => {
+    if (checked) {
+      setNewEvent(prev => ({
+        ...prev,
+        allocatedEmployees: nonAdminEmployees.map(e => e.id)
+      }));
     } else {
-      setNewEvent(prev => ({ ...prev, allocatedEmployees: [] }));
+      setNewEvent(prev => ({
+        ...prev,
+        allocatedEmployees: []
+      }));
     }
   };
-
-
-  const nonAdminEmployees = employees.filter(e => e.role !== 'Admin');
 
   return (
     <div className="grid flex-1 items-start gap-4">
@@ -302,6 +308,57 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="event-date" className="text-right">Date Range</Label><Popover><PopoverTrigger asChild><Button id="date" variant={"outline"} className={cn("w-full justify-start text-left font-normal col-span-3",!eventDate && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{eventDate?.from ? (eventDate.to ? (<>{format(eventDate.from, "LLL dd, y")} - {format(eventDate.to, "LLL dd, y")}</>) : (format(eventDate.from, "LLL dd, y"))) : (<span>Pick a date range</span>)}</Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar initialFocus mode="range" defaultMonth={eventDate?.from} selected={eventDate} onSelect={setEventDate} numberOfMonths={2}/></PopoverContent></Popover></div>
                 <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="event-venue" className="text-right">Venue</Label><Select value={newEvent.venueId} onValueChange={(value) => setNewEvent({ ...newEvent, venueId: value })}><SelectTrigger className="col-span-3"><SelectValue placeholder="Select a venue" /></SelectTrigger><SelectContent>{venues.map((v) => (<SelectItem key={v.id} value={v.id}>{v.name} ({v.city})</SelectItem>))}</SelectContent></Select></div>
                 <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="event-facilitator" className="text-right">Facilitator</Label><Input id="event-facilitator" value={newEvent.facilitator} onChange={(e) => setNewEvent({ ...newEvent, facilitator: e.target.value })} className="col-span-3" /></div>
+                 <div className="grid grid-cols-4 items-center gap-4">
+                    <Label className="text-right">Assign Employees</Label>
+                    <Popover open={isEmployeeSelectOpen} onOpenChange={setEmployeeSelectOpen}>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" className="col-span-3 justify-start">
+                                <ChevronsUpDown className="mr-2 h-4 w-4" />
+                                {newEvent.allocatedEmployees.length > 0
+                                ? `${newEvent.allocatedEmployees.length} employee(s) selected`
+                                : "Select employees"}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                             <Command>
+                                <CommandInput placeholder="Search employees..." />
+                                <CommandList>
+                                    <CommandEmpty>No employees found.</CommandEmpty>
+                                    <CommandGroup>
+                                        <CommandItem
+                                          onSelect={() => handleSelectAllEmployees(newEvent.allocatedEmployees.length < nonAdminEmployees.length)}
+                                        >
+                                            <Checkbox
+                                                id="select-all"
+                                                className="mr-2"
+                                                checked={newEvent.allocatedEmployees.length === nonAdminEmployees.length}
+                                                onCheckedChange={(checked) => handleSelectAllEmployees(!!checked)}
+                                                onClick={(e) => e.stopPropagation()}
+                                            />
+                                            <span>Select All</span>
+                                        </CommandItem>
+                                    </CommandGroup>
+                                    <CommandSeparator />
+                                    <CommandGroup>
+                                        {nonAdminEmployees.map((employee) => (
+                                            <CommandItem
+                                                key={employee.id}
+                                                onSelect={() => handleEmployeeSelection(employee.id)}
+                                            >
+                                                <Checkbox
+                                                    id={`employee-${employee.id}`}
+                                                    className="mr-2"
+                                                    checked={newEvent.allocatedEmployees.includes(employee.id)}
+                                                />
+                                                <span>{employee.name}</span>
+                                            </CommandItem>
+                                        ))}
+                                    </CommandGroup>
+                                </CommandList>
+                            </Command>
+                        </PopoverContent>
+                    </Popover>
+                </div>
                 </div><DialogFooter><Button type="button" onClick={handleAddEvent}>Save Event</Button></DialogFooter></DialogContent></Dialog>
             </CardHeader>
             <CardContent>
