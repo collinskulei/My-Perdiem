@@ -1,16 +1,12 @@
 /**
  * @file This file defines the main dashboard page for an authenticated employee.
- * It displays a welcome message and a table of the user's recent per diem requests.
- * It also provides options to create a new request or download a report of existing requests.
+ * It displays a welcome message, a list of upcoming events, and a table of the user's recent per diem requests.
  */
 "use client";
 
-import Link from "next/link";
-import { PlusCircle } from "lucide-react";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
 import { useState, useEffect } from "react";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
+import { isToday, parseISO } from "date-fns";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,7 +16,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter
 } from "@/components/ui/card";
 import {
   Table,
@@ -30,137 +25,116 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { PerdiemRequest, Venue, Employee } from "@/lib/data";
-import { ReportDialog } from "@/components/report-dialog";
-import { getPerDiemRequestsByEmployee, getVenues, getEmployeeById } from "@/lib/firebase/firestore";
+import type { PerdiemRequest, Employee, AppEvent } from "@/lib/data";
+import { 
+    getPerDiemRequestsByEmployee, 
+    getEmployeeById,
+    getEventsByEmployee,
+    checkInToEvent,
+    addPerDiemRequest
+} from "@/lib/firebase/firestore";
 import app from "@/lib/firebase/config";
+import { useToast } from "@/hooks/use-toast";
+import { SuccessDialog } from "@/components/success-dialog";
+import { MapPin, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const auth = getAuth(app);
+const MILEAGE_RATE_KSH = 45;
+const DAILY_ALLOWANCE = 5000;
 
-/**
- * Converts an array of objects to a CSV formatted string.
- * @param {any[]} data - The array of objects to convert.
- * @param {string[]} columns - The columns to include in the CSV.
- * @param {string[]} columnHeaders - The display headers for the columns.
- * @returns {string} A string in CSV format.
- */
-const toCSV = (data: any[], columns: string[], columnHeaders: string[]): string => {
-  const header = columnHeaders.join(',') + '\n';
-  const rows = data.map(row =>
-    columns.map(colName => {
-      let cellData = row[colName];
-      // Handle cases where data might be missing or needs formatting
-      if (cellData === null || cellData === undefined) {
-        return '""';
-      }
-      // Escape commas and quotes
-      cellData = String(cellData).replace(/"/g, '""');
-      if (String(cellData).includes(',')) {
-        cellData = `"${cellData}"`;
-      }
-      return cellData;
-    }).join(',')
-  ).join('\n');
-
-  return header + rows;
-};
-
-/**
- * The main dashboard component for an employee.
- * It filters and displays per diem requests for the logged-in user.
- * @returns {JSX.Element} The rendered employee dashboard page.
- */
 export default function EmployeeDashboard() {
   const [userRequests, setUserRequests] = useState<PerdiemRequest[]>([]);
-  const [venues, setVenues] = useState<Venue[]>([]);
+  const [myEvents, setMyEvents] = useState<AppEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<Employee | null>(null);
   const [authUser, setAuthUser] = useState<User | null>(null);
-
+  const [isSubmitting, setIsSubmitting] = useState<string | null>(null);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState({ title: "", description: "" });
+  const { toast } = useToast();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setAuthUser(user);
-      } else {
-        // Redirect to login if not authenticated
-        // router.push('/');
-      }
+      setAuthUser(user);
     });
-
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    async function fetchData() {
+  const fetchData = async () => {
       if (!authUser) return;
 
       setLoading(true);
       try {
-        const [userData, requests, venuesData] = await Promise.all([
+        const [userData, requests, eventsData] = await Promise.all([
           getEmployeeById(authUser.uid),
           getPerDiemRequestsByEmployee(authUser.uid),
-          getVenues()
+          getEventsByEmployee(authUser.uid)
         ]);
         
         setCurrentUser(userData);
         setUserRequests(requests);
-        setVenues(venuesData);
+        setMyEvents(eventsData);
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
+         toast({ title: "Error", description: "Could not load dashboard data.", variant: "destructive" });
       } finally {
         setLoading(false);
       }
     }
+
+  useEffect(() => {
     fetchData();
-  }, [authUser]);
+  }, [authUser, toast]);
   
 
-  /**
-   * Generates and downloads a report of the user's per diem requests.
-   * @param {PerdiemRequest[]} filteredData - The data to include in the report, pre-filtered by the ReportDialog.
-   * @param {'pdf' | 'csv'} format - The desired report format.
-   */
-  const handleDownloadReport = (filteredData: PerdiemRequest[], format: 'pdf' | 'csv') => {
-    if (format === 'pdf') {
-      const doc = new jsPDF();
-      doc.text("My Perdiem Requests Report", 14, 16);
-      
-      const tableColumn = ["Date", "Event", "Location", "Amount", "Status"];
-      const tableRows: (string | number)[][] = [];
-  
-      filteredData.forEach(request => {
-        const requestData = [
-          request.date,
-          request.eventName,
-          request.location,
-          `Ksh ${request.totalPerdiem.toLocaleString()}`,
-          request.status
-        ];
-        tableRows.push(requestData);
-      });
-  
-      (doc as any).autoTable({
-          head: [tableColumn],
-          body: tableRows,
-          startY: 20,
-      });
-      
-      doc.save("my_perdiem_requests_report.pdf");
-    } else if (format === 'csv') {
-      const columns = ["date", "eventName", "location", "totalPerdiem", "status"];
-      const columnHeaders = ["Date", "Event", "Location", "Amount (Ksh)", "Status"];
-      const csvData = toCSV(filteredData, columns, columnHeaders);
-      
-      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', 'my_perdiem_requests_report.csv');
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+  const handleCheckIn = async (event: AppEvent) => {
+    if (!authUser) return;
+    setIsSubmitting(event.id);
+    try {
+        await checkInToEvent(event.id, authUser.uid);
+        setSuccessMessage({ title: "Check-in Successful!", description: "Your check-in has been recorded." });
+        setIsSuccess(true);
+        // Refresh data
+        await fetchData();
+    } catch (error) {
+        console.error("Error checking in:", error);
+        toast({ title: "Check-in Failed", description: "Could not record your check-in.", variant: "destructive" });
+    } finally {
+        setIsSubmitting(null);
+    }
+  };
+
+  const handleRequestPerDiem = async (event: AppEvent) => {
+    if (!authUser || !currentUser) return;
+    setIsSubmitting(event.id);
+
+    const numberOfNights = 1; // Simplified for now
+    const totalPerdiem = DAILY_ALLOWANCE * numberOfNights; // Simplified calculation
+
+    const requestData = {
+        employeeId: authUser.uid,
+        employeeName: currentUser.name,
+        eventId: event.id,
+        eventName: event.name,
+        location: event.venueCity,
+        date: new Date().toISOString().split('T')[0],
+        totalPerdiem: totalPerdiem,
+        status: 'Pending' as const,
+        checkInTimestamp: event.checkedInEmployees?.[authUser.uid],
+    };
+
+    try {
+        await addPerDiemRequest(requestData);
+        setSuccessMessage({ title: "Request Submitted!", description: "Your per diem request has been sent for approval." });
+        setIsSuccess(true);
+        // Refresh data
+        await fetchData();
+    } catch (error) {
+        console.error("Error submitting per diem request:", error);
+        toast({ title: "Submission Failed", description: "Could not submit your per diem request.", variant: "destructive" });
+    } finally {
+        setIsSubmitting(null);
     }
   };
 
@@ -169,85 +143,119 @@ export default function EmployeeDashboard() {
     return name.split(" ")[0];
   };
 
+  const isCheckInActive = (event: AppEvent) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const startDate = parseISO(event.startDate);
+    startDate.setHours(0, 0, 0, 0);
+    return today.getTime() === startDate.getTime();
+  };
+  
+  const hasRequestedPerDiem = (eventId: string) => {
+    return userRequests.some(req => req.eventId === eventId);
+  }
+
+  const handleDone = () => {
+    setIsSuccess(false);
+  };
 
   return (
-    <div className="grid flex-1 items-start gap-4">
-      <div className="flex items-center justify-between">
+    <>
+      <SuccessDialog
+        isOpen={isSuccess}
+        onClose={handleDone}
+        title={successMessage.title}
+        description={successMessage.description}
+      />
+      <div className="grid flex-1 items-start gap-6">
         <div className="space-y-1">
             <h1 className="text-3xl font-bold tracking-tight">Welcome Back, {getFirstName(currentUser?.name)}!</h1>
-            <p className="text-muted-foreground">Here's a list of your recent perdiem requests.</p>
+            <p className="text-muted-foreground">Here's an overview of your events and requests.</p>
         </div>
-        <div className="flex items-center gap-2">
-            {/* ReportDialog handles filtering logic and triggers onDownload */}
-            <ReportDialog 
-              reportData={userRequests}
-              venues={venues}
-              onDownload={handleDownloadReport}
-            />
-            <Button asChild>
-              <Link href="/dashboard/request">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                New Perdiem Request
-              </Link>
-            </Button>
-        </div>
-      </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Requests</CardTitle>
-          <CardDescription>
-            Your perdiem requests from the last 90 days.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Event</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="hidden md:table-cell">Date</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
+        
+        <Card>
+            <CardHeader>
+                <CardTitle>My Upcoming Events</CardTitle>
+                <CardDescription>Events you have been allocated to. You can check-in on the event date.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader><TableRow><TableHead>Event</TableHead><TableHead>Venue</TableHead><TableHead>Date</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                        {loading ? ( <TableRow><TableCell colSpan={4} className="h-24 text-center">Loading your events...</TableCell></TableRow>
+                        ) : myEvents.length === 0 ? (
+                            <TableRow><TableCell colSpan={4} className="h-24 text-center">You have no upcoming events.</TableCell></TableRow>
+                        ) : myEvents.map((event) => {
+                            const isCheckedIn = !!event.checkedInEmployees?.[authUser?.uid ?? ''];
+                            const canCheckIn = isCheckInActive(event) && !isCheckedIn;
+                            const canRequestPerDiem = isCheckedIn && !hasRequestedPerDiem(event.id);
+
+                            return (
+                                <TableRow key={event.id}>
+                                    <TableCell className="font-medium">{event.name}</TableCell>
+                                    <TableCell>{event.venueName}</TableCell>
+                                    <TableCell>{event.startDate}</TableCell>
+                                    <TableCell className="text-right">
+                                        {isCheckedIn && !canRequestPerDiem && <Badge variant="secondary">Checked-in</Badge>}
+                                        <div className="flex gap-2 justify-end">
+                                        <Button size="sm" onClick={() => handleCheckIn(event)} disabled={!canCheckIn || !!isSubmitting} className={cn(!canCheckIn && "opacity-50")}>
+                                          {isSubmitting === event.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MapPin className="mr-2 h-4 w-4" />}
+                                           Check-in
+                                        </Button>
+                                        {canRequestPerDiem && (
+                                            <Button size="sm" onClick={() => handleRequestPerDiem(event)} disabled={!!isSubmitting}>
+                                                {isSubmitting === event.id && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                                Request Per Diem
+                                            </Button>
+                                        )}
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            )
+                        })}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Per Diem Requests</CardTitle>
+            <CardDescription>
+              Your submitted per diem requests.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
-                    Loading your requests...
-                  </TableCell>
+                  <TableHead>Event</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="hidden md:table-cell">Date</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
                 </TableRow>
-              ) : userRequests.map((request) => (
-                <TableRow key={request.id}>
-                  <TableCell>
-                    <div className="font-medium">{request.eventName}</div>
-                    <div className="hidden text-sm text-muted-foreground md:inline">
-                      {request.location}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {/* Badge color changes based on request status */}
-                    <Badge variant={
-                      request.status === "Approved" ? "secondary" :
-                      request.status === "Pending" ? "outline" : "destructive"
-                    }>
-                      {request.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    {request.date}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    Ksh {request.totalPerdiem.toLocaleString()}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-        <CardFooter className="flex justify-center border-t p-4">
-          <Button size="sm" variant="ghost">View All Requests</Button>
-        </CardFooter>
-      </Card>
-    </div>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow><TableCell colSpan={4} className="h-24 text-center">Loading your requests...</TableCell></TableRow>
+                ) : userRequests.map((request) => (
+                  <TableRow key={request.id}>
+                    <TableCell>
+                      <div className="font-medium">{request.eventName}</div>
+                      <div className="hidden text-sm text-muted-foreground md:inline">{request.location}</div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={request.status === "Approved" ? "secondary" : request.status === "Pending" ? "outline" : "destructive"}>{request.status}</Badge>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">{request.date}</TableCell>
+                    <TableCell className="text-right">Ksh {request.totalPerdiem.toLocaleString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+    </>
   );
 }

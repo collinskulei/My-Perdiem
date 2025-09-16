@@ -34,12 +34,30 @@ export type Venue = {
 };
 
 /**
+ * Represents an event created by an admin.
+ */
+export type AppEvent = {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  venueId: string;
+  venueName: string;
+  venueCity: string;
+  facilitator: string;
+  allocatedEmployees: string[]; // Array of employee IDs
+  checkedInEmployees?: { [employeeId: string]: number }; // employeeId: checkInTimestamp
+};
+
+
+/**
  * Represents a single per diem request submitted by an employee.
  */
 export type PerdiemRequest = {
   id: string;
   employeeId: string;
   employeeName: string;
+  eventId: string;
   eventName: string;
   location: string;
   date: string;

@@ -6,7 +6,6 @@
 
 import {
   Bell,
-  FilePlus2,
   Home,
   LogOut,
   Landmark,
@@ -57,12 +56,6 @@ export default function DashboardLayout({
               <SidebarMenuButton href="/dashboard" isActive>
                 <Home />
                 Dashboard
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton href="/dashboard/request">
-                <FilePlus2 />
-                New Request
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
