@@ -30,11 +30,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { dataProvider } from "@/lib/data-provider";
+import * as firestore from '@/lib/firebase/firestore';
+import * as mock from '@/lib/mock-data';
+import { isTestMode } from '@/lib/test-mode';
 import type { EmployeeData } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import app from "@/lib/firebase/config";
 
+const dataProvider = isTestMode() ? mock : firestore;
 const auth = getAuth(app);
 
 

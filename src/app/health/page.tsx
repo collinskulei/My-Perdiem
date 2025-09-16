@@ -6,7 +6,6 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { dataProvider } from "@/lib/data-provider";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -15,9 +14,10 @@ import { Button } from "@/components/ui/button";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
 import app from "@/lib/firebase/config";
 import { isTestMode } from "@/lib/test-mode";
+import * as firestore from '@/lib/firebase/firestore';
+import * as mock from '@/lib/mock-data';
 
 const auth = getAuth(app);
-
 
 /**
  * The main component for the Firebase health check page.
@@ -29,6 +29,9 @@ export default function HealthCheckPage() {
   const [projectId, setProjectId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [testMode, setTestMode] = useState(false);
+  
+  const dataProvider = isTestMode() ? mock : firestore;
+
 
   useEffect(() => {
     setTestMode(isTestMode());
@@ -61,7 +64,7 @@ export default function HealthCheckPage() {
     }
 
     checkFirebase();
-  }, [testMode]);
+  }, [testMode, dataProvider]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">

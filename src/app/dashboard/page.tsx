@@ -26,13 +26,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { PerdiemRequest, Employee, AppEvent } from "@/lib/data";
-import { dataProvider } from "@/lib/data-provider";
+import * as firestore from '@/lib/firebase/firestore';
+import * as mock from '@/lib/mock-data';
+import { isTestMode } from '@/lib/test-mode';
 import app from "@/lib/firebase/config";
 import { useToast } from "@/hooks/use-toast";
 import { SuccessDialog } from "@/components/success-dialog";
 import { MapPin, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const dataProvider = isTestMode() ? mock : firestore;
 const auth = getAuth(app);
 const MILEAGE_RATE_KSH = 45;
 const DAILY_ALLOWANCE = 5000;

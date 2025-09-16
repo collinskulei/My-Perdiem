@@ -21,12 +21,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { dataProvider } from "@/lib/data-provider";
+import * as firestore from '@/lib/firebase/firestore';
+import * as mock from '@/lib/mock-data';
+import { isTestMode } from '@/lib/test-mode';
 import type { Employee } from "@/lib/data";
 import app from "@/lib/firebase/config";
 import { Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
+const dataProvider = isTestMode() ? mock : firestore;
 const auth = getAuth(app);
 
 // Form values type, making some fields optional for the form state

@@ -73,8 +73,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { PerdiemRequest, Venue, Employee, AppEvent } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { ReportDialog } from "@/components/report-dialog";
-import { dataProvider } from "@/lib/data-provider";
+import * as firestore from '@/lib/firebase/firestore';
+import * as mock from '@/lib/mock-data';
+import { isTestMode } from '@/lib/test-mode';
 import { cn } from "@/lib/utils";
+
+const dataProvider = isTestMode() ? mock : firestore;
 
 const kenyanCounties = [
     "Mombasa", "Kwale", "Kilifi", "Tana River", "Lamu", "Taita-Taveta", "Garissa", "Wajir",
