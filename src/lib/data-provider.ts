@@ -29,6 +29,9 @@ interface DataProvider {
   addPerDiemRequest: typeof firestore.addPerDiemRequest;
 }
 
+const liveDataProvider: DataProvider = firestore;
+const testDataProvider: DataProvider = mock;
+
 /**
  * A singleton object that exposes the correct data handling functions
  * based on the current application mode (live or test).
@@ -36,4 +39,4 @@ interface DataProvider {
  * All application components should use this `dataProvider` for any data
  * interactions, rather than calling the firestore or mock functions directly.
  */
-export const dataProvider: DataProvider = isTestMode() ? mock : firestore;
+export const dataProvider: DataProvider = isTestMode() ? testDataProvider : liveDataProvider;
