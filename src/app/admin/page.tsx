@@ -375,7 +375,7 @@ export default function AdminDashboard() {
                 <TableBody>
                    {loading ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="h-24 text-center">
+                      <TableCell colSpan={6} className="h-24 text-center">
                         Loading employees...
                       </TableCell>
                     </TableRow>
