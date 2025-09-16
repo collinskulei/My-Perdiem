@@ -341,13 +341,20 @@ export const checkInToEvent = async (eventId: string, employeeId: string, dateSt
     const eventIndex = dbInstance.events.findIndex(e => e.id === eventId);
     if (eventIndex !== -1) {
         const event = dbInstance.events[eventIndex];
+        
+        // Ensure checkedInEmployees is an object
         if (!event.checkedInEmployees) {
             event.checkedInEmployees = {};
         }
-        if (!event.checkedInEmployees[employeeId]) {
+
+        // Ensure the record for the employeeId is an object
+        if (typeof event.checkedInEmployees[employeeId] !== 'object' || event.checkedInEmployees[employeeId] === null) {
             event.checkedInEmployees[employeeId] = {};
         }
+
+        // Now it's safe to set the property
         event.checkedInEmployees[employeeId][dateString] = Date.now();
+        
         saveDb();
     } else {
         throw new Error("Event not found");
@@ -359,7 +366,7 @@ export const getPerDiemRequests = async (): Promise<PerdiemRequest[]> => {
     return [...getDb().perdiemRequests];
 };
 
-export const getPerDiemRequestsByEmployee = async (employeeId: string): Promise<PerDiemRequest[]> => {
+export const getPerDiemRequestsByEmployee = async (employeeId: string): Promise<PerdiemRequest[]> => {
     const requests = getDb().perdiemRequests.filter(req => req.employeeId === employeeId);
     return JSON.parse(JSON.stringify(requests));
 };
@@ -381,5 +388,3 @@ export const updatePerDiemRequest = async (requestId: string, dataToUpdate: Part
         throw new Error("Request not found");
     }
 };
-
-    
