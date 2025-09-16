@@ -61,7 +61,7 @@ export type PerdiemRequest = {
   eventName: string;
   location: string;
   date: string;
-  status: 'Approved' | 'Pending' | 'Rejected';
+  status: 'Approved' | 'Pending' | 'Rejected' | 'Paid';
   checkInTimestamp?: number;
 
   // Detailed financial breakdown from the wizard

@@ -340,3 +340,14 @@ export const addPerDiemRequest = async (request: PerDiemRequestData): Promise<st
     saveDb();
     return newRequest.id;
 };
+
+export const updatePerDiemRequest = async (requestId: string, dataToUpdate: Partial<PerdiemRequest>): Promise<void> => {
+    const dbInstance = getDb();
+    const index = dbInstance.perdiemRequests.findIndex(req => req.id === requestId);
+    if (index !== -1) {
+        dbInstance.perdiemRequests[index] = { ...dbInstance.perdiemRequests[index], ...dataToUpdate };
+        saveDb();
+    } else {
+        throw new Error("Request not found");
+    }
+};

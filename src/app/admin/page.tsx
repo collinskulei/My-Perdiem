@@ -5,7 +5,7 @@
  */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
 import Image from "next/image";
 import jsPDF from "jspdf";
@@ -209,57 +209,106 @@ export default function AdminDashboard() {
     }
   };
 
+  const updateRequestStatus = useCallback(async (requestId: string, status: 'Approved' | 'Rejected' | 'Paid') => {
+    try {
+      await dataProvider.updatePerDiemRequest(requestId, { status });
+      setPerdiemRequests(prev => prev.map(req => req.id === requestId ? { ...req, status } : req));
+      toast({ title: "Success", description: `Request status updated to ${status}.` });
+    } catch (error) {
+      console.error(`Error updating status for request ${requestId}:`, error);
+      toast({ title: "Error", description: "Failed to update request status.", variant: "destructive" });
+    }
+  }, [toast]);
+
 
   const handleDownloadReport = (filteredData: PerdiemRequest[], format: 'pdf' | 'csv') => {
+    const detailedData = filteredData.map(req => {
+        const event = events.find(e => e.id === req.eventId);
+        return {
+            ...req,
+            eventStartDate: event?.startDate || 'N/A',
+            eventEndDate: event?.endDate || 'N/A',
+            eventFacilitator: event?.facilitator || 'N/A',
+        };
+    });
+
     if (format === 'pdf') {
-      const doc = new jsPDF();
-      doc.text("Perdiem Requests Report", 14, 16);
-      const tableColumn = ["Date", "Employee", "Event", "Location", "Amount", "Status"];
-      const tableRows: (string | number)[][] = filteredData.map(req => [
-        req.date, req.employeeName, req.eventName, req.location, `Ksh ${req.totalPerdiem.toLocaleString()}`, req.status
-      ]);
-      (doc as any).autoTable({ head: [tableColumn], body: tableRows, startY: 20 });
-      doc.save("perdiem_requests_report.pdf");
+        const doc = new jsPDF();
+        doc.text("Perdiem Requests Report", 14, 16);
+        const tableColumn = ["Date", "Employee", "Event", "Event Dates", "Amount", "Status"];
+        const tableRows = detailedData.map(req => [
+            req.date, 
+            req.employeeName, 
+            req.eventName, 
+            `${req.eventStartDate} to ${req.eventEndDate}`,
+            `Ksh ${req.totalPerdiem.toLocaleString()}`, 
+            req.status
+        ]);
+        (doc as any).autoTable({ 
+            head: [tableColumn], 
+            body: tableRows, 
+            startY: 20,
+            didDrawCell: (data: any) => {
+                if (data.section === 'body' && data.column.index === tableColumn.length -1) { // After last column
+                    const req = detailedData[data.row.index];
+                    const costBreakdown = `
+                        Facilitator: ${req.eventFacilitator}
+                        --- Cost Breakdown ---
+                        Mileage: Ksh ${req.mileageTotal?.toLocaleString() || 0}
+                        Accommodation: Ksh ${req.accommodationTotal?.toLocaleString() || 0}
+                        Allowance: Ksh ${req.outOfOfficeAllowance?.toLocaleString() || 0}
+                    `;
+                     doc.setFontSize(8);
+                     doc.text(costBreakdown, data.cell.x + 2, data.cell.y + data.cell.height + 2);
+                }
+            },
+             addPageContent: (data) => {
+                // This is a hacky way to add space for the extra details
+                // by increasing the row height. A more robust solution might use a custom theme.
+                (doc as any).autoTable.previous.options.rowHeight = 25; 
+            },
+        });
+        doc.save("perdiem_requests_report.pdf");
     } else if (format === 'csv') {
-      const columns = ["date", "employeeName", "eventName", "location", "totalPerdiem", "status"];
-      const columnHeaders = ["Date", "Employee Name", "Event", "Location", "Amount (Ksh)", "Status"];
-      const csvData = toCSV(filteredData, columns, columnHeaders);
-      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', 'perdiem_requests_report.csv');
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+        const columns = [
+            "date", "employeeName", "eventName", "eventStartDate", "eventEndDate", "eventFacilitator",
+            "location", "mileageTotal", "accommodationTotal", "outOfOfficeAllowance", 
+            "totalPerdiem", "status"
+        ];
+        const columnHeaders = [
+            "Request Date", "Employee Name", "Event", "Event Start", "Event End", "Facilitator",
+            "Location", "Mileage (Ksh)", "Accommodation (Ksh)", "Allowance (Ksh)",
+            "Total Amount (Ksh)", "Status"
+        ];
+        const csvData = toCSV(detailedData, columns, columnHeaders);
+        const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'perdiem_requests_report.csv');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
   };
 
   const nonAdminEmployees = employees.filter(e => e.role !== 'Admin');
 
-  const handleEmployeeSelection = (employeeId: string) => {
+  const handleSelectEmployee = useCallback((employeeId: string) => {
     setNewEvent(prev => {
-        const isSelected = prev.allocatedEmployees.includes(employeeId);
-        if (isSelected) {
-            return { ...prev, allocatedEmployees: prev.allocatedEmployees.filter(id => id !== employeeId) };
-        } else {
-            return { ...prev, allocatedEmployees: [...prev.allocatedEmployees, employeeId] };
-        }
+        const newSelection = prev.allocatedEmployees.includes(employeeId)
+            ? prev.allocatedEmployees.filter(id => id !== employeeId)
+            : [...prev.allocatedEmployees, employeeId];
+        return { ...prev, allocatedEmployees: newSelection };
     });
-  };
+  }, []);
 
-  const handleSelectAllEmployees = (checked: boolean) => {
-    if (checked) {
-      setNewEvent(prev => ({
-        ...prev,
-        allocatedEmployees: nonAdminEmployees.map(e => e.id)
-      }));
-    } else {
-      setNewEvent(prev => ({
-        ...prev,
-        allocatedEmployees: []
-      }));
-    }
+  const handleSelectAllEmployees = (check: boolean | string) => {
+     if (check) {
+        setNewEvent(prev => ({ ...prev, allocatedEmployees: nonAdminEmployees.map(e => e.id) }));
+     } else {
+        setNewEvent(prev => ({ ...prev, allocatedEmployees: [] }));
+     }
   };
 
   return (
@@ -286,10 +335,32 @@ export default function AdminDashboard() {
                     <TableRow key={request.id}>
                       <TableCell><div className="font-medium">{request.employeeName}</div><div className="hidden text-sm text-muted-foreground md:inline">ID: {request.employeeId}</div></TableCell>
                       <TableCell>{request.eventName}</TableCell>
-                      <TableCell><Badge variant={request.status === "Approved" ? "secondary" : request.status === "Pending" ? "outline" : "destructive"}>{request.status}</Badge></TableCell>
+                      <TableCell><Badge variant={request.status === "Approved" ? "secondary" : request.status === "Pending" ? "outline" : request.status === "Paid" ? "default" : "destructive"}>{request.status}</Badge></TableCell>
                       <TableCell className="hidden md:table-cell">{request.date}</TableCell>
                       <TableCell className="text-right">Ksh {request.totalPerdiem.toLocaleString()}</TableCell>
-                      <TableCell><DropdownMenu><DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuLabel>Actions</DropdownMenuLabel><DropdownMenuItem>Approve</DropdownMenuItem><DropdownMenuItem>Reject</DropdownMenuItem><DropdownMenuItem>View Details</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>
+                       <TableCell>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button aria-haspopup="true" size="icon" variant="ghost">
+                                        <MoreHorizontal className="h-4 w-4" />
+                                        <span className="sr-only">Toggle menu</span>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                    <DropdownMenuItem onSelect={() => updateRequestStatus(request.id, 'Approved')} disabled={request.status === 'Approved' || request.status === 'Paid'}>
+                                        Approve
+                                    </DropdownMenuItem>
+                                     <DropdownMenuItem onSelect={() => updateRequestStatus(request.id, 'Paid')} disabled={request.status !== 'Approved'}>
+                                        Mark as Paid
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => updateRequestStatus(request.id, 'Rejected')} disabled={request.status === 'Rejected'}>
+                                        Reject
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem>View Details</DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -312,28 +383,22 @@ export default function AdminDashboard() {
                     <Label className="text-right">Assign Employees</Label>
                     <Popover open={isEmployeeSelectOpen} onOpenChange={setEmployeeSelectOpen}>
                         <PopoverTrigger asChild>
-                            <Button variant="outline" className="col-span-3 justify-start">
+                            <Button variant="outline" className="col-span-3 justify-start text-left font-normal">
                                 <ChevronsUpDown className="mr-2 h-4 w-4" />
-                                {newEvent.allocatedEmployees.length > 0
-                                ? `${newEvent.allocatedEmployees.length} employee(s) selected`
-                                : "Select employees"}
+                                {newEvent.allocatedEmployees.length > 0 ? `${newEvent.allocatedEmployees.length} selected` : "Select employees"}
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                             <Command>
+                            <Command>
                                 <CommandInput placeholder="Search employees..." />
                                 <CommandList>
                                     <CommandEmpty>No employees found.</CommandEmpty>
                                     <CommandGroup>
-                                        <CommandItem
-                                          onSelect={() => handleSelectAllEmployees(newEvent.allocatedEmployees.length < nonAdminEmployees.length)}
-                                          className="cursor-pointer"
-                                        >
+                                        <CommandItem onSelect={() => handleSelectAllEmployees(newEvent.allocatedEmployees.length < nonAdminEmployees.length)}>
                                             <Checkbox
-                                                id="select-all"
                                                 className="mr-2"
-                                                checked={newEvent.allocatedEmployees.length === nonAdminEmployees.length && nonAdminEmployees.length > 0}
-                                                onCheckedChange={(checked) => handleSelectAllEmployees(!!checked)}
+                                                checked={newEvent.allocatedEmployees.length > 0 && newEvent.allocatedEmployees.length === nonAdminEmployees.length}
+                                                readOnly
                                             />
                                             <span>Select All</span>
                                         </CommandItem>
@@ -343,13 +408,12 @@ export default function AdminDashboard() {
                                         {nonAdminEmployees.map((employee) => (
                                             <CommandItem
                                                 key={employee.id}
-                                                onSelect={() => handleEmployeeSelection(employee.id)}
-                                                className="cursor-pointer"
+                                                onSelect={() => handleSelectEmployee(employee.id)}
                                             >
                                                 <Checkbox
-                                                    id={`employee-${employee.id}`}
                                                     className="mr-2"
                                                     checked={newEvent.allocatedEmployees.includes(employee.id)}
+                                                    readOnly
                                                 />
                                                 <span>{employee.name}</span>
                                             </CommandItem>

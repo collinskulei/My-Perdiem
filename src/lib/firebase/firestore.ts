@@ -276,3 +276,14 @@ export const addPerDiemRequest = async (request: PerDiemRequestData): Promise<st
     const docRef = await addDoc(requestsCol, request);
     return docRef.id;
 };
+
+/**
+ * Updates a per diem request document in the 'perdiemRequests' collection.
+ * @param {string} requestId - The request's unique ID.
+ * @param {Partial<PerdiemRequest>} dataToUpdate - An object containing the fields to update.
+ * @returns {Promise<void>} A promise that resolves when the document is successfully updated.
+ */
+export const updatePerDiemRequest = async (requestId: string, dataToUpdate: Partial<PerdiemRequest>): Promise<void> => {
+    const requestDocRef = doc(db, 'perdiemRequests', requestId);
+    await updateDoc(requestDocRef, dataToUpdate);
+};
