@@ -47,15 +47,15 @@ export const addVenue = async (venue: VenueData): Promise<string> => {
 // --- EMPLOYEES COLLECTION ---
 
 /**
- * Fetches all employees from the 'employees' collection in Firestore.
+ * Fetches all employees from the 'users' collection in Firestore.
  * @returns {Promise<Employee[]>} A promise that resolves to an array of employee objects.
  */
 export const getEmployees = async (): Promise<Employee[]> => {
     try {
-        const employeesCol = collection(db, 'users');
-        const employeeSnapshot = await getDocs(employeesCol);
-        const employeeList = employeeSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee));
-        return employeeList;
+        const usersCol = collection(db, 'users');
+        const userSnapshot = await getDocs(usersCol);
+        const userList = userSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee));
+        return userList;
     } catch (error) {
         console.error("Error fetching employees: ", error);
         return [];
