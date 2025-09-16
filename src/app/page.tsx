@@ -22,6 +22,7 @@ import { Logo } from "@/components/logo";
 import app from "@/lib/firebase/config";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { getEmployeeById } from "@/lib/firebase/firestore";
 
 const auth = getAuth(app);
 
@@ -65,11 +66,16 @@ export default function LoginPage() {
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
      try {
-      // Using a hardcoded admin check for now, but will replace with real auth
-      if (adminEmail === 'admin@example.com' && adminPassword === 'password') {
-         router.push("/admin");
+      const userCredential = await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
+      const user = userCredential.user;
+
+      // Check if the user has an 'Admin' role
+      const employee = await getEmployeeById(user.uid);
+      if (employee && employee.role === 'Admin') {
+        router.push("/admin");
       } else {
-        throw new Error("Invalid admin credentials.");
+        await auth.signOut(); // Sign out the user if they are not an admin
+        throw new Error("You do not have administrative privileges.");
       }
     } catch (error: any) {
       toast({
