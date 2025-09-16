@@ -25,25 +25,25 @@ export const adminOnboardingSteps: OnboardingStep[] = [
     title: "Manage Per Diem Requests",
     description: "Review, approve, reject, or mark requests as paid directly from the main table. Use the actions menu on each row.",
     imageUrl: "https://picsum.photos/seed/onboard-admin-1/600/400",
-    imageHint: "dashboard table",
+    imageHint: "dashboard table highlight",
   },
   {
     title: "Create and Manage Events",
     description: "Use the 'Events' tab to see all events. Click 'Add Event' to create a new one and assign employees to it.",
     imageUrl: "https://picsum.photos/seed/onboard-admin-2/600/400",
-    imageHint: "event calendar",
+    imageHint: "calendar interface",
   },
   {
     title: "Oversee Employees and Venues",
     description: "The 'Employees' and 'Venues' tabs allow you to view all registered personnel and event locations.",
     imageUrl: "https://picsum.photos/seed/onboard-admin-3/600/400",
-    imageHint: "team members",
+    imageHint: "team members list",
   },
   {
     title: "Generate Detailed Reports",
     description: "Click the 'Download Report' button to generate filtered PDF or CSV reports for per diem requests.",
     imageUrl: "https://picsum.photos/seed/onboard-admin-4/600/400",
-    imageHint: "financial report",
+    imageHint: "report download button",
   },
 ];
 
@@ -56,24 +56,24 @@ export const employeeOnboardingSteps: OnboardingStep[] = [
     title: "Your Event Hub",
     description: "The 'My Upcoming Events' table shows all events you're assigned to. This is where your per diem process begins.",
     imageUrl: "https://picsum.photos/seed/onboard-emp-1/600/400",
-    imageHint: "dashboard list",
+    imageHint: "dashboard event list",
   },
   {
     title: "Check-in to Activate",
     description: "On the day of the event, a 'Check-in' button will become active. You must check in to be able to request a per diem.",
     imageUrl: "https://picsum.photos/seed/onboard-emp-2/600/400",
-    imageHint: "location pin",
+    imageHint: "location pin button",
   },
   {
     title: "Request Your Per Diem",
     description: "After checking in, the 'Request Per Diem' button will appear. This will take you to a wizard to fill out your claim.",
     imageUrl: "https://picsum.photos/seed/onboard-emp-3/600/400",
-    imageHint: "request form",
+    imageHint: "form entry wizard",
   },
     {
     title: "Track Your Requests",
     description: "The 'Recent Per Diem Requests' table shows the status of all your submissions, from 'Pending' to 'Paid'.",
     imageUrl: "https://picsum.photos/seed/onboard-emp-4/600/400",
-    imageHint: "status history",
+    imageHint: "request status history",
   },
 ];
