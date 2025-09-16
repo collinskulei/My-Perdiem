@@ -172,6 +172,13 @@ export default function RegistrationWizard() {
   
   const jobGroups = ["A", "B1", "B2", "B3", "B4", "B5", "C1", "C2", "C3", "C4", "C5", "D1", "D2", "D3", "D4", "D5", "E1", "E2", "E4", "H", "J", "K", "L", "M", "N", "P", "Q", "R", "S"];
 
+  const emailOptions = [
+    "employee1@example.com",
+    "employee2@example.com",
+    "employee3@example.com",
+    "employee4@example.com",
+  ];
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-2xl">
@@ -309,7 +316,19 @@ export default function RegistrationWizard() {
             
             <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="you@example.com" required onChange={handleInputChange} />
+                 <Select required onValueChange={(value) => handleSelectChange('email', value)}>
+                    <SelectTrigger id="email">
+                    <SelectValue placeholder="Select an email" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {emailOptions.map((email) => (
+                            <SelectItem key={email} value={email}>
+                                {email}
+                            </SelectItem>
+                        ))}
+                         <SelectItem value="admin@example.com">admin@example.com</SelectItem>
+                    </SelectContent>
+                </Select>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
