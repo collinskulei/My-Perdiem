@@ -189,9 +189,6 @@ export default function RegistrationWizard() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-2xl">
         <CardHeader>
-          <div className="mb-4 flex justify-center">
-            <Logo />
-          </div>
           <CardTitle className="text-2xl">Create an Account</CardTitle>
           <CardDescription>
             Fill out the form below to register.

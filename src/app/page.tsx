@@ -141,9 +141,6 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <div className="mb-4 flex justify-center">
-            <Logo />
-          </div>
           <CardTitle className="text-2xl">Welcome Back</CardTitle>
           <CardDescription>
             Select your role to access your account.
