@@ -178,7 +178,7 @@ export default function AdminDashboard() {
 
   const handleAddEvent = async () => {
     const selectedVenue = venues.find(v => v.id === newEvent.venueId);
-    if (!newEvent.name || !eventDate?.from || !eventDate?.to || !newEvent.venueId || !selectedVenue || !newEvent.facilitator || newEvent.allocatedEmployees.length === 0) {
+    if (!newEvent.name || !eventDate?.from || !eventDate?.to || !newEvent.venueId || !selectedVenue || !newEvent.facilitator ) {
         toast({ title: "Missing fields", description: "Please fill all event details.", variant: "destructive" });
         return;
     }
@@ -302,16 +302,7 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="event-date" className="text-right">Date Range</Label><Popover><PopoverTrigger asChild><Button id="date" variant={"outline"} className={cn("w-full justify-start text-left font-normal col-span-3",!eventDate && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{eventDate?.from ? (eventDate.to ? (<>{format(eventDate.from, "LLL dd, y")} - {format(eventDate.to, "LLL dd, y")}</>) : (format(eventDate.from, "LLL dd, y"))) : (<span>Pick a date range</span>)}</Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar initialFocus mode="range" defaultMonth={eventDate?.from} selected={eventDate} onSelect={setEventDate} numberOfMonths={2}/></PopoverContent></Popover></div>
                 <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="event-venue" className="text-right">Venue</Label><Select value={newEvent.venueId} onValueChange={(value) => setNewEvent({ ...newEvent, venueId: value })}><SelectTrigger className="col-span-3"><SelectValue placeholder="Select a venue" /></SelectTrigger><SelectContent>{venues.map((v) => (<SelectItem key={v.id} value={v.id}>{v.name} ({v.city})</SelectItem>))}</SelectContent></Select></div>
                 <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="event-facilitator" className="text-right">Facilitator</Label><Input id="event-facilitator" value={newEvent.facilitator} onChange={(e) => setNewEvent({ ...newEvent, facilitator: e.target.value })} className="col-span-3" /></div>
-                <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="event-employees" className="text-right">Employees</Label>
-                <Popover><PopoverTrigger asChild><Button variant="outline" role="combobox" className="col-span-3 justify-between">{newEvent.allocatedEmployees.length > 0 ? `${newEvent.allocatedEmployees.length} selected` : "Select employees"}<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" /></Button></PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0"><Command><CommandInput placeholder="Search employees..."/><CommandList><CommandEmpty>No employees found.</CommandEmpty>
-                <CommandGroup>
-                  <CommandItem onSelect={() => handleSelectAll(true)}><Check className={cn("mr-2 h-4 w-4", newEvent.allocatedEmployees.length === nonAdminEmployees.length ? "opacity-100" : "opacity-0")}/>Select All</CommandItem>
-                  <CommandItem onSelect={() => handleSelectAll(false)}><Check className={cn("mr-2 h-4 w-4", newEvent.allocatedEmployees.length === 0 ? "opacity-100" : "opacity-0")}/>Deselect All</CommandItem>
-                </CommandGroup>
-                <CommandSeparator />
-                <CommandGroup>{nonAdminEmployees.map((employee) => (<CommandItem key={employee.id} onSelect={() => handleEmployeeSelection(employee.id)}><Check className={cn("mr-2 h-4 w-4", newEvent.allocatedEmployees.includes(employee.id) ? "opacity-100" : "opacity-0")}/>{employee.name}</CommandItem>))}</CommandGroup></CommandList></Command></PopoverContent></Popover>
-                </div></div><DialogFooter><Button type="button" onClick={handleAddEvent}>Save Event</Button></DialogFooter></DialogContent></Dialog>
+                </div><DialogFooter><Button type="button" onClick={handleAddEvent}>Save Event</Button></DialogFooter></DialogContent></Dialog>
             </CardHeader>
             <CardContent>
                 <Table>
