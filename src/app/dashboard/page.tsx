@@ -6,7 +6,7 @@
 
 import { useState, useEffect } from "react";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
-import { isToday, parseISO, isWithinInterval, eachDayOfInterval, format } from "date-fns";
+import { isToday, parseISO, isWithinInterval, eachDayOfInterval, format, isFuture, startOfDay } from "date-fns";
 import { useRouter } from "next/navigation";
 
 
@@ -276,8 +276,6 @@ export default function EmployeeDashboard() {
                         ) : myEvents.map((event) => {
                             const canRequestPerDiem = hasCheckedInForAllDays(event) && !hasRequestedPerDiem(event.id);
                             const eventDays = getEventDays(event);
-                            const today = new Date();
-                            today.setHours(0,0,0,0);
                             const { percent, color, checkedInDays, totalDays } = getAttendanceProgress(event);
 
                             return (
@@ -302,13 +300,27 @@ export default function EmployeeDashboard() {
                                             {eventDays.map(day => {
                                                 const dateString = format(day, 'yyyy-MM-dd');
                                                 const isCheckedInForDay = !!event.checkedInEmployees?.[authUser?.uid ?? '']?.[dateString];
+                                                
+                                                // An active check-in button is for today AND the event is ongoing.
                                                 const canCheckInForDay = isToday(day) && isWithinInterval(day, { start: parseISO(event.startDate), end: parseISO(event.endDate) });
+                                                
+                                                // Show the button if the day hasn't been checked in yet and the day is not in the past
+                                                if (!isCheckedInForDay && startOfDay(day) >= startOfDay(new Date())) {
+                                                    const isButtonDisabled = isFuture(day) || !!isSubmitting;
+                                                    const buttonText = isFuture(day) 
+                                                        ? `Check-in: ${format(day, 'MMM d')}` 
+                                                        : `Check-in Today`;
 
-                                                if (canCheckInForDay && !isCheckedInForDay) {
                                                     return (
-                                                        <Button key={dateString} size="sm" onClick={() => handleCheckIn(event, day)} disabled={!!isSubmitting}>
+                                                        <Button 
+                                                            key={dateString} 
+                                                            size="sm" 
+                                                            onClick={() => handleCheckIn(event, day)} 
+                                                            disabled={isButtonDisabled}
+                                                            variant={isFuture(day) ? 'outline' : 'default'}
+                                                        >
                                                             {isSubmitting === `${event.id}-${dateString}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MapPin className="mr-2 h-4 w-4" />}
-                                                            Check-in ({format(day, 'MMM d')})
+                                                            {buttonText}
                                                         </Button>
                                                     );
                                                 }
