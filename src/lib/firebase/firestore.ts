@@ -30,7 +30,7 @@ export const getVenues = async (): Promise<Venue[]> => {
 /**
  * The data required to create a new venue, excluding the auto-generated ID.
  */
-type VenueData = Omit<Venue, 'id'>;
+export type VenueData = Omit<Venue, 'id'>;
 
 /**
  * Adds a new venue document to the 'venues' collection.

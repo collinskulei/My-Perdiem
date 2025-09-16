@@ -39,6 +39,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -52,11 +59,22 @@ import { useToast } from "@/hooks/use-toast";
 import { ReportDialog } from "@/components/report-dialog";
 import { getVenues, addVenue, getEmployees, getPerDiemRequests } from "@/lib/firebase/firestore";
 
+const kenyanCounties = [
+    "Mombasa", "Kwale", "Kilifi", "Tana River", "Lamu", "Taita-Taveta", "Garissa", "Wajir",
+    "Mandera", "Marsabit", "Isiolo", "Meru", "Tharaka-Nithi", "Embu", "Kitui", "Machakos",
+    "Makueni", "Nyandarua", "Nyeri", "Kirinyaga", "Murang'a", "Kiambu", "Turkana",
+    "West Pokot", "Samburu", "Trans Nzoia", "Uasin Gishu", "Elgeyo-Marakwet", "Nandi",
+    "Baringo", "Laikipia", "Nakuru", "Narok", "Kajiado", "Kericho", "Bomet", "Kakamega",
+    "Vihiga", "Bungoma", "Busia", "Siaya", "Kisumu", "Homa Bay", "Migori", "Kisii",
+    "Nyamira", "Nairobi"
+];
+
+
 /**
  * A default template for creating a new venue.
  * Used to reset the new venue form state.
  */
-const defaultNewVenue = { name: "Test Venue", city: "Test City", latitude: "0", longitude: "0" };
+const defaultNewVenue = { name: "Test Venue", city: "Test City", county: "Nairobi", latitude: "0", longitude: "0" };
 
 /**
  * Converts an array of objects to a CSV formatted string.
@@ -141,7 +159,7 @@ export default function AdminDashboard() {
    * Displays a success or error toast message.
    */
   const handleAddVenue = async () => {
-    if (!newVenue.name || !newVenue.city || !newVenue.latitude || !newVenue.longitude) {
+    if (!newVenue.name || !newVenue.city || !newVenue.county || !newVenue.latitude || !newVenue.longitude) {
       toast({
         title: "Missing fields",
         description: "Please fill out all venue details.",
@@ -153,6 +171,7 @@ export default function AdminDashboard() {
     const venueToAdd = {
       name: newVenue.name,
       city: newVenue.city,
+      county: newVenue.county,
       latitude: parseFloat(newVenue.latitude) || 0,
       longitude: parseFloat(newVenue.longitude) || 0,
     };
@@ -449,6 +468,26 @@ export default function AdminDashboard() {
                         className="col-span-3"
                       />
                     </div>
+                     <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="venue-county" className="text-right">
+                            County
+                        </Label>
+                        <Select
+                            value={newVenue.county}
+                            onValueChange={(value) => setNewVenue({ ...newVenue, county: value })}
+                        >
+                            <SelectTrigger className="col-span-3">
+                            <SelectValue placeholder="Select a county" />
+                            </SelectTrigger>
+                            <SelectContent>
+                            {kenyanCounties.map((county) => (
+                                <SelectItem key={county} value={county}>
+                                {county}
+                                </SelectItem>
+                            ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                     <div className="grid grid-cols-4 items-center gap-4">
                       <Label htmlFor="venue-city" className="text-right">
                         City
@@ -497,6 +536,7 @@ export default function AdminDashboard() {
                   <TableRow>
                     <TableHead>Venue Name</TableHead>
                     <TableHead>City</TableHead>
+                    <TableHead>County</TableHead>
                     <TableHead>Coordinates</TableHead>
                     <TableHead>
                       <span className="sr-only">Actions</span>
@@ -506,7 +546,7 @@ export default function AdminDashboard() {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="h-24 text-center">
+                      <TableCell colSpan={5} className="h-24 text-center">
                         Loading venues...
                       </TableCell>
                     </TableRow>
@@ -514,6 +554,7 @@ export default function AdminDashboard() {
                     <TableRow key={venue.id}>
                       <TableCell className="font-medium">{venue.name}</TableCell>
                       <TableCell>{venue.city}</TableCell>
+                      <TableCell>{venue.county}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {venue.latitude.toFixed(4)}, {venue.longitude.toFixed(4)}
                       </TableCell>
