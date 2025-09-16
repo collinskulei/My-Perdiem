@@ -121,7 +121,12 @@ const initialEvents: AppEvent[] = [
         venueCity: 'Nairobi',
         facilitator: 'Dr. Emily Carter',
         allocatedEmployees: ['auth-uid-employee-1', 'auth-uid-employee-4'],
-        checkedInEmployees: { 'auth-uid-employee-1': Date.now() - 9 * 24 * 60 * 60 * 1000 },
+        checkedInEmployees: { 
+            'auth-uid-employee-1': { 
+                [formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 10))]: Date.now(),
+                [formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 9))]: Date.now(),
+            } 
+        },
     },
     {
         id: 'event-002',
@@ -133,7 +138,11 @@ const initialEvents: AppEvent[] = [
         venueCity: 'Mombasa',
         facilitator: 'Prof. David Chen',
         allocatedEmployees: ['auth-uid-employee-2', 'auth-uid-employee-1'],
-        checkedInEmployees: {},
+        checkedInEmployees: {
+             'auth-uid-employee-2': { 
+                [formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1))]: Date.now(),
+            } 
+        },
     },
     {
         id: 'event-003',
@@ -169,13 +178,29 @@ const initialPerDiemRequests: PerdiemRequest[] = [
         eventName: 'Annual Health Conference (Past Event)',
         location: 'Nairobi',
         date: formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 9)),
-        status: 'Approved',
+        status: 'Paid',
         accommodationNights: 2,
         accommodationTotal: 10000,
         outOfOfficeAllowance: 8000,
         mileageKm: 50,
         mileageTotal: 2250,
         totalPerdiem: 20250,
+    },
+    {
+        id: 'req-002',
+        employeeId: 'auth-uid-employee-2',
+        employeeName: 'Jane Smith',
+        eventId: 'event-002',
+        eventName: 'Maternal Health Workshop (Active Event)',
+        location: 'Mombasa',
+        date: formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1)),
+        status: 'Pending',
+        accommodationNights: 2,
+        accommodationTotal: 10000,
+        outOfOfficeAllowance: 10000,
+        mileageKm: 970,
+        mileageTotal: 43650,
+        totalPerdiem: 63650,
     }
 ];
 
@@ -311,14 +336,17 @@ export const getEventById = async (eventId: string): Promise<AppEvent | null> =>
 };
 
 
-export const checkInToEvent = async (eventId: string, employeeId: string): Promise<void> => {
+export const checkInToEvent = async (eventId: string, employeeId: string, dateString: string): Promise<void> => {
     const dbInstance = getDb();
     const eventIndex = dbInstance.events.findIndex(e => e.id === eventId);
     if (eventIndex !== -1) {
         if (!dbInstance.events[eventIndex].checkedInEmployees) {
             dbInstance.events[eventIndex].checkedInEmployees = {};
         }
-        dbInstance.events[eventIndex].checkedInEmployees![employeeId] = Date.now();
+        if (!dbInstance.events[eventIndex].checkedInEmployees![employeeId]) {
+            dbInstance.events[eventIndex].checkedInEmployees![employeeId] = {};
+        }
+        dbInstance.events[eventIndex].checkedInEmployees![employeeId][dateString] = Date.now();
         saveDb();
     } else {
         throw new Error("Event not found");

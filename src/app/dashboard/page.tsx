@@ -6,7 +6,7 @@
 
 import { useState, useEffect } from "react";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
-import { isToday, parseISO, isWithinInterval as isWithinDateInterval } from "date-fns";
+import { isToday, parseISO, isWithinInterval, eachDayOfInterval, format } from "date-fns";
 import { useRouter } from "next/navigation";
 
 
@@ -27,6 +27,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Progress } from "@/components/ui/progress";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { PerdiemRequest, Employee, AppEvent, Venue } from "@/lib/data";
 import * as firestore from '@/lib/firebase/firestore';
 import * as mock from '@/lib/mock-data';
@@ -37,8 +44,6 @@ import { SuccessDialog } from "@/components/success-dialog";
 import { MapPin, Loader2 } from "lucide-react";
 import { cn, getHaversineDistance } from "@/lib/utils";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
-import { Onboarding } from "@/components/onboarding";
-import { employeeOnboardingSteps } from "@/lib/onboarding-steps";
 
 
 const dataProvider = isTestMode() ? mock : firestore;
@@ -56,7 +61,7 @@ export default function EmployeeDashboard() {
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<Employee | null>(null);
   const [authUser, setAuthUser] = useState<User | MockUser | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState<string | null>(null); // Tracks eventId-date string
   const [isSuccess, setIsSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState({ title: "", description: "" });
   const { toast } = useToast();
@@ -107,9 +112,10 @@ export default function EmployeeDashboard() {
   }, [authUser, toast]);
   
 
- const handleCheckIn = (event: AppEvent) => {
+ const handleCheckIn = (event: AppEvent, date: Date) => {
     if (!authUser) return;
-    setIsSubmitting(event.id);
+    const dateString = format(date, 'yyyy-MM-dd');
+    setIsSubmitting(`${event.id}-${dateString}`);
     
     // In Test Mode, bypass location check.
     if (isTestMode()) {
@@ -117,7 +123,7 @@ export default function EmployeeDashboard() {
         title: "Location Check Overridden",
         description: "You are in Test Mode. The location check has been bypassed.",
       });
-      proceedWithCheckIn(event.id, authUser.uid);
+      proceedWithCheckIn(event.id, authUser.uid, dateString);
       return;
     }
 
@@ -128,10 +134,11 @@ export default function EmployeeDashboard() {
   
   useEffect(() => {
     // This effect runs after getPosition() updates the location state.
-    const activeEventId = isSubmitting;
-    if (!activeEventId || latitude === null || longitude === null) return;
+    const activeSubmission = isSubmitting;
+    if (!activeSubmission || latitude === null || longitude === null) return;
     
-    const event = myEvents.find(e => e.id === activeEventId);
+    const [eventId, dateString] = activeSubmission.split('-');
+    const event = myEvents.find(e => e.id === eventId);
     if (!event) return;
 
     if (geoError) {
@@ -151,7 +158,7 @@ export default function EmployeeDashboard() {
         const distance = getHaversineDistance(latitude, longitude, venue.latitude, venue.longitude);
         
         if (distance <= 1000) { // 1000 meters = 1 km
-            proceedWithCheckIn(event.id, authUser!.uid);
+            proceedWithCheckIn(event.id, authUser!.uid, dateString);
         } else {
             toast({
                 title: "Check-in Failed",
@@ -166,10 +173,10 @@ export default function EmployeeDashboard() {
 
   }, [latitude, longitude, geoError, isSubmitting, myEvents, authUser]);
 
-  const proceedWithCheckIn = async (eventId: string, userId: string) => {
+  const proceedWithCheckIn = async (eventId: string, userId: string, dateString: string) => {
      try {
-        await dataProvider.checkInToEvent(eventId, userId);
-        setSuccessMessage({ title: "Check-in Successful!", description: "Your check-in has been recorded." });
+        await dataProvider.checkInToEvent(eventId, userId, dateString);
+        setSuccessMessage({ title: "Check-in Successful!", description: `Your check-in for ${dateString} has been recorded.` });
         setIsSuccess(true);
         // Refresh data
         await fetchData();
@@ -190,16 +197,6 @@ export default function EmployeeDashboard() {
     if (!name) return "";
     return name.split(" ")[0];
   };
-
-  const isCheckInActive = (event: AppEvent) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Set to midnight to compare dates only
-
-    const startDate = parseISO(event.startDate);
-    const endDate = parseISO(event.endDate);
-   
-    return isWithinDateInterval(today, { start: startDate, end: endDate });
-  };
   
   const hasRequestedPerDiem = (eventId: string) => {
     return userRequests.some(req => req.eventId === eventId);
@@ -209,9 +206,43 @@ export default function EmployeeDashboard() {
     setIsSuccess(false);
   };
 
+  const getEventDays = (event: AppEvent) => {
+    return eachDayOfInterval({
+        start: parseISO(event.startDate),
+        end: parseISO(event.endDate)
+    });
+  }
+
+  const getAttendanceProgress = (event: AppEvent) => {
+      const totalDays = getEventDays(event).length;
+      if (totalDays === 0) return { percent: 0, color: 'bg-red-500' };
+
+      const checkedInDays = event.checkedInEmployees?.[authUser?.uid ?? ''] 
+          ? Object.keys(event.checkedInEmployees[authUser?.uid ?? '']).length
+          : 0;
+      
+      const percent = (checkedInDays / totalDays) * 100;
+
+      let color = 'bg-red-500';
+      if (percent > 0 && percent <= 50) {
+          color = 'bg-orange-500';
+      } else if (percent > 50) {
+          color = 'bg-green-500';
+      }
+      if(checkedInDays === 0) color = 'bg-red-500';
+
+
+      return { percent, color, checkedInDays, totalDays };
+  }
+
+  const hasCheckedInAtLeastOnce = (event: AppEvent): boolean => {
+    if (!event.checkedInEmployees || !authUser) return false;
+    const userCheckins = event.checkedInEmployees[authUser.uid];
+    return userCheckins && Object.keys(userCheckins).length > 0;
+  }
+
   return (
     <>
-      <Onboarding steps={employeeOnboardingSteps} storageKey="employee-onboarding-seen" />
       <SuccessDialog
         isOpen={isSuccess}
         onClose={handleDone}
@@ -227,45 +258,81 @@ export default function EmployeeDashboard() {
         <Card>
             <CardHeader>
                 <CardTitle>My Upcoming Events</CardTitle>
-                <CardDescription>Events you have been allocated to. You can check-in on the event date.</CardDescription>
+                <CardDescription>Events you are allocated to. Check-in daily to record your attendance.</CardDescription>
             </CardHeader>
             <CardContent>
+             <TooltipProvider>
                 <Table>
-                    <TableHeader><TableRow><TableHead>Event</TableHead><TableHead>Venue</TableHead><TableHead>Date</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[40%]">Event</TableHead>
+                        <TableHead>Venue</TableHead>
+                        <TableHead>Dates</TableHead>
+                        <TableHead>Attendance</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
                     <TableBody>
-                        {loading ? ( <TableRow><TableCell colSpan={4} className="h-24 text-center">Loading your events...</TableCell></TableRow>
+                        {loading ? ( <TableRow><TableCell colSpan={5} className="h-24 text-center">Loading your events...</TableCell></TableRow>
                         ) : myEvents.length === 0 ? (
-                            <TableRow><TableCell colSpan={4} className="h-24 text-center">You have no upcoming events.</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={5} className="h-24 text-center">You have no upcoming events.</TableCell></TableRow>
                         ) : myEvents.map((event) => {
-                            const isCheckedIn = !!event.checkedInEmployees?.[authUser?.uid ?? ''];
-                            const canCheckIn = isCheckInActive(event) && !isCheckedIn;
-                            const canRequestPerDiem = isCheckedIn && !hasRequestedPerDiem(event.id);
+                            const canRequestPerDiem = hasCheckedInAtLeastOnce(event) && !hasRequestedPerDiem(event.id);
+                            const eventDays = getEventDays(event);
+                            const today = new Date();
+                            today.setHours(0,0,0,0);
+                            const { percent, color, checkedInDays, totalDays } = getAttendanceProgress(event);
 
                             return (
                                 <TableRow key={event.id}>
                                     <TableCell className="font-medium">{event.name}</TableCell>
                                     <TableCell>{event.venueName}</TableCell>
-                                    <TableCell>{event.startDate}</TableCell>
+                                    <TableCell>{event.startDate} to {event.endDate}</TableCell>
+                                    <TableCell>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <div>
+                                                    <Progress value={percent} indicatorClassName={color} className="h-3" />
+                                                </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Attended {checkedInDays} of {totalDays} days.</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TableCell>
                                     <TableCell className="text-right">
-                                        {isCheckedIn && !canRequestPerDiem && <Badge variant="secondary">Checked-in</Badge>}
-                                        <div className="flex gap-2 justify-end">
-                                        <Button size="sm" onClick={() => handleCheckIn(event)} disabled={!canCheckIn || !!isSubmitting} className={cn(!canCheckIn && "opacity-50")}>
-                                          {isSubmitting === event.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MapPin className="mr-2 h-4 w-4" />}
-                                           Check-in
-                                        </Button>
-                                        {canRequestPerDiem && (
-                                            <Button size="sm" onClick={() => handleRequestPerDiem(event)} disabled={!!isSubmitting}>
-                                                {isSubmitting === event.id && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                                                Request Per Diem
-                                            </Button>
-                                        )}
+                                       <div className="flex gap-2 justify-end">
+                                            {eventDays.map(day => {
+                                                const dateString = format(day, 'yyyy-MM-dd');
+                                                const isCheckedInForDay = !!event.checkedInEmployees?.[authUser?.uid ?? '']?.[dateString];
+                                                const canCheckInForDay = isWithinInterval(day, { start: parseISO(event.startDate), end: parseISO(event.endDate) }) && isToday(day);
+
+                                                if (canCheckInForDay && !isCheckedInForDay) {
+                                                    return (
+                                                        <Button key={dateString} size="sm" onClick={() => handleCheckIn(event, day)} disabled={!!isSubmitting}>
+                                                            {isSubmitting === `${event.id}-${dateString}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MapPin className="mr-2 h-4 w-4" />}
+                                                            Check-in ({format(day, 'MMM d')})
+                                                        </Button>
+                                                    );
+                                                }
+                                                return null;
+                                            })}
+                                            {canRequestPerDiem && (
+                                                <Button size="sm" onClick={() => handleRequestPerDiem(event)}>
+                                                    Request Per Diem
+                                                </Button>
+                                            )}
                                         </div>
+                                         {!canRequestPerDiem && hasCheckedInAtLeastOnce(event) && hasRequestedPerDiem(event.id) && (
+                                            <Badge variant="secondary">Per Diem Requested</Badge>
+                                        )}
                                     </TableCell>
                                 </TableRow>
                             )
                         })}
                     </TableBody>
                 </Table>
+              </TooltipProvider>
             </CardContent>
         </Card>
 

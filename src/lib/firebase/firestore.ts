@@ -210,17 +210,19 @@ export const getEventById = async (eventId: string): Promise<AppEvent | null> =>
 
 
 /**
- * Records an employee's check-in for a specific event.
+ * Records an employee's check-in for a specific event on a specific date.
  * @param {string} eventId - The ID of the event.
  * @param {string} employeeId - The ID of the employee checking in.
+ * @param {string} dateString - The date of the check-in in 'yyyy-MM-dd' format.
  * @returns {Promise<void>}
  */
-export const checkInToEvent = async (eventId: string, employeeId: string): Promise<void> => {
+export const checkInToEvent = async (eventId: string, employeeId: string, dateString: string): Promise<void> => {
     const eventRef = doc(db, 'events', eventId);
+    // Use dot notation to update a nested field
     const updateData = {
-        [`checkedInEmployees.${employeeId}`]: Date.now()
+        [`checkedInEmployees.${employeeId}.${dateString}`]: Date.now()
     };
-    await updateDoc(eventRef, updateData);
+    await updateDoc(eventRef, updateData, { merge: true }); // Use merge to avoid overwriting the whole checkedInEmployees map
 };
 
 

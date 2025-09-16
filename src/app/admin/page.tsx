@@ -11,7 +11,7 @@ import Image from "next/image";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { DateRange } from "react-day-picker";
-import { format } from "date-fns";
+import { format, differenceInCalendarDays, parseISO } from "date-fns";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -79,8 +79,6 @@ import * as firestore from '@/lib/firebase/firestore';
 import * as mock from '@/lib/mock-data';
 import { isTestMode } from '@/lib/test-mode';
 import { cn } from "@/lib/utils";
-import { Onboarding } from "@/components/onboarding";
-import { adminOnboardingSteps } from "@/lib/onboarding-steps";
 
 const dataProvider = isTestMode() ? mock : firestore;
 
@@ -226,23 +224,30 @@ export default function AdminDashboard() {
   const handleDownloadReport = (filteredData: PerdiemRequest[], format: 'pdf' | 'csv') => {
     const detailedData = filteredData.map(req => {
         const event = events.find(e => e.id === req.eventId);
+        const employee = employees.find(emp => emp.id === req.employeeId);
+        const eventDuration = event ? differenceInCalendarDays(parseISO(event.endDate), parseISO(event.startDate)) + 1 : 0;
+        const daysAttended = employee && event?.checkedInEmployees?.[employee.id] ? Object.keys(event.checkedInEmployees[employee.id]).length : 0;
+        const attendance = eventDuration > 0 ? `${daysAttended}/${eventDuration}` : 'N/A';
+
         return {
             ...req,
             eventStartDate: event?.startDate || 'N/A',
             eventEndDate: event?.endDate || 'N/A',
             eventFacilitator: event?.facilitator || 'N/A',
+            eventAttendance: attendance,
         };
     });
 
     if (format === 'pdf') {
         const doc = new jsPDF();
         doc.text("Perdiem Requests Report", 14, 16);
-        const tableColumn = ["Date", "Employee", "Event", "Event Dates", "Amount", "Status"];
+        const tableColumn = ["Date", "Employee", "Event", "Event Dates", "Attendance", "Amount", "Status"];
         const tableRows = detailedData.map(req => [
             req.date, 
             req.employeeName, 
             req.eventName, 
             `${req.eventStartDate} to ${req.eventEndDate}`,
+            req.eventAttendance,
             `Ksh ${req.totalPerdiem.toLocaleString()}`, 
             req.status
         ]);
@@ -250,36 +255,17 @@ export default function AdminDashboard() {
             head: [tableColumn], 
             body: tableRows, 
             startY: 20,
-            didDrawCell: (data: any) => {
-                if (data.section === 'body' && data.column.index === tableColumn.length -1) { // After last column
-                    const req = detailedData[data.row.index];
-                    const costBreakdown = `
-                        Facilitator: ${req.eventFacilitator}
-                        --- Cost Breakdown ---
-                        Mileage: Ksh ${req.mileageTotal?.toLocaleString() || 0}
-                        Accommodation: Ksh ${req.accommodationTotal?.toLocaleString() || 0}
-                        Allowance: Ksh ${req.outOfOfficeAllowance?.toLocaleString() || 0}
-                    `;
-                     doc.setFontSize(8);
-                     doc.text(costBreakdown, data.cell.x + 2, data.cell.y + data.cell.height + 2);
-                }
-            },
-             addPageContent: (data: any) => {
-                // This is a hacky way to add space for the extra details
-                // by increasing the row height. A more robust solution might use a custom theme.
-                (doc as any).autoTable.previous.options.rowHeight = 25; 
-            },
         });
         doc.save("perdiem_requests_report.pdf");
     } else if (format === 'csv') {
         const columns = [
             "date", "employeeName", "eventName", "eventStartDate", "eventEndDate", "eventFacilitator",
-            "location", "mileageTotal", "accommodationTotal", "outOfOfficeAllowance", 
+            "eventAttendance", "location", "mileageTotal", "accommodationTotal", "outOfOfficeAllowance", 
             "totalPerdiem", "status"
         ];
         const columnHeaders = [
             "Request Date", "Employee Name", "Event", "Event Start", "Event End", "Facilitator",
-            "Location", "Mileage (Ksh)", "Accommodation (Ksh)", "Allowance (Ksh)",
+            "Attendance (Days)", "Location", "Mileage (Ksh)", "Accommodation (Ksh)", "Allowance (Ksh)",
             "Total Amount (Ksh)", "Status"
         ];
         const csvData = toCSV(detailedData, columns, columnHeaders);
@@ -312,10 +298,15 @@ export default function AdminDashboard() {
         setNewEvent(prev => ({ ...prev, allocatedEmployees: [] }));
      }
   };
+  
+  const getTotalCheckinsForEvent = (event: AppEvent) => {
+    if (!event.checkedInEmployees) return 0;
+    return Object.values(event.checkedInEmployees).reduce((total, dailyCheckins) => total + Object.keys(dailyCheckins).length, 0);
+  };
+
 
   return (
     <>
-    <Onboarding steps={adminOnboardingSteps} storageKey="admin-onboarding-seen" />
     <div className="grid flex-1 items-start gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
@@ -432,8 +423,8 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
                 <Table>
-                    <TableHeader><TableRow><TableHead>Event Name</TableHead><TableHead>Venue</TableHead><TableHead>Date Range</TableHead><TableHead>Employees</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
-                    <TableBody>{loading ? <TableRow><TableCell colSpan={5} className="h-24 text-center">Loading events...</TableCell></TableRow> : events.map((event) => (<TableRow key={event.id}><TableCell className="font-medium">{event.name}</TableCell><TableCell>{event.venueName}</TableCell><TableCell>{event.startDate} to {event.endDate}</TableCell><TableCell>{event.allocatedEmployees.length}</TableCell><TableCell><DropdownMenu><DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuLabel>Actions</DropdownMenuLabel><DropdownMenuItem>Edit</DropdownMenuItem><DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody>
+                    <TableHeader><TableRow><TableHead>Event Name</TableHead><TableHead>Venue</TableHead><TableHead>Date Range</TableHead><TableHead>Assigned</TableHead><TableHead>Attendance</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
+                    <TableBody>{loading ? <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading events...</TableCell></TableRow> : events.map((event) => (<TableRow key={event.id}><TableCell className="font-medium">{event.name}</TableCell><TableCell>{event.venueName}</TableCell><TableCell>{event.startDate} to {event.endDate}</TableCell><TableCell>{event.allocatedEmployees.length}</TableCell><TableCell>{getTotalCheckinsForEvent(event)}</TableCell><TableCell><DropdownMenu><DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuLabel>Actions</DropdownMenuLabel><DropdownMenuItem>Edit</DropdownMenuItem><DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody>
                 </Table>
             </CardContent>
            </Card>

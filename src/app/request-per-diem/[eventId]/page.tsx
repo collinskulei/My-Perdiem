@@ -137,7 +137,7 @@ export default function RequestPerDiemPage() {
 
     const prevStep = () => {
         if (currentStep > 0) {
-            setCurrentStep(step => step - 1);
+            setCurrentStep(step => step + 1);
         }
     };
 
@@ -147,15 +147,14 @@ export default function RequestPerDiemPage() {
         
         setIsSubmitting(true);
         try {
-            const requestData: PerDiemRequestData = {
+            const requestData = {
                 employeeId: authUser.uid,
                 employeeName: employee.name,
                 eventId: event.id,
                 eventName: event.name,
                 location: event.venueCity,
                 date: new Date().toISOString().split('T')[0],
-                status: 'Pending',
-                checkInTimestamp: event.checkedInEmployees?.[authUser.uid],
+                status: 'Pending' as const,
                 mileageKm: data.mileageKm || 0,
                 mileageTotal: data.mileageTotal || 0,
                 accommodationNights: data.accommodationNights || 0,
