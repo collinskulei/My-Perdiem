@@ -29,6 +29,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Logo } from "@/components/logo";
 
 
 /**
@@ -47,10 +48,7 @@ export default function AdminLayout({
       <Sidebar>
         <SidebarHeader>
           <div className="flex items-center gap-2">
-            
-            <h1 className="text-xl font-semibold text-sidebar-primary">
-              My Perdiem
-            </h1>
+            <Logo />
           </div>
         </SidebarHeader>
         <SidebarContent>

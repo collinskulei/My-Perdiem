@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { Landmark } from "lucide-react";
+import Image from "next/image";
 
 /**
  * A reusable component that displays the application logo.
@@ -15,7 +15,7 @@ import { Landmark } from "lucide-react";
 export function Logo({ className }: { className?: string }) {
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      
+      <Image src="/logo.png" alt="My Perdiem Logo" width={32} height={32} />
       <h1 className="text-2xl font-bold text-primary">My Perdiem</h1>
     </div>
   );
