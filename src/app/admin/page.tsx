@@ -245,12 +245,15 @@ export default function AdminDashboard() {
   };
 
   const handleSelectAll = () => {
-    setNewEvent(prev => ({ ...prev, allocatedEmployees: employees.map(e => e.id) }));
+    const nonAdminEmployees = employees.filter(e => e.role !== 'Admin');
+    setNewEvent(prev => ({ ...prev, allocatedEmployees: nonAdminEmployees.map(e => e.id) }));
   };
-
+  
   const handleDeselectAll = () => {
     setNewEvent(prev => ({ ...prev, allocatedEmployees: [] }));
   };
+
+  const nonAdminEmployees = employees.filter(e => e.role !== 'Admin');
 
   return (
     <div className="grid flex-1 items-start gap-4">
@@ -300,15 +303,13 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="event-facilitator" className="text-right">Facilitator</Label><Input id="event-facilitator" value={newEvent.facilitator} onChange={(e) => setNewEvent({ ...newEvent, facilitator: e.target.value })} className="col-span-3" /></div>
                 <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="event-employees" className="text-right">Employees</Label>
                 <Popover><PopoverTrigger asChild><Button variant="outline" role="combobox" className="col-span-3 justify-between">{newEvent.allocatedEmployees.length > 0 ? `${newEvent.allocatedEmployees.length} selected` : "Select employees"}<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" /></Button></PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0"><Command><CommandInput placeholder="Search employees..."/><CommandList><CommandEmpty>No employees found.</CommandEmpty><CommandGroup>
-                <CommandItem onSelect={handleSelectAll}>Select All</CommandItem>
-                <CommandItem onSelect={handleDeselectAll}>Deselect All</CommandItem>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0"><Command><CommandInput placeholder="Search employees..."/><CommandList><CommandEmpty>No employees found.</CommandEmpty>
+                <CommandGroup>
+                  <CommandItem onSelect={handleSelectAll}>Select All</CommandItem>
+                  <CommandItem onSelect={handleDeselectAll}>Deselect All</CommandItem>
                 </CommandGroup>
                 <CommandSeparator />
-                <CommandGroup>{employees.map((employee) => (<CommandItem key={employee.id} value={employee.name} onSelect={(currentValue) => {
-                    const employeeId = employees.find(e => e.name.toLowerCase() === currentValue.toLowerCase())?.id;
-                    if (employeeId) handleSelectEmployee(employeeId);
-                }}><Check className={cn("mr-2 h-4 w-4", newEvent.allocatedEmployees.includes(employee.id) ? "opacity-100" : "opacity-0")}/>{employee.name}</CommandItem>))}</CommandGroup></CommandList></Command></PopoverContent></Popover>
+                <CommandGroup>{nonAdminEmployees.map((employee) => (<CommandItem key={employee.id} value={employee.name} onSelect={() => handleSelectEmployee(employee.id)}><Check className={cn("mr-2 h-4 w-4", newEvent.allocatedEmployees.includes(employee.id) ? "opacity-100" : "opacity-0")}/>{employee.name}</CommandItem>))}</CommandGroup></CommandList></Command></PopoverContent></Popover>
                 </div></div><DialogFooter><Button type="button" onClick={handleAddEvent}>Save Event</Button></DialogFooter></DialogContent></Dialog>
             </CardHeader>
             <CardContent>
@@ -333,7 +334,7 @@ export default function AdminDashboard() {
                       <TableCell className="font-medium">{employee.name}<div className="text-sm text-muted-foreground">{employee.employeeNumber}</div></TableCell>
                       <TableCell>{employee.role}</TableCell>
                       <TableCell className="hidden md:table-cell">{employee.dutyStation}</TableCell>
-                      <TableCell className="hidden md-table-cell">{employee.jobGroup}</TableCell>
+                      <TableCell className="hidden md:table-cell">{employee.jobGroup}</TableCell>
                       <TableCell><DropdownMenu><DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuLabel>Actions</DropdownMenuLabel><DropdownMenuItem>View</DropdownMenuItem><DropdownMenuItem>Edit</DropdownMenuItem><DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>
                     </TableRow>
                   ))}
@@ -398,5 +399,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-
-    
