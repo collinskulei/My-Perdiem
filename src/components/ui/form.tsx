@@ -76,7 +76,13 @@ const FormItem = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => {
-  const id = React.useId()
+  const [id, setId] = React.useState('');
+  const generatedId = React.useId();
+
+  React.useEffect(() => {
+    setId(generatedId);
+  }, [generatedId]);
+
 
   return (
     <FormItemContext.Provider value={{ id }}>
