@@ -26,6 +26,8 @@ const initialVenues: Venue[] = [
   { id: "venue-test-001", name: "Test Venue (for Check-in)", city: "Test City", county: "Test County", latitude: 0, longitude: 0 },
   { id: "venue-nrb-001", name: "Sarova Stanley", city: "Nairobi", county: "Nairobi", latitude: -1.2833, longitude: 36.8219 },
   { id: "venue-nrb-002", name: "Villa Rosa Kempinski", city: "Nairobi", county: "Nairobi", latitude: -1.2721, longitude: 36.8095 },
+  { id: "venue-msa-001", name: "Serena Beach Resort & Spa", city: "Mombasa", county: "Mombasa", latitude: -4.0435, longitude: 39.6682 },
+  { id: "venue-ksm-001", name: "Acacia Premier Hotel", city: "Kisumu", county: "Kisumu", latitude: -0.1022, longitude: 34.7575 },
 ];
 
 const initialEmployees: Employee[] = [
@@ -64,10 +66,117 @@ const initialEmployees: Employee[] = [
         dutyStation: "Nairobi",
         jobGroup: "C3"
     },
+    {
+        id: "auth-uid-employee-2",
+        name: "Jane Smith",
+        email: "employee2@example.com",
+        role: "Clinical Officer",
+        avatarUrl: `https://picsum.photos/seed/auth-uid-employee-2/100/100`,
+        phoneNumber: "+254722222222",
+        idNumber: "22222222",
+        gender: "female",
+        employeeNumber: "EMP002",
+        dutyStation: "Mombasa",
+        jobGroup: "D1"
+    },
+    {
+        id: "auth-uid-employee-3",
+        name: "Peter Jones",
+        email: "employee3@example.com",
+        role: "Laboratory Technologist",
+        avatarUrl: `https://picsum.photos/seed/auth-uid-employee-3/100/100`,
+        phoneNumber: "+254733333333",
+        idNumber: "33333333",
+        gender: "male",
+        employeeNumber: "EMP003",
+        dutyStation: "Kisumu",
+        jobGroup: "B5"
+    },
+     {
+        id: "auth-uid-employee-4",
+        name: "Maryanne Wangari",
+        email: "employee4@example.com",
+        role: "Pharmacist",
+        avatarUrl: `https://picsum.photos/seed/auth-uid-employee-4/100/100`,
+        phoneNumber: "+254744444444",
+        idNumber: "44444444",
+        gender: "female",
+        employeeNumber: "EMP004",
+        dutyStation: "Nairobi",
+        jobGroup: "K"
+    },
 ];
 
-const initialEvents: AppEvent[] = [];
-const initialPerDiemRequests: PerdiemRequest[] = [];
+const today = new Date();
+const formatDate = (date: Date) => date.toISOString().split('T')[0];
+
+const initialEvents: AppEvent[] = [
+    {
+        id: 'event-001',
+        name: 'Annual Health Conference',
+        startDate: formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 5)),
+        endDate: formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 3)),
+        venueId: 'venue-nrb-001',
+        venueName: 'Sarova Stanley',
+        venueCity: 'Nairobi',
+        facilitator: 'Dr. Emily Carter',
+        allocatedEmployees: ['auth-uid-employee-1', 'auth-uid-employee-4'],
+        checkedInEmployees: { 'auth-uid-employee-1': Date.now() - 4 * 24 * 60 * 60 * 1000 },
+    },
+    {
+        id: 'event-002',
+        name: 'Maternal Health Workshop',
+        startDate: formatDate(today),
+        endDate: formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2)),
+        venueId: 'venue-msa-001',
+        venueName: 'Serena Beach Resort & Spa',
+        venueCity: 'Mombasa',
+        facilitator: 'Prof. David Chen',
+        allocatedEmployees: ['auth-uid-employee-2'],
+        checkedInEmployees: {},
+    },
+    {
+        id: 'event-003',
+        name: 'Lab Technology Symposium',
+        startDate: formatDate(new Date(today.getFullYear(), today.getMonth() + 1, 5)),
+        endDate: formatDate(new Date(today.getFullYear(), today.getMonth() + 1, 7)),
+        venueId: 'venue-ksm-001',
+        venueName: 'Acacia Premier Hotel',
+        venueCity: 'Kisumu',
+        facilitator: 'Aisha Khan',
+        allocatedEmployees: ['auth-uid-employee-1', 'auth-uid-employee-3'],
+        checkedInEmployees: {},
+    },
+];
+const initialPerDiemRequests: PerdiemRequest[] = [
+    {
+        id: 'req-001',
+        employeeId: 'auth-uid-employee-1',
+        employeeName: 'John Doe',
+        eventId: 'event-001',
+        eventName: 'Annual Health Conference',
+        location: 'Nairobi',
+        date: formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 4)),
+        status: 'Approved',
+        accommodationNights: 2,
+        accommodationTotal: 10000,
+        outOfOfficeAllowance: 8000,
+        mileageKm: 50,
+        mileageTotal: 2250,
+        totalPerdiem: 20250,
+    },
+    {
+        id: 'req-002',
+        employeeId: 'auth-uid-employee-2',
+        employeeName: 'Jane Smith',
+        eventId: 'event-002',
+        eventName: 'Maternal Health Workshop',
+        location: 'Mombasa',
+        date: formatDate(today),
+        status: 'Pending',
+        totalPerdiem: 25000,
+    }
+];
 
 
 // --- Database Initialization and Management ---
@@ -89,25 +198,43 @@ const getDb = (): MockDatabase => {
     const storedData = localStorage.getItem(MOCK_DATA_KEY);
 
     if (storedData && storedTimestamp && (now - parseInt(storedTimestamp, 10) < ONE_WEEK_MS)) {
-        db = JSON.parse(storedData);
+        try {
+            const parsedData = JSON.parse(storedData);
+             // Basic validation
+            if (parsedData.venues && parsedData.employees) {
+                 db = parsedData;
+            } else {
+                throw new Error("Invalid mock data structure");
+            }
+        } catch (e) {
+            console.error("Failed to parse mock data, re-initializing.", e);
+            db = initializeDb();
+        }
     } else {
-        const initialDb: MockDatabase = {
-            venues: initialVenues,
-            employees: initialEmployees,
-            events: initialEvents,
-            perdiemRequests: initialPerDiemRequests,
-        };
-        localStorage.setItem(MOCK_DATA_KEY, JSON.stringify(initialDb));
-        localStorage.setItem(TIMESTAMP_KEY, now.toString());
-        db = initialDb;
+        db = initializeDb();
     }
     return db;
 };
 
+const initializeDb = (): MockDatabase => {
+    if (typeof window === 'undefined') {
+        return { venues: [], employees: [], events: [], perdiemRequests: [] };
+    }
+    const initialDb: MockDatabase = {
+        venues: initialVenues,
+        employees: initialEmployees,
+        events: initialEvents,
+        perdiemRequests: initialPerDiemRequests,
+    };
+    localStorage.setItem(MOCK_DATA_KEY, JSON.stringify(initialDb));
+    localStorage.setItem(TIMESTAMP_KEY, Date.now().toString());
+    return initialDb;
+}
+
 
 const saveDb = () => {
-    if (typeof window !== 'undefined') {
-        localStorage.setItem(MOCK_DATA_KEY, JSON.stringify(getDb()));
+    if (typeof window !== 'undefined' && db) {
+        localStorage.setItem(MOCK_DATA_KEY, JSON.stringify(db));
     }
 };
 
