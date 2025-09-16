@@ -327,13 +327,13 @@ export default function AdminDashboard() {
                                     <CommandGroup>
                                         <CommandItem
                                           onSelect={() => handleSelectAllEmployees(newEvent.allocatedEmployees.length < nonAdminEmployees.length)}
+                                          className="cursor-pointer"
                                         >
                                             <Checkbox
                                                 id="select-all"
                                                 className="mr-2"
-                                                checked={newEvent.allocatedEmployees.length === nonAdminEmployees.length}
+                                                checked={newEvent.allocatedEmployees.length === nonAdminEmployees.length && nonAdminEmployees.length > 0}
                                                 onCheckedChange={(checked) => handleSelectAllEmployees(!!checked)}
-                                                onClick={(e) => e.stopPropagation()}
                                             />
                                             <span>Select All</span>
                                         </CommandItem>
@@ -344,6 +344,7 @@ export default function AdminDashboard() {
                                             <CommandItem
                                                 key={employee.id}
                                                 onSelect={() => handleEmployeeSelection(employee.id)}
+                                                className="cursor-pointer"
                                             >
                                                 <Checkbox
                                                     id={`employee-${employee.id}`}
