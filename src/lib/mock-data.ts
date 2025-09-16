@@ -340,18 +340,20 @@ export const checkInToEvent = async (eventId: string, employeeId: string, dateSt
     const dbInstance = getDb();
     const eventIndex = dbInstance.events.findIndex(e => e.id === eventId);
     if (eventIndex !== -1) {
-        if (!dbInstance.events[eventIndex].checkedInEmployees) {
-            dbInstance.events[eventIndex].checkedInEmployees = {};
+        const event = dbInstance.events[eventIndex];
+        if (!event.checkedInEmployees) {
+            event.checkedInEmployees = {};
         }
-        if (!dbInstance.events[eventIndex].checkedInEmployees![employeeId]) {
-            dbInstance.events[eventIndex].checkedInEmployees![employeeId] = {};
+        if (!event.checkedInEmployees[employeeId]) {
+            event.checkedInEmployees[employeeId] = {};
         }
-        dbInstance.events[eventIndex].checkedInEmployees![employeeId][dateString] = Date.now();
+        event.checkedInEmployees[employeeId][dateString] = Date.now();
         saveDb();
     } else {
         throw new Error("Event not found");
     }
 };
+
 
 export const getPerDiemRequests = async (): Promise<PerdiemRequest[]> => {
     return [...getDb().perdiemRequests];
