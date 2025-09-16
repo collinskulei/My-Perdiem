@@ -158,10 +158,15 @@ export default function EmployeeDashboard() {
 
   const isCheckInActive = (event: AppEvent) => {
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0); // Set to midnight to compare dates only
+
     const startDate = parseISO(event.startDate);
     startDate.setHours(0, 0, 0, 0);
-    return today.getTime() === startDate.getTime();
+
+    const endDate = parseISO(event.endDate);
+    endDate.setHours(0, 0, 0, 0);
+
+    return today.getTime() >= startDate.getTime() && today.getTime() <= endDate.getTime();
   };
   
   const hasRequestedPerDiem = (eventId: string) => {
