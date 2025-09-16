@@ -12,6 +12,11 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { getAuth, onAuthStateChanged, User } from "firebase/auth";
+import app from "@/lib/firebase/config";
+
+const auth = getAuth(app);
+
 
 /**
  * The main component for the Firebase health check page.
@@ -21,6 +26,14 @@ export default function HealthCheckPage() {
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [error, setError] = useState<Error | null>(null);
   const [projectId, setProjectId] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     async function checkFirebase() {
@@ -70,6 +83,19 @@ export default function HealthCheckPage() {
                      <Badge variant="secondary">{projectId}</Badge>
                 ) : (
                     <Badge variant="destructive">Not Found</Badge>
+                )}
+             </div>
+             <div className="flex items-center justify-between rounded-lg border p-4">
+                <div className="space-y-1">
+                    <p className="font-medium">Authentication</p>
+                     <p className="text-sm text-muted-foreground">
+                        Checks if a user is currently signed in. UID: {currentUser?.uid ?? 'None'}
+                    </p>
+                </div>
+                {currentUser ? (
+                     <Badge variant="secondary">Authenticated</Badge>
+                ) : (
+                    <Badge variant="outline">Not Authenticated</Badge>
                 )}
              </div>
              <div className="flex items-center justify-between rounded-lg border p-4">
