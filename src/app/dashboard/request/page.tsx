@@ -20,6 +20,7 @@ import {
   ChevronsUpDown,
 } from "lucide-react";
 import { format } from "date-fns";
+import { getAuth, onAuthStateChanged, User } from "firebase/auth";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -50,10 +51,13 @@ import { Calendar } from "@/components/ui/calendar";
 import { Switch } from "@/components/ui/switch";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { cn } from "@/lib/utils";
-import { dutyStationCoordinates } from "@/lib/data";
-import type { Venue } from "@/lib/data";
+import type { Venue, Employee } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
-import { getVenues } from "@/lib/firebase/firestore";
+import { getVenues, getEmployeeById } from "@/lib/firebase/firestore";
+import app from "@/lib/firebase/config";
+
+const auth = getAuth(app);
+
 
 /**
  * Zod schema for validating the per diem request form fields.
@@ -118,7 +122,30 @@ export default function PerdiemRequestWizard() {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [isTestMode, setIsTestMode] = useState(false);
+  const [currentUser, setCurrentUser] = useState<Employee | null>(null);
+  const [authUser, setAuthUser] = useState<User | null>(null);
   
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setAuthUser(user);
+      } else {
+        router.push('/');
+      }
+    });
+    return () => unsubscribe();
+  }, [router]);
+
+  useEffect(() => {
+    async function fetchUser() {
+      if (authUser) {
+        const userData = await getEmployeeById(authUser.uid);
+        setCurrentUser(userData);
+      }
+    }
+    fetchUser();
+  }, [authUser]);
+
   const form = useForm<RequestFormValues>({
     resolver: zodResolver(requestSchema),
     defaultValues: {
@@ -170,24 +197,32 @@ export default function PerdiemRequestWizard() {
   const selectedVenue = useMemo(() => {
     return venues.find(h => h.id === watchedValues.venueId);
   }, [watchedValues.venueId, venues]);
+  
+  const dutyStationCoordinates = useMemo(() => {
+    if (!currentUser?.dutyStation) return null;
+    // This is a simplified example. In a real app, you might have a more robust way to get coordinates.
+    const stations: { [key: string]: { latitude: number, longitude: number } } = {
+        "Nairobi": { latitude: -1.286389, longitude: 36.817223 },
+        "Mombasa": { latitude: -4.043477, longitude: 39.668205 },
+        "Kisumu": { latitude: -0.091702, longitude: 34.767956 },
+        "Nakuru": { latitude: -0.303099, longitude: 36.080025 },
+    };
+    return stations[currentUser.dutyStation];
+  }, [currentUser]);
+
 
   // Automatically calculate mileage when a venue is selected.
   useEffect(() => {
-    if (selectedVenue) {
-      // Mocked current user's duty station. In a real app, this would come from the user's profile.
-      const dutyStation = "Nairobi"; 
-      const stationCoords = dutyStationCoordinates[dutyStation];
-      if (stationCoords) {
-        const dist = getDistance(
-          stationCoords.latitude,
-          stationCoords.longitude,
-          selectedVenue.latitude,
-          selectedVenue.longitude
-        );
-        setValue("mileage", Math.round(dist * 2)); // round trip
-      }
+    if (selectedVenue && dutyStationCoordinates) {
+      const dist = getDistance(
+        dutyStationCoordinates.latitude,
+        dutyStationCoordinates.longitude,
+        selectedVenue.latitude,
+        selectedVenue.longitude
+      );
+      setValue("mileage", Math.round(dist * 2)); // round trip
     }
-  }, [selectedVenue, setValue]);
+  }, [selectedVenue, setValue, dutyStationCoordinates]);
   
   // Determines if the user is close enough to the venue to check in.
   const canCheckIn = useMemo(() => isTestMode || (distance !== null && distance <= 1), [isTestMode, distance]);

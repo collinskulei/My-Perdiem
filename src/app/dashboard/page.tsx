@@ -10,6 +10,7 @@ import { PlusCircle } from "lucide-react";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { useState, useEffect } from "react";
+import { getAuth, onAuthStateChanged, User } from "firebase/auth";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,9 +30,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { PerdiemRequest, Venue } from "@/lib/data";
+import type { PerdiemRequest, Venue, Employee } from "@/lib/data";
 import { ReportDialog } from "@/components/report-dialog";
-import { getPerDiemRequestsByEmployee, getVenues } from "@/lib/firebase/firestore";
+import { getPerDiemRequestsByEmployee, getVenues, getEmployeeById } from "@/lib/firebase/firestore";
+import app from "@/lib/firebase/config";
+
+const auth = getAuth(app);
 
 /**
  * Converts an array of objects to a CSV formatted string.
@@ -70,23 +74,46 @@ export default function EmployeeDashboard() {
   const [userRequests, setUserRequests] = useState<PerdiemRequest[]>([]);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<Employee | null>(null);
+  const [authUser, setAuthUser] = useState<User | null>(null);
 
-  // Mocked employee ID for demonstration. In a real app, this would come from auth state.
-  const employeeId = "1";
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setAuthUser(user);
+      } else {
+        // Redirect to login if not authenticated
+        // router.push('/');
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     async function fetchData() {
+      if (!authUser) return;
+
       setLoading(true);
-      const [requests, venuesData] = await Promise.all([
-        getPerDiemRequestsByEmployee(employeeId), // Fetching for a specific employee
-        getVenues()
-      ]);
-      setUserRequests(requests);
-      setVenues(venuesData);
-      setLoading(false);
+      try {
+        const [userData, requests, venuesData] = await Promise.all([
+          getEmployeeById(authUser.uid),
+          getPerDiemRequestsByEmployee(authUser.uid),
+          getVenues()
+        ]);
+        
+        setCurrentUser(userData);
+        setUserRequests(requests);
+        setVenues(venuesData);
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
     }
     fetchData();
-  }, [employeeId]);
+  }, [authUser]);
   
 
   /**
@@ -137,11 +164,17 @@ export default function EmployeeDashboard() {
     }
   };
 
+  const getFirstName = (name: string | undefined) => {
+    if (!name) return "";
+    return name.split(" ")[0];
+  };
+
+
   return (
     <div className="grid flex-1 items-start gap-4">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-            <h1 className="text-3xl font-bold tracking-tight">Welcome Back, John!</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Welcome Back, {getFirstName(currentUser?.name)}!</h1>
             <p className="text-muted-foreground">Here's a list of your recent perdiem requests.</p>
         </div>
         <div className="flex items-center gap-2">

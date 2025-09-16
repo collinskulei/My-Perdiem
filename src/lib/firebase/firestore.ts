@@ -2,7 +2,7 @@
  * @file This file contains helper functions for interacting with Cloud Firestore.
  * It abstracts the logic for common database operations like getting and adding documents.
  */
-import { getFirestore, collection, getDocs, addDoc, query, where, doc, setDoc } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, addDoc, query, where, doc, setDoc, getDoc } from 'firebase/firestore';
 import app from './config';
 import type { Venue, PerdiemRequest, Employee } from '../data';
 
@@ -61,6 +61,26 @@ export const getEmployees = async (): Promise<Employee[]> => {
         return [];
     }
 };
+
+/**
+ * Fetches a single employee from the 'users' collection by their ID (UID).
+ * @param {string} uid - The user's unique ID.
+ * @returns {Promise<Employee | null>} A promise that resolves to the employee object or null if not found.
+ */
+export const getEmployeeById = async (uid: string): Promise<Employee | null> => {
+    try {
+        const userDocRef = doc(db, 'users', uid);
+        const userSnapshot = await getDoc(userDocRef);
+        if (userSnapshot.exists()) {
+            return { id: userSnapshot.id, ...userSnapshot.data() } as Employee;
+        }
+        return null;
+    } catch (error) {
+        console.error("Error fetching employee by ID: ", error);
+        return null;
+    }
+};
+
 
 /**
  * The data required to create a new employee, excluding the auto-generated ID.

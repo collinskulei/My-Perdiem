@@ -5,7 +5,7 @@
  */
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useState, useMemo } from 'react';
 import { Loader2, Car, Plane, Bed, DollarSign } from 'lucide-react';
@@ -19,7 +19,13 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { SuccessDialog } from '@/components/success-dialog';
-import { addPerDiemRequest, PerDiemRequestData } from '@/lib/firebase/firestore';
+import { addPerDiemRequest, PerDiemRequestData, getEmployeeById } from '@/lib/firebase/firestore';
+import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
+import app from '@/lib/firebase/config';
+import type { Employee } from '@/lib/data';
+
+const auth = getAuth(app);
+
 
 // Constants for per diem calculation.
 const MILEAGE_RATE_KSH = 45;
@@ -36,6 +42,30 @@ function ReviewPageContents() {
   const searchParams = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [authUser, setAuthUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<Employee | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setAuthUser(user);
+      } else {
+        router.push('/');
+      }
+    });
+    return () => unsubscribe();
+  }, [router]);
+
+  useEffect(() => {
+    async function fetchUser() {
+      if (authUser) {
+        const userData = await getEmployeeById(authUser.uid);
+        setCurrentUser(userData);
+      }
+    }
+    fetchUser();
+  }, [authUser]);
+
 
   /**
    * Memoized parsing of form data from URL search parameters.
@@ -78,15 +108,15 @@ function ReviewPageContents() {
    * Simulates an API call and displays a success dialog upon completion.
    */
   const handleSubmit = async () => {
+    if (!authUser || !currentUser) {
+      // Handle case where user data is not loaded
+      return;
+    }
     setIsSubmitting(true);
-    
-    // Mocked employee data. In a real app, this would come from an auth context.
-    const employeeId = '1';
-    const employeeName = 'John Doe';
 
     const requestData: PerDiemRequestData = {
-      employeeId,
-      employeeName,
+      employeeId: authUser.uid,
+      employeeName: currentUser.name,
       eventName: formData.eventName,
       location: formData.venueCity,
       date: formData.date.toISOString().split('T')[0], // Format as YYYY-MM-DD
@@ -186,7 +216,7 @@ function ReviewPageContents() {
           </Card>
         </CardContent>
         <CardFooter className="flex justify-end">
-          <Button type="button" onClick={handleSubmit} disabled={isSubmitting}>
+          <Button type="button" onClick={handleSubmit} disabled={isSubmitting || !currentUser}>
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
