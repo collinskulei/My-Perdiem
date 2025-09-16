@@ -47,15 +47,15 @@ export const addVenue = async (venue: VenueData): Promise<string> => {
 // --- EMPLOYEES COLLECTION ---
 
 /**
- * Fetches all employees from the 'users' collection in Firestore.
+ * Fetches all employees from the 'employees' collection in Firestore.
  * @returns {Promise<Employee[]>} A promise that resolves to an array of employee objects.
  */
 export const getEmployees = async (): Promise<Employee[]> => {
     try {
-        const usersCol = collection(db, 'users');
-        const userSnapshot = await getDocs(usersCol);
-        const userList = userSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee));
-        return userList;
+        const employeesCol = collection(db, 'employees');
+        const employeeSnapshot = await getDocs(employeesCol);
+        const employeeList = employeeSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee));
+        return employeeList;
     } catch (error) {
         console.error("Error fetching employees: ", error);
         return [];
@@ -63,13 +63,13 @@ export const getEmployees = async (): Promise<Employee[]> => {
 };
 
 /**
- * Fetches a single employee from the 'users' collection by their ID (UID).
+ * Fetches a single employee from the 'employees' collection by their ID (UID).
  * @param {string} uid - The user's unique ID.
  * @returns {Promise<Employee | null>} A promise that resolves to the employee object or null if not found.
  */
 export const getEmployeeById = async (uid: string): Promise<Employee | null> => {
     try {
-        const userDocRef = doc(db, 'users', uid);
+        const userDocRef = doc(db, 'employees', uid);
         const userSnapshot = await getDoc(userDocRef);
         if (userSnapshot.exists()) {
             return { id: userSnapshot.id, ...userSnapshot.data() } as Employee;
@@ -89,21 +89,21 @@ export type EmployeeData = Omit<Employee, 'id' | 'avatarUrl'>;
 
 
 /**
- * Adds a new employee or admin document to the 'users' collection.
+ * Adds a new employee or admin document to the 'employees' collection.
  * The document ID is set to the user's UID from Firebase Authentication.
  * @param {object} userData - The user data to add.
  * @param {string} uid - The user's unique ID from Firebase Auth.
  * @returns {Promise<void>} A promise that resolves when the document is successfully created.
  */
 export const addEmployee = async (userData: any, uid: string): Promise<void> => {
-    const usersCol = collection(db, 'users');
+    const employeesCol = collection(db, 'employees');
     // Add avatarUrl placeholder
     const userWithAvatar = {
         ...userData,
         avatarUrl: `https://picsum.photos/seed/${uid}/100/100`,
     };
     // Use the uid from Auth as the document ID
-    await setDoc(doc(usersCol, uid), userWithAvatar);
+    await setDoc(doc(employeesCol, uid), userWithAvatar);
 };
 
 
