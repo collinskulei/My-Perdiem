@@ -252,6 +252,14 @@ export default function AdminDashboard() {
   const handleDeselectAll = () => {
     setNewEvent(prev => ({ ...prev, allocatedEmployees: [] }));
   };
+  
+  const handleEmployeeSelection = (value: string) => {
+    const employee = nonAdminEmployees.find(e => e.name.toLowerCase() === value);
+    if(employee) {
+        handleSelectEmployee(employee.id);
+    }
+  };
+
 
   const nonAdminEmployees = employees.filter(e => e.role !== 'Admin');
 
@@ -305,11 +313,11 @@ export default function AdminDashboard() {
                 <Popover><PopoverTrigger asChild><Button variant="outline" role="combobox" className="col-span-3 justify-between">{newEvent.allocatedEmployees.length > 0 ? `${newEvent.allocatedEmployees.length} selected` : "Select employees"}<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" /></Button></PopoverTrigger>
                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0"><Command><CommandInput placeholder="Search employees..."/><CommandList><CommandEmpty>No employees found.</CommandEmpty>
                 <CommandGroup>
-                  <CommandItem onSelect={handleSelectAll}>Select All</CommandItem>
-                  <CommandItem onSelect={handleDeselectAll}>Deselect All</CommandItem>
+                  <CommandItem key="select-all" onSelect={handleSelectAll}><Check className={cn("mr-2 h-4 w-4", newEvent.allocatedEmployees.length === nonAdminEmployees.length ? "opacity-100" : "opacity-0")}/>Select All</CommandItem>
+                  <CommandItem key="deselect-all" onSelect={handleDeselectAll}><Check className={cn("mr-2 h-4 w-4", newEvent.allocatedEmployees.length === 0 ? "opacity-100" : "opacity-0")}/>Deselect All</CommandItem>
                 </CommandGroup>
                 <CommandSeparator />
-                <CommandGroup>{nonAdminEmployees.map((employee) => (<CommandItem key={employee.id} value={employee.name} onSelect={() => handleSelectEmployee(employee.id)}><Check className={cn("mr-2 h-4 w-4", newEvent.allocatedEmployees.includes(employee.id) ? "opacity-100" : "opacity-0")}/>{employee.name}</CommandItem>))}</CommandGroup></CommandList></Command></PopoverContent></Popover>
+                <CommandGroup>{nonAdminEmployees.map((employee) => (<CommandItem key={employee.id} value={employee.name.toLowerCase()} onSelect={handleEmployeeSelection}><Check className={cn("mr-2 h-4 w-4", newEvent.allocatedEmployees.includes(employee.id) ? "opacity-100" : "opacity-0")}/>{employee.name}</CommandItem>))}</CommandGroup></CommandList></Command></PopoverContent></Popover>
                 </div></div><DialogFooter><Button type="button" onClick={handleAddEvent}>Save Event</Button></DialogFooter></DialogContent></Dialog>
             </CardHeader>
             <CardContent>
