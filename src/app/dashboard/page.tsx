@@ -211,7 +211,7 @@ export default function EmployeeDashboard() {
 
   const getAttendanceProgress = (event: AppEvent) => {
       const totalDays = getEventDays(event).length;
-      if (totalDays === 0) return { percent: 0, color: 'bg-red-500' };
+      if (totalDays === 0) return { percent: 0, color: 'bg-red-500', checkedInDays: 0, totalDays: 0 };
 
       const checkedInDays = event.checkedInEmployees?.[authUser?.uid ?? ''] 
           ? Object.keys(event.checkedInEmployees[authUser?.uid ?? '']).length
@@ -225,16 +225,17 @@ export default function EmployeeDashboard() {
       } else if (percent > 50) {
           color = 'bg-green-500';
       }
+      if (percent === 100) {
+          color = 'bg-green-600';
+      }
       if(checkedInDays === 0) color = 'bg-red-500';
-
 
       return { percent, color, checkedInDays, totalDays };
   }
 
-  const hasCheckedInAtLeastOnce = (event: AppEvent): boolean => {
-    if (!event.checkedInEmployees || !authUser) return false;
-    const userCheckins = event.checkedInEmployees[authUser.uid];
-    return userCheckins && Object.keys(userCheckins).length > 0;
+  const hasCheckedInForAllDays = (event: AppEvent): boolean => {
+    const { checkedInDays, totalDays } = getAttendanceProgress(event);
+    return totalDays > 0 && checkedInDays === totalDays;
   }
 
   return (
@@ -273,7 +274,7 @@ export default function EmployeeDashboard() {
                         ) : myEvents.length === 0 ? (
                             <TableRow><TableCell colSpan={5} className="h-24 text-center">You have no upcoming events.</TableCell></TableRow>
                         ) : myEvents.map((event) => {
-                            const canRequestPerDiem = hasCheckedInAtLeastOnce(event) && !hasRequestedPerDiem(event.id);
+                            const canRequestPerDiem = hasCheckedInForAllDays(event) && !hasRequestedPerDiem(event.id);
                             const eventDays = getEventDays(event);
                             const today = new Date();
                             today.setHours(0,0,0,0);
@@ -301,7 +302,7 @@ export default function EmployeeDashboard() {
                                             {eventDays.map(day => {
                                                 const dateString = format(day, 'yyyy-MM-dd');
                                                 const isCheckedInForDay = !!event.checkedInEmployees?.[authUser?.uid ?? '']?.[dateString];
-                                                const canCheckInForDay = isWithinInterval(day, { start: parseISO(event.startDate), end: parseISO(event.endDate) }) && isToday(day);
+                                                const canCheckInForDay = isToday(day) && isWithinInterval(day, { start: parseISO(event.startDate), end: parseISO(event.endDate) });
 
                                                 if (canCheckInForDay && !isCheckedInForDay) {
                                                     return (
@@ -319,7 +320,7 @@ export default function EmployeeDashboard() {
                                                 </Button>
                                             )}
                                         </div>
-                                         {!canRequestPerDiem && hasCheckedInAtLeastOnce(event) && hasRequestedPerDiem(event.id) && (
+                                         {!canRequestPerDiem && hasCheckedInForAllDays(event) && hasRequestedPerDiem(event.id) && (
                                             <Badge variant="secondary">Per Diem Requested</Badge>
                                         )}
                                     </TableCell>
