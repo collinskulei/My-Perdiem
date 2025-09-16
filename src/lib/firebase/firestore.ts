@@ -2,7 +2,7 @@
  * @file This file contains helper functions for interacting with Cloud Firestore.
  * It abstracts the logic for common database operations like getting and adding documents.
  */
-import { getFirestore, collection, getDocs, addDoc, query, where, doc, setDoc, getDoc } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, addDoc, query, where, doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 import app from './config';
 import type { Venue, PerdiemRequest, Employee } from '../data';
 
@@ -104,6 +104,18 @@ export const addEmployee = async (userData: any, uid: string): Promise<void> => 
     };
     // Use the uid from Auth as the document ID
     await setDoc(doc(employeesCol, uid), userWithAvatar);
+};
+
+
+/**
+ * Updates an employee's document in the 'employees' collection.
+ * @param {string} uid - The user's unique ID.
+ * @param {Partial<Employee>} dataToUpdate - An object containing the fields to update.
+ * @returns {Promise<void>} A promise that resolves when the document is successfully updated.
+ */
+export const updateEmployee = async (uid: string, dataToUpdate: Partial<Employee>): Promise<void> => {
+    const userDocRef = doc(db, 'employees', uid);
+    await updateDoc(userDocRef, dataToUpdate);
 };
 
 

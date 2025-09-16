@@ -11,13 +11,14 @@ export type Employee = {
   name: string;
   phoneNumber: string;
   idNumber: string;
-  employeeNumber: string;
+  employeeNumber?: string;
   role: string; // This corresponds to 'designation' in the registration form
-  dutyStation: string;
+  dutyStation?: string;
   avatarUrl: string;
   email: string;
   gender: string;
-  jobGroup: string;
+  jobGroup?: string;
+  organizationName?: string;
 };
 
 /**
