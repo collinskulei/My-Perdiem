@@ -42,8 +42,10 @@ export default function LoginPage() {
   const [adminEmail, setAdminEmail] = useState("admin@example.com");
   const [adminPassword, setAdminPassword] = useState("password");
   const [testMode, setTestModeState] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
+    setHasMounted(true);
     setTestModeState(isTestMode());
     if (isTestMode()) {
       // Clear any previous test session on login page load
@@ -136,6 +138,11 @@ export default function LoginPage() {
       });
     }
   };
+  
+  if (!hasMounted) {
+    return null; // or a loading spinner
+  }
+
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -155,7 +162,7 @@ export default function LoginPage() {
             <TabsContent value="employee">
               <form onSubmit={handleEmployeeLogin}>
                 <div className="space-y-4 py-4">
-                  {!isTestMode() && (
+                  {!testMode ? (
                     <>
                       <div className="space-y-2">
                         <Label htmlFor="employee-email">Email</Label>
@@ -179,8 +186,7 @@ export default function LoginPage() {
                         />
                       </div>
                     </>
-                  )}
-                   {isTestMode() && (
+                  ) : (
                     <div className="text-center text-sm text-muted-foreground py-8">
                       Click below to log in as a test employee.
                     </div>
@@ -194,7 +200,7 @@ export default function LoginPage() {
             <TabsContent value="admin">
               <form onSubmit={handleAdminLogin}>
                 <div className="space-y-4 py-4">
-                   {!isTestMode() && (
+                   {!testMode ? (
                     <>
                       <div className="space-y-2">
                         <Label htmlFor="admin-email">Email</Label>
@@ -218,8 +224,7 @@ export default function LoginPage() {
                         />
                       </div>
                     </>
-                  )}
-                   {isTestMode() && (
+                  ) : (
                     <div className="text-center text-sm text-muted-foreground py-8">
                       Click below to log in as a test admin.
                     </div>
