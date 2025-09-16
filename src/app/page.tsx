@@ -67,14 +67,15 @@ export default function LoginPage() {
     e.preventDefault();
     if (isTestMode()) {
         const mockUsers = await mock.getEmployees();
-        const user = mockUsers.find(u => u.email === employeeEmail && u.role !== 'Admin');
+        // In test mode, log in as the first available non-admin user
+        const user = mockUsers.find(u => u.role !== 'Admin');
         if (user) {
             localStorage.setItem(TEST_USER_ID_KEY, user.id);
             router.push("/dashboard");
         } else {
             toast({
                 title: "Login Failed",
-                description: "No mock employee found with that email.",
+                description: "No mock employee found.",
                 variant: "destructive",
             });
         }
@@ -101,14 +102,15 @@ export default function LoginPage() {
     e.preventDefault();
     if (isTestMode()) {
         const mockUsers = await mock.getEmployees();
-        const user = mockUsers.find(u => u.email === adminEmail && u.role === 'Admin');
+        // In test mode, log in as the first available admin user
+        const user = mockUsers.find(u => u.role === 'Admin');
         if (user) {
             localStorage.setItem(TEST_USER_ID_KEY, user.id);
             router.push("/admin");
         } else {
             toast({
                 title: "Login Failed",
-                description: "No mock admin found with that email.",
+                description: "No mock admin found.",
                 variant: "destructive",
             });
         }
@@ -156,27 +158,34 @@ export default function LoginPage() {
             <TabsContent value="employee">
               <form onSubmit={handleEmployeeLogin}>
                 <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="employee-email">Email</Label>
-                    <Input
-                      id="employee-email"
-                      type="email"
-                      placeholder="your-email@health.org"
-                      required
-                      value={employeeEmail}
-                      onChange={(e) => setEmployeeEmail(e.target.value)}
-                    />
-                  </div>
                   {!isTestMode() && (
-                    <div className="space-y-2">
-                      <Label htmlFor="password">Password</Label>
-                      <Input
-                        id="password"
-                        type="password"
-                        required
-                        value={employeePassword}
-                        onChange={(e) => setEmployeePassword(e.target.value)}
-                      />
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="employee-email">Email</Label>
+                        <Input
+                          id="employee-email"
+                          type="email"
+                          placeholder="your-email@health.org"
+                          required
+                          value={employeeEmail}
+                          onChange={(e) => setEmployeeEmail(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="password">Password</Label>
+                        <Input
+                          id="password"
+                          type="password"
+                          required
+                          value={employeePassword}
+                          onChange={(e) => setEmployeePassword(e.target.value)}
+                        />
+                      </div>
+                    </>
+                  )}
+                   {isTestMode() && (
+                    <div className="text-center text-sm text-muted-foreground py-8">
+                      Click below to log in as a test employee.
                     </div>
                   )}
                 </div>
@@ -188,27 +197,34 @@ export default function LoginPage() {
             <TabsContent value="admin">
               <form onSubmit={handleAdminLogin}>
                 <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="admin-email">Email</Label>
-                    <Input
-                      id="admin-email"
-                      type="email"
-                      placeholder="admin@example.com"
-                      required
-                      value={adminEmail}
-                      onChange={(e) => setAdminEmail(e.target.value)}
-                    />
-                  </div>
-                  {!isTestMode() && (
-                    <div className="space-y-2">
-                      <Label htmlFor="admin-password">Password</Label>
-                      <Input
-                        id="admin-password"
-                        type="password"
-                        required
-                        value={adminPassword}
-                        onChange={(e) => setAdminPassword(e.target.value)}
-                      />
+                   {!isTestMode() && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="admin-email">Email</Label>
+                        <Input
+                          id="admin-email"
+                          type="email"
+                          placeholder="admin@example.com"
+                          required
+                          value={adminEmail}
+                          onChange={(e) => setAdminEmail(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="admin-password">Password</Label>
+                        <Input
+                          id="admin-password"
+                          type="password"
+                          required
+                          value={adminPassword}
+                          onChange={(e) => setAdminPassword(e.target.value)}
+                        />
+                      </div>
+                    </>
+                  )}
+                   {isTestMode() && (
+                    <div className="text-center text-sm text-muted-foreground py-8">
+                      Click below to log in as a test admin.
                     </div>
                   )}
                 </div>
