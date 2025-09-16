@@ -8,7 +8,6 @@ import {
   Bell,
   Home,
   LogOut,
-  Landmark,
   User,
 } from "lucide-react";
 import Link from "next/link";
@@ -44,7 +43,7 @@ export default function DashboardLayout({
       <Sidebar>
         <SidebarHeader>
           <div className="flex items-center gap-2">
-            <Landmark className="h-7 w-7 text-sidebar-primary" />
+            
             <h1 className="text-xl font-semibold text-sidebar-primary">
               My Perdiem
             </h1>

@@ -11,7 +11,6 @@ import {
   BarChart,
   Home,
   LogOut,
-  Landmark,
   User,
 } from "lucide-react";
 
@@ -48,7 +47,7 @@ export default function AdminLayout({
       <Sidebar>
         <SidebarHeader>
           <div className="flex items-center gap-2">
-            <Landmark className="h-7 w-7 text-sidebar-primary" />
+            
             <h1 className="text-xl font-semibold text-sidebar-primary">
               My Perdiem
             </h1>
