@@ -1,10 +1,22 @@
+
 /**
  * @file AdminLayout provides a consistent sidebar and header for all pages within the admin section.
  * It includes navigation links for the admin dashboard, employees, and reports.
  */
-"use client";
-
-import Link from "next/link";
+import type { Metadata } from 'next';
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarFooter,
+  SidebarTrigger,
+  SidebarInset,
+} from "@/components/ui/sidebar";
+import { Logo } from "@/components/logo";
 import {
   Bell,
   Home,
@@ -18,24 +30,13 @@ import {
   FileText,
   BarChart,
 } from "lucide-react";
+import { AdminHeader } from './admin-header';
+import { AdminSidebarNavigation } from './admin-sidebar-navigation';
 
-import {
-  SidebarProvider,
-  Sidebar,
-  SidebarHeader,
-  SidebarContent,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarFooter,
-  SidebarTrigger,
-  SidebarInset,
-} from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Logo } from "@/components/logo";
-import { usePathname, useSearchParams } from "next/navigation";
+export const metadata: Metadata = {
+  title: 'Admin Dashboard | PerdiemPro',
+  description: 'Manage per diem requests, events, and employees.',
+};
 
 
 /**
@@ -49,20 +50,6 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'requests';
-
-  const isLinkActive = (path: string, tab: string | null) => {
-    if (path !== '/admin') {
-      return pathname === path;
-    }
-    if (tab === null && pathname === '/admin' && !searchParams.has('tab')) {
-        return true;
-    }
-    return pathname === path && activeTab === tab;
-  }
-
   return (
     <SidebarProvider>
       <Sidebar>
@@ -72,62 +59,7 @@ export default function AdminLayout({
           </div>
         </SidebarHeader>
         <SidebarContent>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton href="/admin" isActive={isLinkActive('/admin', null)}>
-                <Home />
-                Dashboard
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-             <SidebarMenuItem>
-              <SidebarMenuButton href="/admin?tab=analytics" isActive={isLinkActive('/admin', 'analytics')}>
-                <BarChart />
-                Analytics
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-             <SidebarMenuItem>
-              <SidebarMenuButton href="/admin?tab=requests" isActive={isLinkActive('/admin', 'requests')}>
-                <ClipboardList />
-                Per Diem Requests
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-             <SidebarMenuItem>
-              <SidebarMenuButton href="/admin?tab=events" isActive={isLinkActive('/admin', 'events')}>
-                <CalendarDays />
-                Events
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-             <SidebarMenuItem>
-              <SidebarMenuButton href="/admin?tab=checkins" isActive={isLinkActive('/admin', 'checkins')}>
-                <ClipboardCheck />
-                Event Check-ins
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-             <SidebarMenuItem>
-              <SidebarMenuButton href="/admin?tab=employees" isActive={isLinkActive('/admin', 'employees')}>
-                <Users />
-                Employees
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-             <SidebarMenuItem>
-              <SidebarMenuButton href="/admin?tab=venues" isActive={isLinkActive('/admin', 'venues')}>
-                <MapPin />
-                Venues
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton href="/admin?tab=reports" isActive={isLinkActive('/admin', 'reports')}>
-                <FileText />
-                Reports
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-             <SidebarMenuItem>
-              <SidebarMenuButton href="/profile" isActive={isLinkActive('/profile', null)}>
-                <User />
-                Profile
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
+          <AdminSidebarNavigation />
         </SidebarContent>
         <SidebarFooter>
           <SidebarMenu>
@@ -141,33 +73,7 @@ export default function AdminLayout({
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <header className="flex h-14 items-center justify-between border-b bg-card px-4 lg:px-6">
-          <SidebarTrigger className="md:hidden" />
-          <div className="flex flex-1 items-center justify-end gap-4">
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <Bell className="h-5 w-5" />
-              <span className="sr-only">Toggle notifications</span>
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                 <Button variant="ghost" size="icon" className="rounded-full">
-                    <Avatar className="h-8 w-8">
-                    <AvatarImage src="https://picsum.photos/seed/admin/100/100" data-ai-hint="person avatar" />
-                    <AvatarFallback>AD</AvatarFallback>
-                    </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild><Link href="/profile">Profile</Link></DropdownMenuItem>
-                <DropdownMenuItem>Settings</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild><Link href="/">Logout</Link></DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </header>
+        <AdminHeader />
         <main className="flex-1 p-4 sm:p-6">{children}</main>
       </SidebarInset>
     </SidebarProvider>

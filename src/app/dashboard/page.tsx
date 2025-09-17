@@ -1,6 +1,4 @@
 
-"use client";
-
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { EmployeeDashboardWrapper } from "./employee-dashboard";
