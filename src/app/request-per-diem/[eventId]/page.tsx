@@ -137,7 +137,7 @@ export default function RequestPerDiemPage() {
 
     const prevStep = () => {
         if (currentStep > 0) {
-            setCurrentStep(step => step - 1);
+            setCurrentStep(step => step + 1);
         }
     };
 
@@ -274,7 +274,12 @@ const Step1 = ({ event, employee, venue }: { event: AppEvent, employee: Employee
                             <Input id="mileageKm" type="number" readOnly {...register('mileageKm')} />
                         </div>
                         <div className="space-y-2">
-                             <Label>Mileage Total</Label>
+                             <div className="flex justify-between items-baseline">
+                                <Label>Mileage Total</Label>
+                                <span className="text-xs text-muted-foreground">
+                                    Rate: Ksh {MILEAGE_RATE_KSH}/km
+                                </span>
+                            </div>
                              <Input readOnly value={formatCurrency(mileage.total)} />
                         </div>
                     </div>
@@ -435,3 +440,4 @@ const SummaryItem = ({ label, value }: { label: string, value: string | number }
         <p className="font-medium">{value}</p>
     </div>
 );
+
