@@ -67,7 +67,7 @@ const ANALYTICS_COLORS = {
 };
 
 
-function EmployeeDashboard() {
+function EmployeeDashboard({ currentTab }: { currentTab: string }) {
   const [userRequests, setUserRequests] = useState<PerdiemRequest[]>([]);
   const [myEvents, setMyEvents] = useState<AppEvent[]>([]);
   const [venues, setVenues] = useState<Venue[]>([]);
@@ -79,9 +79,7 @@ function EmployeeDashboard() {
   const [successMessage, setSuccessMessage] = useState({ title: "", description: "" });
   const { toast } = useToast();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const initialTab = searchParams.get('tab') || 'events';
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const [activeTab, setActiveTab] = useState(currentTab);
   const [isTestMode, setIsTestMode] = useState(false);
   const [bypassLocationCheck, setBypassLocationCheck] = useState(true);
 
@@ -148,13 +146,8 @@ function EmployeeDashboard() {
 
 
   useEffect(() => {
-    const tab = searchParams.get('tab');
-    if (tab) {
-      setActiveTab(tab);
-    } else {
-      setActiveTab('events');
-    }
-  }, [searchParams]);
+    setActiveTab(currentTab);
+  }, [currentTab]);
   
 
  const handleCheckIn = (event: AppEvent, date: Date) => {
@@ -645,10 +638,16 @@ function EmployeeDashboard() {
   );
 }
 
+function EmployeeDashboardWrapper() {
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'events';
+  return <EmployeeDashboard currentTab={initialTab} />;
+}
+
 export default function EmployeeDashboardPage() {
   return (
     <Suspense fallback={<div className="flex items-center justify-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
-      <EmployeeDashboard />
+      <EmployeeDashboardWrapper />
     </Suspense>
   )
 }

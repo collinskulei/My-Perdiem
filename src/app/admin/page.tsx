@@ -6,7 +6,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
-import dynamic from 'next/dynamic';
 import { useSearchParams, useRouter } from "next/navigation";
 import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import Image from "next/image";
@@ -39,7 +38,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogDescription
 } from "@/components/ui/dialog";
 import {
@@ -132,12 +130,10 @@ const downloadCSV = (csvData: string, filename: string) => {
 }
 
 
-function AdminDashboard() {
-  const searchParams = useSearchParams();
+function AdminDashboard({ currentTab }: { currentTab: string }) {
   const router = useRouter();
-  const initialTab = searchParams.get('tab') || 'requests';
 
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const [activeTab, setActiveTab] = useState(currentTab);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [perdiemRequests, setPerdiemRequests] = useState<PerdiemRequest[]>([]);
@@ -1162,10 +1158,18 @@ function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[]
   );
 }
 
+function AdminDashboardWrapper() {
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'requests';
+  return <AdminDashboard currentTab={initialTab} />;
+}
+
 export default function AdminDashboardPage() {
   return (
     <Suspense fallback={<div className="flex items-center justify-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
-      <AdminDashboard />
+      <AdminDashboardWrapper />
     </Suspense>
   );
 }
+
+    
