@@ -73,7 +73,7 @@ export default function RequestPerDiemPage() {
     const eventId = params.eventId as string;
 
     const methods = useForm<PerDiemFormValues>();
-    const { handleSubmit, trigger, getValues, watch } = methods;
+    const { handleSubmit, trigger } = methods;
 
     // --- DATA FETCHING ---
     useEffect(() => {
@@ -158,6 +158,7 @@ export default function RequestPerDiemPage() {
                 mileageKm: data.mileageKm || 0,
                 mileageTotal: data.mileageTotal || 0,
                 airTicketCost: data.airTicketCost || 0,
+                groundTransferCost: data.groundTransferCost || 0,
                 accommodationNights: data.accommodationNights || 0,
                 accommodationTotal: data.accommodationTotal || 0,
                 outOfOfficeAllowance: data.outOfOfficeAllowance || 0,
@@ -225,7 +226,7 @@ export default function RequestPerDiemPage() {
 // --- WIZARD STEPS ---
 
 const Step1 = ({ event, employee, venue }: { event: AppEvent, employee: Employee, venue: Venue }) => {
-    const { register, control } = useFormContext<PerDiemFormValues>();
+    const { register } = useFormContext<PerDiemFormValues>();
     
     const mileage = useMemo(() => {
         if (!employee.dutyStation || !dutyStationCoordinates[employee.dutyStation] || !venue) {
@@ -295,6 +296,15 @@ const Step1 = ({ event, employee, venue }: { event: AppEvent, employee: Employee
                         />
                      </div>
                      <FileUpload name="groundTransferFile" label="Ground Transfer Receipts (PDF, PNG, JPG)" />
+                     <div className="space-y-2">
+                        <Label htmlFor="groundTransferCost">Ground Transfer Cost (Ksh)</Label>
+                        <Input 
+                            id="groundTransferCost" 
+                            type="number" 
+                            placeholder="0" 
+                            {...register('groundTransferCost', { valueAsNumber: true })}
+                        />
+                     </div>
                 </div>
             </div>
         </div>
@@ -365,7 +375,11 @@ const Step3 = () => {
     const groundTransferFile = values.groundTransferFile?.[0];
 
     const totalPerdiem = useMemo(() => {
-        return (values.mileageTotal || 0) + (values.accommodationTotal || 0) + (values.outOfOfficeAllowance || 0) + (values.airTicketCost || 0);
+        return (values.mileageTotal || 0) + 
+               (values.accommodationTotal || 0) + 
+               (values.outOfOfficeAllowance || 0) + 
+               (values.airTicketCost || 0) +
+               (values.groundTransferCost || 0);
     }, [values]);
 
     // Set final total
@@ -386,8 +400,9 @@ const Step3 = () => {
                 <SummarySection title="Transport Costs">
                     <SummaryItem label="Mileage Claim" value={formatCurrency(values.mileageTotal || 0)} />
                     <SummaryItem label="Air Ticket Cost" value={formatCurrency(values.airTicketCost || 0)} />
+                    <SummaryItem label="Ground Transfer Cost" value={formatCurrency(values.groundTransferCost || 0)} />
                     <SummaryItem label="Air Ticket File" value={airTicketFile ? airTicketFile.name : "Not provided"} />
-                    <SummaryItem label="Ground Transfer" value={groundTransferFile ? groundTransferFile.name : "Not provided"} />
+                    <SummaryItem label="Ground Transfer File" value={groundTransferFile ? groundTransferFile.name : "Not provided"} />
                 </SummarySection>
 
                 <SummarySection title="Accommodation & Allowances">
@@ -451,7 +466,3 @@ const SummaryItem = ({ label, value }: { label: string, value: string | number }
         <p className="font-medium">{value}</p>
     </div>
 );
-
-
-
-

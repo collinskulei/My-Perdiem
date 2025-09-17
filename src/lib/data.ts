@@ -66,6 +66,7 @@ export type PerdiemRequest = {
   mileageKm?: number;
   mileageTotal?: number;
   airTicketCost?: number;
+  groundTransferCost?: number;
   airTicketUrl?: string;
   airTicketFilename?: string;
   groundTransferUrl?: string;
