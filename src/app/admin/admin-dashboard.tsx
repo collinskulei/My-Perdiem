@@ -1,13 +1,8 @@
 
-/**
- * @file This file defines the Admin Dashboard page.
- * It provides a user interface for administrators to manage per diem requests, employees, and venues.
- * Features include tabbed navigation, tables for data display, and dialogs for adding new data and generating reports.
- */
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { DateRange } from "react-day-picker";
@@ -129,7 +124,7 @@ const downloadCSV = (csvData: string, filename: string) => {
     document.body.removeChild(link);
 }
 
-function AdminDashboardInternal({ currentTab }: { currentTab: string }) {
+export default function AdminDashboard({ currentTab }: { currentTab: string }) {
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState(currentTab);
@@ -1159,10 +1154,4 @@ function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[]
       </div>
     </div>
   );
-}
-
-export default function AdminDashboard() {
-  const searchParams = useSearchParams();
-  const initialTab = searchParams.get('tab') || 'requests';
-  return <AdminDashboardInternal currentTab={initialTab} />;
 }

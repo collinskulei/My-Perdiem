@@ -1,10 +1,10 @@
 
 "use client";
 
-import { useState, useEffect, Suspense, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
 import { isToday, parseISO, format, isFuture, startOfDay } from "date-fns";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 
@@ -64,7 +64,7 @@ const ANALYTICS_COLORS = {
 };
 
 
-function EmployeeDashboardInternal({ currentTab }: { currentTab: string }) {
+export default function EmployeeDashboard({ currentTab }: { currentTab: string }) {
   const [userRequests, setUserRequests] = useState<PerdiemRequest[]>([]);
   const [myEvents, setMyEvents] = useState<AppEvent[]>([]);
   const [venues, setVenues] = useState<Venue[]>([]);
@@ -633,18 +633,4 @@ function EmployeeDashboardInternal({ currentTab }: { currentTab: string }) {
       </div>
     </>
   );
-}
-
-function EmployeeDashboardWrapper() {
-  const searchParams = useSearchParams();
-  const initialTab = searchParams.get('tab') || 'events';
-  return <EmployeeDashboardInternal currentTab={initialTab} />;
-}
-
-export default function EmployeeDashboard() {
-  return (
-    <Suspense fallback={<div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
-      <EmployeeDashboardWrapper />
-    </Suspense>
-  )
 }
