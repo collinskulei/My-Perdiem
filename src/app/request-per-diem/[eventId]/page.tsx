@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
 import { differenceInCalendarDays, parseISO } from "date-fns";
@@ -57,7 +57,7 @@ const steps = [
     { id: '03', name: 'Preview & Submit', fields: [] }
 ];
 
-export default function RequestPerDiemPage() {
+function PerDiemWizard() {
     const [currentStep, setCurrentStep] = useState(0);
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -222,6 +222,15 @@ export default function RequestPerDiemPage() {
         </div>
     );
 }
+
+export default function RequestPerDiemPage() {
+    return (
+        <Suspense fallback={<div className="flex items-center justify-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+            <PerDiemWizard />
+        </Suspense>
+    );
+}
+
 
 // --- WIZARD STEPS ---
 

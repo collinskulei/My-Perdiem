@@ -4,10 +4,10 @@
  */
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,7 @@ const auth = getAuth(app);
  * It manages the state for the current step and handles navigation between steps.
  * @returns {JSX.Element} The rendered registration wizard.
  */
-export default function RegistrationWizard() {
+function RegistrationWizard() {
   const [role, setRole] = useState("employee");
   const [formData, setFormData] = useState<Partial<EmployeeData & { password?: string, confirmPassword?: string, organizationName?: string, dateOfBirth?: string, phone?: string }>>({});
   const router = useRouter();
@@ -383,4 +383,12 @@ export default function RegistrationWizard() {
       </Card>
     </div>
   );
+}
+
+export default function RegistrationPage() {
+    return (
+        <Suspense fallback={<div className="flex items-center justify-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+            <RegistrationWizard />
+        </Suspense>
+    );
 }

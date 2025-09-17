@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
@@ -46,7 +46,7 @@ type ProfileFormValues = Omit<Employee, "id" | "avatarUrl" | "email">;
  * Fetches user data, displays it in a form, and handles updates.
  * @returns {JSX.Element} The rendered profile page.
  */
-export default function ProfilePage() {
+function Profile() {
   const [authUser, setAuthUser] = useState<User | MockUser | null>(null);
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
@@ -261,4 +261,12 @@ export default function ProfilePage() {
     </form>
     </div>
   );
+}
+
+export default function ProfilePage() {
+    return (
+        <Suspense fallback={<div className="flex items-center justify-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+            <Profile />
+        </Suspense>
+    );
 }
