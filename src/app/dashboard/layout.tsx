@@ -52,7 +52,7 @@ export default function DashboardLayout({
   const isLinkActive = (path: string, tab?: string | null) => {
     const isPathMatch = pathname === path;
     
-    // For specific pages like /profile or /dashboard/analytics
+    // For specific pages like /profile
     if (path !== '/dashboard') {
         return isPathMatch;
     }
@@ -62,7 +62,7 @@ export default function DashboardLayout({
         return isPathMatch && activeTab === tab;
     }
 
-    // For the main dashboard link (Home). It should be active if we are on /dashboard and there's no tab, or if tab is 'events'.
+    // For the main dashboard link (Home/Events). It should be active if we are on /dashboard and there's no tab, or if tab is 'events'.
     return isPathMatch && (activeTab === null || activeTab === 'events');
   };
 
@@ -101,7 +101,7 @@ export default function DashboardLayout({
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/dashboard/analytics" isActive={isLinkActive('/dashboard/analytics')}>
+              <SidebarMenuButton href="/dashboard?tab=analytics" isActive={isLinkActive('/dashboard', 'analytics')}>
                 <BarChart />
                 My Analytics
               </SidebarMenuButton>

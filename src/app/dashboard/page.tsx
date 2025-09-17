@@ -4,10 +4,11 @@
  */
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useMemo } from "react";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
 import { isToday, parseISO, format, isFuture, startOfDay } from "date-fns";
 import { useRouter, useSearchParams } from "next/navigation";
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +31,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import {
-  Tooltip,
+  Tooltip as UITooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
@@ -55,6 +56,14 @@ const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
 type MockUser = {
     uid: string;
 }
+
+const ANALYTICS_COLORS = {
+  Pending: '#f97316', // orange-500
+  Approved: '#10b981', // emerald-500
+  Paid: '#3b82f6', // blue-500
+  Rejected: '#ef4444', // red-500
+};
+
 
 function EmployeeDashboard() {
   const [userRequests, setUserRequests] = useState<PerdiemRequest[]>([]);
@@ -252,6 +261,18 @@ function EmployeeDashboard() {
     const { checkedInDays, totalDays } = getAttendanceProgress(event);
     return totalDays > 0 && checkedInDays === totalDays;
   }
+  
+  const requestsByStatus = useMemo(() => userRequests.reduce((acc, req) => {
+    acc[req.status] = (acc[req.status] || 0) + 1;
+    return acc;
+  }, {} as { [key: string]: number }), [userRequests]);
+
+  const pieChartData = useMemo(() => Object.entries(requestsByStatus).map(([name, value]) => ({ name, value })), [requestsByStatus]);
+
+  const totalPaid = useMemo(() => userRequests
+    .filter(req => req.status === 'Paid')
+    .reduce((sum, req) => sum + req.totalPerdiem, 0), [userRequests]);
+
 
   return (
     <>
@@ -272,6 +293,7 @@ function EmployeeDashboard() {
                 <TabsTrigger value="events">My Events</TabsTrigger>
                 <TabsTrigger value="checkins">My Check-ins</TabsTrigger>
                 <TabsTrigger value="requests">My Per Diem Requests</TabsTrigger>
+                <TabsTrigger value="analytics">My Analytics</TabsTrigger>
             </TabsList>
             <TabsContent value="events">
                  <Card>
@@ -306,7 +328,7 @@ function EmployeeDashboard() {
                                             <TableCell>{event.venueName}</TableCell>
                                             <TableCell>{(event.eventDates || []).join(', ')}</TableCell>
                                             <TableCell>
-                                                <Tooltip>
+                                                <UITooltip>
                                                     <TooltipTrigger asChild>
                                                         <div>
                                                             <Progress value={percent} indicatorClassName={color} className="h-3" />
@@ -315,7 +337,7 @@ function EmployeeDashboard() {
                                                     <TooltipContent>
                                                         <p>Attended {checkedInDays} of {totalDays} days.</p>
                                                     </TooltipContent>
-                                                </Tooltip>
+                                                </UITooltip>
                                             </TableCell>
                                             <TableCell className="text-right">
                                                <div className="flex gap-2 justify-end">
@@ -454,6 +476,59 @@ function EmployeeDashboard() {
                     </Table>
                   </CardContent>
                 </Card>
+            </TabsContent>
+            <TabsContent value="analytics">
+                <div className="space-y-6">
+                    <div className="grid gap-6 md:grid-cols-2">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>My Total Requests</CardTitle>
+                                <CardDescription>All per diem requests you have submitted.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-4xl font-bold">{userRequests.length}</p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Total Paid to You</CardTitle>
+                                <CardDescription>The total amount for all your paid per diems.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-4xl font-bold">{formatCurrency(totalPaid)}</p>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    <div className="grid gap-6">
+                        <Card>
+                        <CardHeader>
+                            <CardTitle>My Requests by Status</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {loading ? (
+                                <div className="h-[300px] flex items-center justify-center text-muted-foreground">Loading analytics...</div>
+                            ) : pieChartData.length > 0 ? (
+                                <ResponsiveContainer width="100%" height={300}>
+                                <PieChart>
+                                    <Pie data={pieChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
+                                    {pieChartData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={ANALYTICS_COLORS[entry.name as keyof typeof ANALYTICS_COLORS]} />
+                                    ))}
+                                    </Pie>
+                                    <Tooltip formatter={(value, name) => [`${value} requests`, name]} />
+                                    <Legend />
+                                </PieChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                                    You have not submitted any requests yet.
+                                </div>
+                            )}
+                        </CardContent>
+                        </Card>
+                    </div>
+                </div>
             </TabsContent>
         </Tabs>
       </div>
