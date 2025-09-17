@@ -10,7 +10,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
 import Image from "next/image";
 import { DateRange } from "react-day-picker";
-import { format, differenceInCalendarDays, parseISO, isWithinInterval, isSameDay } from "date-fns";
+import { format, differenceInCalendarDays, parseISO, isWithinInterval, isSameDay, isPast, endOfDay } from "date-fns";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -137,8 +137,9 @@ function AdminDashboard() {
   const [isAddVenueOpen, setIsAddVenueOpen] = useState(false);
   const [newVenue, setNewVenue] = useState(defaultNewVenue);
   
-  const [isAddEventOpen, setIsAddEventOpen] = useState(false);
-  const [newEvent, setNewEvent] = useState(defaultNewEvent);
+  const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<AppEvent | null>(null);
+  const [eventFormData, setEventFormData] = useState<{name: string; facilitator: string; venueId: string; allocatedEmployees: string[] }>(defaultNewEvent);
   const [eventDates, setEventDates] = useState<Date[] | undefined>();
   const [isEmployeeSelectOpen, setEmployeeSelectOpen] = useState(false);
 
@@ -159,33 +160,35 @@ function AdminDashboard() {
     router.push(`/admin?tab=${value}`, { scroll: false });
   };
 
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      try {
-        const [venuesData, employeesData, requestsData, eventsData] = await Promise.all([
-          dataProvider.getVenues(),
-          dataProvider.getEmployees(),
-          dataProvider.getPerDiemRequests(),
-          dataProvider.getEvents()
-        ]);
-        setVenues(venuesData);
-        setEmployees(employeesData);
-        setPerdiemRequests(requestsData);
-        setEvents(eventsData);
-      } catch (error) {
-        console.error("Failed to fetch data:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load data from the database.",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
+  const fetchAllData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [venuesData, employeesData, requestsData, eventsData] = await Promise.all([
+        dataProvider.getVenues(),
+        dataProvider.getEmployees(),
+        dataProvider.getPerDiemRequests(),
+        dataProvider.getEvents()
+      ]);
+      setVenues(venuesData);
+      setEmployees(employeesData);
+      setPerdiemRequests(requestsData);
+      setEvents(eventsData.sort((a, b) => new Date(b.eventDates[0]).getTime() - new Date(a.eventDates[0]).getTime()));
+    } catch (error) {
+      console.error("Failed to fetch data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load data from the database.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-    fetchData();
   }, [toast]);
+
+
+  useEffect(() => {
+    fetchAllData();
+  }, [fetchAllData]);
 
   const applyFilters = useCallback(() => {
         let data = perdiemRequests;
@@ -244,37 +247,62 @@ function AdminDashboard() {
     }
   };
 
-  const handleAddEvent = async () => {
-    const selectedVenue = venues.find(v => v.id === newEvent.venueId);
-    if (!newEvent.name || !eventDates || eventDates.length === 0 || !newEvent.venueId || !selectedVenue || !newEvent.facilitator ) {
+  const handleOpenEventDialog = (eventToEdit: AppEvent | null = null) => {
+    if (eventToEdit) {
+      setEditingEvent(eventToEdit);
+      setEventFormData({
+        name: eventToEdit.name,
+        facilitator: eventToEdit.facilitator,
+        venueId: eventToEdit.venueId,
+        allocatedEmployees: eventToEdit.allocatedEmployees,
+      });
+      setEventDates((eventToEdit.eventDates || []).map(dateStr => parseISO(dateStr)));
+    } else {
+      setEditingEvent(null);
+      setEventFormData(defaultNewEvent);
+      setEventDates(undefined);
+    }
+    setIsEventDialogOpen(true);
+  };
+  
+
+  const handleSaveEvent = async () => {
+    const selectedVenue = venues.find(v => v.id === eventFormData.venueId);
+    if (!eventFormData.name || !eventDates || eventDates.length === 0 || !eventFormData.venueId || !selectedVenue || !eventFormData.facilitator ) {
         toast({ title: "Missing fields", description: "Please fill all event details, including at least one date.", variant: "destructive" });
         return;
     }
 
     const formattedDates = eventDates.map(date => format(date, 'yyyy-MM-dd')).sort();
 
-    const eventToAdd = {
-        name: newEvent.name,
+    const eventData = {
+        name: eventFormData.name,
         eventDates: formattedDates,
-        venueId: newEvent.venueId,
+        venueId: eventFormData.venueId,
         venueName: selectedVenue.name,
         venueCity: selectedVenue.city,
-        facilitator: newEvent.facilitator,
-        allocatedEmployees: newEvent.allocatedEmployees,
+        facilitator: eventFormData.facilitator,
+        allocatedEmployees: eventFormData.allocatedEmployees,
     };
-
+    
     try {
-        const newEventId = await dataProvider.addEvent(eventToAdd);
-        setEvents(prev => [...prev, { id: newEventId, ...eventToAdd }]);
-        setNewEvent(defaultNewEvent);
-        setEventDates(undefined);
-        setIsAddEventOpen(false);
+      if (editingEvent) {
+        // Update existing event
+        await dataProvider.updateEvent(editingEvent.id, eventData);
+        toast({ title: "Success", description: "Event updated successfully." });
+      } else {
+        // Add new event
+        await dataProvider.addEvent(eventData);
         toast({ title: "Success", description: "Event created successfully." });
+      }
+      setIsEventDialogOpen(false);
+      await fetchAllData(); // Refresh all data
     } catch (error) {
-        console.error("Error adding event: ", error);
-        toast({ title: "Error", description: "Failed to create event.", variant: "destructive" });
+      console.error("Error saving event: ", error);
+      toast({ title: "Error", description: `Failed to save event.`, variant: "destructive" });
     }
   };
+
 
   const updateRequestStatus = useCallback(async (requestId: string, status: 'Approved' | 'Rejected' | 'Paid') => {
     try {
@@ -354,7 +382,7 @@ function AdminDashboard() {
   const nonAdminEmployees = employees.filter(e => e.role !== 'Admin');
 
   const handleSelectEmployee = useCallback((employeeId: string) => {
-    setNewEvent(prev => {
+    setEventFormData(prev => {
         const newSelection = prev.allocatedEmployees.includes(employeeId)
             ? prev.allocatedEmployees.filter(id => id !== employeeId)
             : [...prev.allocatedEmployees, employeeId];
@@ -364,9 +392,9 @@ function AdminDashboard() {
 
   const handleSelectAllEmployees = (check: boolean | string) => {
      if (check) {
-        setNewEvent(prev => ({ ...prev, allocatedEmployees: nonAdminEmployees.map(e => e.id) }));
+        setEventFormData(prev => ({ ...prev, allocatedEmployees: nonAdminEmployees.map(e => e.id) }));
      } else {
-        setNewEvent(prev => ({ ...prev, allocatedEmployees: [] }));
+        setEventFormData(prev => ({ ...prev, allocatedEmployees: [] }));
      }
   };
   
@@ -381,7 +409,7 @@ function AdminDashboard() {
 
   const activeEvents = events.filter(event => {
     const today = new Date();
-    return (event.eventDates || []).some(dateStr => isWithinInterval(today, {
+    return (event.eventDates || []).some(dateStr => isSameDay(today, parseISO(dateStr)) || isWithinInterval(today, {
         start: parseISO(dateStr),
         end: new Date(parseISO(dateStr).getFullYear(), parseISO(dateStr).getMonth(), parseISO(dateStr).getDate(), 23, 59, 59)
     }));
@@ -451,100 +479,140 @@ function AdminDashboard() {
            <Card>
             <CardHeader className="flex flex-row items-center justify-between">
                 <div><CardTitle>Events</CardTitle><CardDescription>Manage upcoming and past events.</CardDescription></div>
-                <Dialog open={isAddEventOpen} onOpenChange={setIsAddEventOpen}><DialogTrigger asChild><Button size="sm"><PlusCircle className="mr-2 h-4 w-4" />Add Event</Button></DialogTrigger>
-                <DialogContent className="sm:max-w-2xl flex flex-col max-h-[90vh]">
-                    <DialogHeader>
-                        <DialogTitle>Add New Event</DialogTitle>
-                        <DialogDescription>Enter the details for the new event.</DialogDescription>
-                    </DialogHeader>
-                    <div className="flex-1 overflow-y-auto pr-6 -mr-6">
-                        <div className="grid gap-6 py-4">
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="event-name" className="text-right">Name</Label>
-                                <Input id="event-name" value={newEvent.name} onChange={(e) => setNewEvent({ ...newEvent, name: e.target.value })} className="col-span-3" />
-                            </div>
-                            <div className="grid grid-cols-4 items-start gap-4">
-                                <Label htmlFor="event-date" className="text-right pt-2">Event Dates</Label>
-                                <div className="col-span-3">
-                                    <Calendar
-                                        mode="multiple"
-                                        selected={eventDates}
-                                        onSelect={setEventDates}
-                                        className="rounded-md border"
-                                    />
-                                    <p className="text-sm text-muted-foreground mt-2">
-                                    {eventDates?.length ? `${eventDates.length} date(s) selected.` : 'Select one or more dates for the event.'}
-                                    </p>
+                <Dialog open={isEventDialogOpen} onOpenChange={setIsEventDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button size="sm" onClick={() => handleOpenEventDialog()}>
+                            <PlusCircle className="mr-2 h-4 w-4" />Add Event
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-2xl flex flex-col max-h-[90vh]">
+                        <DialogHeader>
+                            <DialogTitle>{editingEvent ? 'Edit Event' : 'Add New Event'}</DialogTitle>
+                            <DialogDescription>
+                                {editingEvent ? 'Update the details for this event.' : 'Enter the details for the new event.'}
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="flex-1 overflow-y-auto pr-6 -mr-6">
+                            <div className="grid gap-6 py-4">
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="event-name" className="text-right">Name</Label>
+                                    <Input id="event-name" value={eventFormData.name} onChange={(e) => setEventFormData({ ...eventFormData, name: e.target.value })} className="col-span-3" />
                                 </div>
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="event-venue" className="text-right">Venue</Label>
-                                <Select value={newEvent.venueId} onValueChange={(value) => setNewEvent({ ...newEvent, venueId: value })}>
-                                    <SelectTrigger className="col-span-3"><SelectValue placeholder="Select a venue" /></SelectTrigger>
-                                    <SelectContent>{venues.map((v) => (<SelectItem key={v.id} value={v.id}>{v.name} ({v.city})</SelectItem>))}</SelectContent>
-                                </Select>
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="event-facilitator" className="text-right">Facilitator</Label>
-                                <Input id="event-facilitator" value={newEvent.facilitator} onChange={(e) => setNewEvent({ ...newEvent, facilitator: e.target.value })} className="col-span-3" />
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label className="text-right">Assign Employees</Label>
-                                <Popover open={isEmployeeSelectOpen} onOpenChange={setEmployeeSelectOpen}>
-                                    <PopoverTrigger asChild>
-                                        <Button variant="outline" className="col-span-3 justify-start text-left font-normal">
-                                            <ChevronsUpDown className="mr-2 h-4 w-4" />
-                                            {newEvent.allocatedEmployees.length > 0 ? `${newEvent.allocatedEmployees.length} selected` : "Select employees"}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                                        <Command>
-                                            <CommandInput placeholder="Search employees..." />
-                                            <CommandList>
-                                                <CommandEmpty>No employees found.</CommandEmpty>
-                                                <CommandGroup>
-                                                    <CommandItem onSelect={() => handleSelectAllEmployees(newEvent.allocatedEmployees.length < nonAdminEmployees.length)}>
-                                                        <Checkbox
-                                                            className="mr-2"
-                                                            checked={newEvent.allocatedEmployees.length > 0 && newEvent.allocatedEmployees.length === nonAdminEmployees.length}
-                                                            readOnly
-                                                        />
-                                                        <span>Select All</span>
-                                                    </CommandItem>
-                                                </CommandGroup>
-                                                <CommandSeparator />
-                                                <CommandGroup>
-                                                    {nonAdminEmployees.map((employee) => (
-                                                        <CommandItem
-                                                            key={employee.id}
-                                                            onSelect={() => handleSelectEmployee(employee.id)}
-                                                        >
+                                <div className="grid grid-cols-4 items-start gap-4">
+                                    <Label htmlFor="event-date" className="text-right pt-2">Event Dates</Label>
+                                    <div className="col-span-3">
+                                        <Calendar
+                                            mode="multiple"
+                                            selected={eventDates}
+                                            onSelect={setEventDates}
+                                            className="rounded-md border"
+                                        />
+                                        <p className="text-sm text-muted-foreground mt-2">
+                                        {eventDates?.length ? `${eventDates.length} date(s) selected.` : 'Select one or more dates for the event.'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="event-venue" className="text-right">Venue</Label>
+                                    <Select value={eventFormData.venueId} onValueChange={(value) => setEventFormData({ ...eventFormData, venueId: value })}>
+                                        <SelectTrigger className="col-span-3"><SelectValue placeholder="Select a venue" /></SelectTrigger>
+                                        <SelectContent>{venues.map((v) => (<SelectItem key={v.id} value={v.id}>{v.name} ({v.city})</SelectItem>))}</SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="event-facilitator" className="text-right">Facilitator</Label>
+                                    <Input id="event-facilitator" value={eventFormData.facilitator} onChange={(e) => setEventFormData({ ...eventFormData, facilitator: e.target.value })} className="col-span-3" />
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label className="text-right">Assign Employees</Label>
+                                    <Popover open={isEmployeeSelectOpen} onOpenChange={setEmployeeSelectOpen}>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" className="col-span-3 justify-start text-left font-normal">
+                                                <ChevronsUpDown className="mr-2 h-4 w-4" />
+                                                {eventFormData.allocatedEmployees.length > 0 ? `${eventFormData.allocatedEmployees.length} selected` : "Select employees"}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                                            <Command>
+                                                <CommandInput placeholder="Search employees..." />
+                                                <CommandList>
+                                                    <CommandEmpty>No employees found.</CommandEmpty>
+                                                    <CommandGroup>
+                                                        <CommandItem onSelect={() => handleSelectAllEmployees(eventFormData.allocatedEmployees.length < nonAdminEmployees.length)}>
                                                             <Checkbox
                                                                 className="mr-2"
-                                                                checked={newEvent.allocatedEmployees.includes(employee.id)}
+                                                                checked={eventFormData.allocatedEmployees.length > 0 && eventFormData.allocatedEmployees.length === nonAdminEmployees.length}
                                                                 readOnly
                                                             />
-                                                            <span>{employee.name}</span>
+                                                            <span>Select All</span>
                                                         </CommandItem>
-                                                    ))}
-                                                </CommandGroup>
-                                            </CommandList>
-                                        </Command>
-                                    </PopoverContent>
-                                </Popover>
+                                                    </CommandGroup>
+                                                    <CommandSeparator />
+                                                    <CommandGroup>
+                                                        {nonAdminEmployees.map((employee) => (
+                                                            <CommandItem
+                                                                key={employee.id}
+                                                                onSelect={() => handleSelectEmployee(employee.id)}
+                                                            >
+                                                                <Checkbox
+                                                                    className="mr-2"
+                                                                    checked={eventFormData.allocatedEmployees.includes(employee.id)}
+                                                                    readOnly
+                                                                />
+                                                                <span>{employee.name}</span>
+                                                            </CommandItem>
+                                                        ))}
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <DialogFooter>
-                        <Button type="button" onClick={handleAddEvent}>Save Event</Button>
-                    </DialogFooter>
-                </DialogContent>
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setIsEventDialogOpen(false)}>Cancel</Button>
+                            <Button type="button" onClick={handleSaveEvent}>Save Event</Button>
+                        </DialogFooter>
+                    </DialogContent>
                 </Dialog>
             </CardHeader>
             <CardContent>
                 <Table>
                     <TableHeader><TableRow><TableHead>Event Name</TableHead><TableHead>Venue</TableHead><TableHead>Dates</TableHead><TableHead>Assigned</TableHead><TableHead>Attendance</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
-                    <TableBody>{loading ? <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading events...</TableCell></TableRow> : events.map((event) => (<TableRow key={event.id}><TableCell className="font-medium">{event.name}</TableCell><TableCell>{event.venueName}</TableCell><TableCell>{(event.eventDates || []).join(', ')}</TableCell><TableCell>{event.allocatedEmployees.length}</TableCell><TableCell>{getTotalCheckinsForEvent(event)}</TableCell><TableCell><DropdownMenu><DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuLabel>Actions</DropdownMenuLabel><DropdownMenuItem>Edit</DropdownMenuItem><DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody>
+                    <TableBody>
+                        {loading ? <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading events...</TableCell></TableRow> 
+                        : events.map((event) => {
+                            const lastEventDate = event.eventDates?.length ? parseISO(event.eventDates[event.eventDates.length - 1]) : new Date(0);
+                            const isEventPast = isPast(endOfDay(lastEventDate));
+                            return (
+                                <TableRow key={event.id}>
+                                    <TableCell className="font-medium">{event.name}</TableCell>
+                                    <TableCell>{event.venueName}</TableCell>
+                                    <TableCell>{(event.eventDates || []).join(', ')}</TableCell>
+                                    <TableCell>{event.allocatedEmployees.length}</TableCell>
+                                    <TableCell>{getTotalCheckinsForEvent(event)}</TableCell>
+                                    <TableCell>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button aria-haspopup="true" size="icon" variant="ghost">
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                    <span className="sr-only">Toggle menu</span>
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                <DropdownMenuItem onSelect={() => handleOpenEventDialog(event)} disabled={isEventPast}>
+                                                    Edit
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                            )
+                        })}
+                    </TableBody>
                 </Table>
             </CardContent>
            </Card>
@@ -578,36 +646,38 @@ function AdminDashboard() {
                                                 </div>
                                                 <Button onClick={() => handleDownloadCheckinReport(event)} size="sm">
                                                     <Download className="mr-2 h-4 w-4" />
-                                                    Download Report
+                                                    Download CSV
                                                 </Button>
                                             </CardHeader>
                                             <CardContent>
-                                                <Table>
-                                                    <TableHeader>
-                                                        <TableRow>
-                                                            <TableHead>Employee</TableHead>
-                                                            {eventDays.map(day => (
-                                                                <TableHead key={format(day, 'yyyy-MM-dd')} className="text-center">{format(day, 'MMM d')}</TableHead>
-                                                            ))}
-                                                        </TableRow>
-                                                    </TableHeader>
-                                                    <TableBody>
-                                                        {allocatedEmployees.map(employee => (
-                                                            <TableRow key={employee.id}>
-                                                                <TableCell>{employee.name}</TableCell>
-                                                                {eventDays.map(day => {
-                                                                    const dateString = format(day, 'yyyy-MM-dd');
-                                                                    const isCheckedIn = !!event.checkedInEmployees?.[employee.id]?.[dateString];
-                                                                    return (
-                                                                        <TableCell key={dateString} className="text-center">
-                                                                            {isCheckedIn ? <Check className="h-5 w-5 text-green-500 mx-auto" /> : <span className="text-muted-foreground">-</span>}
-                                                                        </TableCell>
-                                                                    )
-                                                                })}
+                                                <div className="overflow-x-auto">
+                                                    <Table>
+                                                        <TableHeader>
+                                                            <TableRow>
+                                                                <TableHead>Employee</TableHead>
+                                                                {eventDays.map(day => (
+                                                                    <TableHead key={format(day, 'yyyy-MM-dd')} className="text-center">{format(day, 'MMM d')}</TableHead>
+                                                                ))}
                                                             </TableRow>
-                                                        ))}
-                                                    </TableBody>
-                                                </Table>
+                                                        </TableHeader>
+                                                        <TableBody>
+                                                            {allocatedEmployees.map(employee => (
+                                                                <TableRow key={employee.id}>
+                                                                    <TableCell>{employee.name}</TableCell>
+                                                                    {eventDays.map(day => {
+                                                                        const dateString = format(day, 'yyyy-MM-dd');
+                                                                        const isCheckedIn = !!event.checkedInEmployees?.[employee.id]?.[dateString];
+                                                                        return (
+                                                                            <TableCell key={dateString} className="text-center">
+                                                                                {isCheckedIn ? <Check className="h-5 w-5 text-green-500 mx-auto" /> : <span className="text-muted-foreground">-</span>}
+                                                                            </TableCell>
+                                                                        )
+                                                                    })}
+                                                                </TableRow>
+                                                            ))}
+                                                        </TableBody>
+                                                    </Table>
+                                                </div>
                                             </CardContent>
                                         </Card>
                                     </TabsContent>

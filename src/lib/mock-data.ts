@@ -344,6 +344,17 @@ export const getEventById = async (eventId: string): Promise<AppEvent | null> =>
     return event ? {...event} : null;
 };
 
+export const updateEvent = async (eventId: string, dataToUpdate: Partial<AppEvent>): Promise<void> => {
+  const dbInstance = getDb();
+  const index = dbInstance.events.findIndex(e => e.id === eventId);
+  if (index !== -1) {
+    dbInstance.events[index] = { ...dbInstance.events[index], ...dataToUpdate };
+    saveDb();
+  } else {
+    throw new Error("Event not found");
+  }
+};
+
 
 export const checkInToEvent = async (eventId: string, employeeId: string, dateString: string): Promise<void> => {
     const dbInstance = getDb();

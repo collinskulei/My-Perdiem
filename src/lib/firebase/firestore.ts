@@ -208,6 +208,17 @@ export const getEventById = async (eventId: string): Promise<AppEvent | null> =>
     }
 };
 
+/**
+ * Updates an event's document in the 'events' collection.
+ * @param {string} eventId - The event's unique ID.
+ * @param {Partial<AppEvent>} dataToUpdate - An object containing the fields to update.
+ * @returns {Promise<void>} A promise that resolves when the document is successfully updated.
+ */
+export const updateEvent = async (eventId: string, dataToUpdate: Partial<AppEvent>): Promise<void> => {
+    const eventDocRef = doc(db, 'events', eventId);
+    await updateDoc(eventDocRef, dataToUpdate);
+};
+
 
 /**
  * Records an employee's check-in for a specific event on a specific date.
