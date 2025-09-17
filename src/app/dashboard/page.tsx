@@ -1,20 +1,31 @@
 
+"use client";
+
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { EmployeeDashboard } from "./employee-dashboard";
+import { Loader2 } from "lucide-react";
+
+export const dynamic = "force-dynamic";
 
 /**
  * The page component for the employee dashboard.
- * This is a Server Component that reads the 'tab' from the URL search parameters
- * and passes it to the client-side EmployeeDashboard component.
+ * This is now a Client Component that forces dynamic rendering to avoid build errors.
+ * It uses useSearchParams to read the 'tab' from the URL.
  *
- * @param {{ searchParams: { tab?: string } }} props - The props object, containing searchParams.
  * @returns {JSX.Element} The rendered employee dashboard page.
  */
-export default function EmployeeDashboardPage({
-  searchParams,
-}: {
-  searchParams: { [key: string]: string | undefined };
-}) {
-  const tab = searchParams.tab || "events";
+function DashboardPage() {
+  const searchParams = useSearchParams();
+  const tab = searchParams.get("tab") || "events";
 
   return <EmployeeDashboard currentTab={tab} />;
+}
+
+export default function EmployeeDashboardPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+      <DashboardPage />
+    </Suspense>
+  );
 }

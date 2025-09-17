@@ -1,6 +1,8 @@
 
 import { AdminDashboard } from "./admin-dashboard";
 
+export const dynamic = "force-dynamic";
+
 /**
  * The page component for the admin dashboard.
  * This is a Server Component that reads the 'tab' from the URL search parameters
