@@ -581,7 +581,13 @@ function AdminDashboard() {
                                                 <CommandList>
                                                     <CommandEmpty>No employees found.</CommandEmpty>
                                                     <CommandGroup>
-                                                        <CommandItem onSelect={() => handleSelectAllEmployees(eventFormData.allocatedEmployees.length < nonAdminEmployees.length)}>
+                                                        <CommandItem
+                                                          onClick={(e) => {
+                                                              e.preventDefault();
+                                                              handleSelectAllEmployees(eventFormData.allocatedEmployees.length < nonAdminEmployees.length);
+                                                          }}
+                                                          className="cursor-pointer"
+                                                        >
                                                             <Checkbox
                                                                 className="mr-2"
                                                                 checked={eventFormData.allocatedEmployees.length > 0 && eventFormData.allocatedEmployees.length === nonAdminEmployees.length}
@@ -595,7 +601,11 @@ function AdminDashboard() {
                                                         {nonAdminEmployees.map((employee) => (
                                                             <CommandItem
                                                                 key={employee.id}
-                                                                onSelect={() => handleSelectEmployee(employee.id)}
+                                                                onClick={(e) => {
+                                                                    e.preventDefault();
+                                                                    handleSelectEmployee(employee.id);
+                                                                }}
+                                                                className="cursor-pointer"
                                                             >
                                                                 <Checkbox
                                                                     className="mr-2"
