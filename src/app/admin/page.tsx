@@ -5,7 +5,7 @@
  */
 "use client";
 
-import { useState, useEffect, useCallback, Suspense, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import dynamic from 'next/dynamic';
 import { useSearchParams, useRouter } from "next/navigation";
 import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2 } from "lucide-react";
@@ -589,7 +589,7 @@ function AdminDashboard() {
                                                             <Checkbox
                                                                 className="mr-2"
                                                                 checked={eventFormData.allocatedEmployees.length > 0 && eventFormData.allocatedEmployees.length === nonAdminEmployees.length}
-                                                                indeterminate={eventFormData.allocatedEmployees.length > 0 && eventFormData.allocatedEmployees.length < nonAdminEmployees.length}
+                                                                onCheckedChange={(checked) => handleSelectAllEmployees(checked)}
                                                             />
                                                             <span>Select All</span>
                                                         </CommandItem>
@@ -1161,7 +1161,6 @@ function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[]
     </div>
   );
 }
-
 
 export default function AdminDashboardPage() {
   return (

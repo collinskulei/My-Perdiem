@@ -21,20 +21,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Logo } from "@/components/logo";
 import app from "@/lib/firebase/config";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { getEmployeeById } from "@/lib/firebase/firestore";
 import * as mock from "@/lib/mock-data";
 import { Switch } from "@/components/ui/switch";
 import { isTestMode, setTestMode } from "@/lib/test-mode";
+import { Loader2 } from "lucide-react";
 
 const auth = getAuth(app);
 const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
 
 /**
- * The main component for the login page, featuring separate tabs for employee and admin login.
- * @returns {JSX.Element} The rendered login page.
+ * The main interactive component for the login page, featuring separate tabs for employee and admin login.
+ * @returns {JSX.Element} The rendered login card.
  */
-export default function LoginPage() {
+function LoginCard() {
   const router = useRouter();
   const { toast } = useToast();
   const [employeeEmail, setEmployeeEmail] = useState("");
@@ -46,8 +47,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     setHasMounted(true);
-    setTestModeState(isTestMode());
-    if (isTestMode()) {
+    const currentTestMode = isTestMode();
+    setTestModeState(currentTestMode);
+    if (currentTestMode) {
       // Clear any previous test session on login page load
       localStorage.removeItem(TEST_USER_ID_KEY);
     }
@@ -140,12 +142,33 @@ export default function LoginPage() {
   };
   
   if (!hasMounted) {
-    return null; // or a loading spinner
+    return (
+        <Card className="w-full max-w-sm">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl">Welcome Back</CardTitle>
+              <CardDescription>
+                Select your role to access your account.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-64 flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </CardContent>
+             <CardFooter className="flex flex-col gap-4">
+                <div className="text-sm text-muted-foreground">
+                  <p>
+                    Don't have an account?&nbsp;
+                    <a href="/register" className="text-primary underline-offset-4 hover:underline">
+                      Register
+                    </a>
+                  </p>
+                </div>
+            </CardFooter>
+        </Card>
+    );
   }
 
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Welcome Back</CardTitle>
@@ -252,6 +275,19 @@ export default function LoginPage() {
             </div>
         </CardFooter>
       </Card>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <Suspense fallback={
+        <div className="w-full max-w-sm h-[480px] flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      }>
+        <LoginCard />
+      </Suspense>
     </div>
   );
 }
