@@ -588,7 +588,6 @@ function AdminDashboard() {
                                                             <Checkbox
                                                                 className="mr-2"
                                                                 checked={eventFormData.allocatedEmployees.length > 0 && eventFormData.allocatedEmployees.length === nonAdminEmployees.length}
-                                                                readOnly
                                                                 indeterminate={eventFormData.allocatedEmployees.length > 0 && eventFormData.allocatedEmployees.length < nonAdminEmployees.length}
                                                             />
                                                             <span>Select All</span>
@@ -605,7 +604,7 @@ function AdminDashboard() {
                                                                 <Checkbox
                                                                     className="mr-2"
                                                                     checked={eventFormData.allocatedEmployees.includes(employee.id)}
-                                                                    readOnly
+                                                                    onCheckedChange={() => handleSelectEmployee(employee.id)}
                                                                 />
                                                                 <span>{employee.name}</span>
                                                             </CommandItem>
