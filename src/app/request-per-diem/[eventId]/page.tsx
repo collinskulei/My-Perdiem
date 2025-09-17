@@ -137,7 +137,7 @@ export default function RequestPerDiemPage() {
 
     const prevStep = () => {
         if (currentStep > 0) {
-            setCurrentStep(step => step + 1);
+            setCurrentStep(step => step - 1);
         }
     };
 
@@ -440,4 +440,5 @@ const SummaryItem = ({ label, value }: { label: string, value: string | number }
         <p className="font-medium">{value}</p>
     </div>
 );
+
 
