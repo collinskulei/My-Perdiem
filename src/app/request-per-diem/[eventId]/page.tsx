@@ -137,7 +137,7 @@ export default function RequestPerDiemPage() {
 
     const prevStep = () => {
         if (currentStep > 0) {
-            setCurrentStep(step => step + 1);
+            setCurrentStep(step => step - 1);
         }
     };
 
@@ -252,7 +252,7 @@ const Step1 = ({ event, employee, venue }: { event: AppEvent, employee: Employee
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <p><strong>Event:</strong> {event.name}</p>
                     <p><strong>Venue:</strong> {event.venueName}, {event.venueCity}</p>
-                    <p><strong>Dates:</strong> {event.eventDates.join(', ')}</p>
+                    <p><strong>Dates:</strong> {(event.eventDates || []).join(', ')}</p>
                     <p><strong>Facilitator:</strong> {event.facilitator}</p>
                 </div>
             </div>
@@ -290,7 +290,7 @@ const Step2 = ({ event, employee }: { event: AppEvent, employee: Employee }) => 
     const { register, setValue } = useFormContext<PerDiemFormValues>();
 
     const accommodation = useMemo(() => {
-        const nights = event.eventDates.length > 0 ? event.eventDates.length : 0;
+        const nights = (event.eventDates || []).length > 0 ? (event.eventDates || []).length : 0;
         return { nights, total: nights * DAILY_ALLOWANCE };
     }, [event]);
 
