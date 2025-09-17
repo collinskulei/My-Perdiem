@@ -114,8 +114,11 @@ const initialEvents: AppEvent[] = [
     {
         id: 'event-001',
         name: 'Annual Health Conference (Past Event)',
-        startDate: formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 10)),
-        endDate: formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 8)),
+        eventDates: [
+            formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 10)),
+            formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 9)),
+            formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 8)),
+        ],
         venueId: 'venue-nrb-001',
         venueName: 'Sarova Stanley',
         venueCity: 'Nairobi',
@@ -131,8 +134,10 @@ const initialEvents: AppEvent[] = [
     {
         id: 'event-002',
         name: 'Maternal Health Workshop (Active Event)',
-        startDate: formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1)),
-        endDate: formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)),
+        eventDates: [
+            formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1)),
+            formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)),
+        ],
         venueId: 'venue-msa-001',
         venueName: 'Serena Beach Resort & Spa',
         venueCity: 'Mombasa',
@@ -147,8 +152,10 @@ const initialEvents: AppEvent[] = [
     {
         id: 'event-003',
         name: 'Lab Technology Symposium (Active Event)',
-        startDate: formatDate(today),
-        endDate: formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 3)),
+        eventDates: [
+            formatDate(today),
+            formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 3)),
+        ],
         venueId: 'venue-ksm-001',
         venueName: 'Acacia Premier Hotel',
         venueCity: 'Kisumu',
@@ -159,8 +166,10 @@ const initialEvents: AppEvent[] = [
     {
         id: 'event-004',
         name: 'Pharmaceutical Best Practices (Upcoming Event)',
-        startDate: formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 5)),
-        endDate: formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7)),
+        eventDates: [
+            formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 5)),
+            formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7)),
+        ],
         venueId: 'venue-nrb-002',
         venueName: 'Villa Rosa Kempinski',
         venueCity: 'Nairobi',

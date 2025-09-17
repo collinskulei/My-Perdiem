@@ -39,8 +39,7 @@ export type Venue = {
 export type AppEvent = {
   id: string;
   name: string;
-  startDate: string;
-  endDate: string;
+  eventDates: string[]; // Array of 'yyyy-MM-dd' strings
   venueId: string;
   venueName: string;
   venueCity: string;

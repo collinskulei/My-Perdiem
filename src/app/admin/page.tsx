@@ -10,7 +10,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
 import Image from "next/image";
 import { DateRange } from "react-day-picker";
-import { format, differenceInCalendarDays, parseISO, isWithinInterval, eachDayOfInterval, isSameDay } from "date-fns";
+import { format, differenceInCalendarDays, parseISO, isWithinInterval, isSameDay } from "date-fns";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -139,7 +139,7 @@ function AdminDashboard() {
   
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
   const [newEvent, setNewEvent] = useState(defaultNewEvent);
-  const [eventDate, setEventDate] = useState<DateRange | undefined>();
+  const [eventDates, setEventDates] = useState<Date[] | undefined>();
   const [isEmployeeSelectOpen, setEmployeeSelectOpen] = useState(false);
 
   // Filters for reports
@@ -246,15 +246,16 @@ function AdminDashboard() {
 
   const handleAddEvent = async () => {
     const selectedVenue = venues.find(v => v.id === newEvent.venueId);
-    if (!newEvent.name || !eventDate?.from || !eventDate?.to || !newEvent.venueId || !selectedVenue || !newEvent.facilitator ) {
-        toast({ title: "Missing fields", description: "Please fill all event details.", variant: "destructive" });
+    if (!newEvent.name || !eventDates || eventDates.length === 0 || !newEvent.venueId || !selectedVenue || !newEvent.facilitator ) {
+        toast({ title: "Missing fields", description: "Please fill all event details, including at least one date.", variant: "destructive" });
         return;
     }
 
+    const formattedDates = eventDates.map(date => format(date, 'yyyy-MM-dd')).sort();
+
     const eventToAdd = {
         name: newEvent.name,
-        startDate: eventDate.from.toISOString().split('T')[0],
-        endDate: eventDate.to.toISOString().split('T')[0],
+        eventDates: formattedDates,
         venueId: newEvent.venueId,
         venueName: selectedVenue.name,
         venueCity: selectedVenue.city,
@@ -266,7 +267,7 @@ function AdminDashboard() {
         const newEventId = await dataProvider.addEvent(eventToAdd);
         setEvents(prev => [...prev, { id: newEventId, ...eventToAdd }]);
         setNewEvent(defaultNewEvent);
-        setEventDate(undefined);
+        setEventDates(undefined);
         setIsAddEventOpen(false);
         toast({ title: "Success", description: "Event created successfully." });
     } catch (error) {
@@ -291,14 +292,14 @@ function AdminDashboard() {
     const detailedData = dataToDownload.map(req => {
         const event = events.find(e => e.id === req.eventId);
         const employee = employees.find(emp => emp.id === req.employeeId);
-        const eventDuration = event ? differenceInCalendarDays(parseISO(event.endDate), parseISO(event.startDate)) + 1 : 0;
+        const eventDuration = event ? event.eventDates.length : 0;
         const daysAttended = employee && event?.checkedInEmployees?.[employee.id] ? Object.keys(event.checkedInEmployees[employee.id]).length : 0;
         const attendance = eventDuration > 0 ? `${daysAttended}/${eventDuration}` : 'N/A';
 
         return {
             ...req,
-            eventStartDate: event?.startDate || 'N/A',
-            eventEndDate: event?.endDate || 'N/A',
+            eventStartDate: event?.eventDates[0] || 'N/A',
+            eventEndDate: event?.eventDates[event.eventDates.length - 1] || 'N/A',
             eventFacilitator: event?.facilitator || 'N/A',
             eventAttendance: attendance,
         };
@@ -375,18 +376,15 @@ function AdminDashboard() {
   };
   
   const getEventDays = (event: AppEvent) => {
-    return eachDayOfInterval({
-        start: parseISO(event.startDate),
-        end: parseISO(event.endDate)
-    });
+    return event.eventDates.map(dateStr => parseISO(dateStr));
   }
 
   const activeEvents = events.filter(event => {
     const today = new Date();
-    const startDate = parseISO(event.startDate);
-    const endDate = parseISO(event.endDate);
-    // Consider event active from start date until end of end date.
-    return isWithinInterval(today, { start: startDate, end: new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 23, 59, 59) });
+    return event.eventDates.some(dateStr => isWithinInterval(today, {
+        start: parseISO(dateStr),
+        end: new Date(parseISO(dateStr).getFullYear(), parseISO(dateStr).getMonth(), parseISO(dateStr).getDate(), 23, 59, 59)
+    }));
   });
 
   return (
@@ -456,23 +454,20 @@ function AdminDashboard() {
                 <Dialog open={isAddEventOpen} onOpenChange={setIsAddEventOpen}><DialogTrigger asChild><Button size="sm"><PlusCircle className="mr-2 h-4 w-4" />Add Event</Button></DialogTrigger>
                 <DialogContent className="sm:max-w-2xl"><DialogHeader><DialogTitle>Add New Event</DialogTitle><DialogDescription>Enter the details for the new event.</DialogDescription></DialogHeader>
                 <div className="grid gap-4 py-4"><div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="event-name" className="text-right">Name</Label><Input id="event-name" value={newEvent.name} onChange={(e) => setNewEvent({ ...newEvent, name: e.target.value })} className="col-span-3" /></div>
-                <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="event-date" className="text-right">Date Range</Label><Popover><PopoverTrigger asChild><Button id="date" variant={"outline"} className={cn("w-full justify-start text-left font-normal col-span-3",!eventDate && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />
-                {eventDate?.from ? (
-                    eventDate.to ? (
-                        isSameDay(eventDate.from, eventDate.to) ? (
-                            format(eventDate.from, "LLL dd, y")
-                        ) : (
-                            <>
-                                {format(eventDate.from, "LLL dd, y")} - {format(eventDate.to, "LLL dd, y")}
-                            </>
-                        )
-                    ) : (
-                        format(eventDate.from, "LLL dd, y")
-                    )
-                ) : (
-                    <span>Pick a date range</span>
-                )}
-                </Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar initialFocus mode="range" defaultMonth={eventDate?.from} selected={eventDate} onSelect={setEventDate} numberOfMonths={2}/></PopoverContent></Popover></div>
+                <div className="grid grid-cols-4 items-start gap-4 pt-4">
+                    <Label htmlFor="event-date" className="text-right pt-2">Event Dates</Label>
+                    <div className="col-span-3">
+                         <Calendar
+                            mode="multiple"
+                            selected={eventDates}
+                            onSelect={setEventDates}
+                            className="rounded-md border"
+                        />
+                        <p className="text-sm text-muted-foreground mt-2">
+                           {eventDates?.length ? `${eventDates.length} date(s) selected.` : 'Select one or more dates for the event.'}
+                        </p>
+                    </div>
+                </div>
                 <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="event-venue" className="text-right">Venue</Label><Select value={newEvent.venueId} onValueChange={(value) => setNewEvent({ ...newEvent, venueId: value })}><SelectTrigger className="col-span-3"><SelectValue placeholder="Select a venue" /></SelectTrigger><SelectContent>{venues.map((v) => (<SelectItem key={v.id} value={v.id}>{v.name} ({v.city})</SelectItem>))}</SelectContent></Select></div>
                 <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="event-facilitator" className="text-right">Facilitator</Label><Input id="event-facilitator" value={newEvent.facilitator} onChange={(e) => setNewEvent({ ...newEvent, facilitator: e.target.value })} className="col-span-3" /></div>
                  <div className="grid grid-cols-4 items-center gap-4">
@@ -524,8 +519,8 @@ function AdminDashboard() {
             </CardHeader>
             <CardContent>
                 <Table>
-                    <TableHeader><TableRow><TableHead>Event Name</TableHead><TableHead>Venue</TableHead><TableHead>Date Range</TableHead><TableHead>Assigned</TableHead><TableHead>Attendance</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
-                    <TableBody>{loading ? <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading events...</TableCell></TableRow> : events.map((event) => (<TableRow key={event.id}><TableCell className="font-medium">{event.name}</TableCell><TableCell>{event.venueName}</TableCell><TableCell>{event.startDate} to {event.endDate}</TableCell><TableCell>{event.allocatedEmployees.length}</TableCell><TableCell>{getTotalCheckinsForEvent(event)}</TableCell><TableCell><DropdownMenu><DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuLabel>Actions</DropdownMenuLabel><DropdownMenuItem>Edit</DropdownMenuItem><DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody>
+                    <TableHeader><TableRow><TableHead>Event Name</TableHead><TableHead>Venue</TableHead><TableHead>Dates</TableHead><TableHead>Assigned</TableHead><TableHead>Attendance</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
+                    <TableBody>{loading ? <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading events...</TableCell></TableRow> : events.map((event) => (<TableRow key={event.id}><TableCell className="font-medium">{event.name}</TableCell><TableCell>{event.venueName}</TableCell><TableCell>{event.eventDates.join(', ')}</TableCell><TableCell>{event.allocatedEmployees.length}</TableCell><TableCell>{getTotalCheckinsForEvent(event)}</TableCell><TableCell><DropdownMenu><DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuLabel>Actions</DropdownMenuLabel><DropdownMenuItem>Edit</DropdownMenuItem><DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody>
                 </Table>
             </CardContent>
            </Card>

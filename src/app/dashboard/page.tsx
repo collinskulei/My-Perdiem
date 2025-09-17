@@ -6,7 +6,7 @@
 
 import { useState, useEffect } from "react";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
-import { isToday, parseISO, isWithinInterval, eachDayOfInterval, format, isFuture, startOfDay } from "date-fns";
+import { isToday, parseISO, isWithinInterval, format, isFuture, startOfDay } from "date-fns";
 import { useRouter } from "next/navigation";
 
 
@@ -203,10 +203,7 @@ export default function EmployeeDashboard() {
   };
 
   const getEventDays = (event: AppEvent) => {
-    return eachDayOfInterval({
-        start: parseISO(event.startDate),
-        end: parseISO(event.endDate)
-    });
+    return event.eventDates.map(dateStr => parseISO(dateStr));
   }
 
   const getAttendanceProgress = (event: AppEvent) => {
@@ -282,7 +279,7 @@ export default function EmployeeDashboard() {
                                 <TableRow key={event.id}>
                                     <TableCell className="font-medium">{event.name}</TableCell>
                                     <TableCell>{event.venueName}</TableCell>
-                                    <TableCell>{event.startDate} to {event.endDate}</TableCell>
+                                    <TableCell>{event.eventDates.join(', ')}</TableCell>
                                     <TableCell>
                                         <Tooltip>
                                             <TooltipTrigger asChild>
@@ -302,11 +299,11 @@ export default function EmployeeDashboard() {
                                                 const isCheckedInForDay = !!event.checkedInEmployees?.[authUser?.uid ?? '']?.[dateString];
                                                 
                                                 // An active check-in button is for today AND the event is ongoing.
-                                                const canCheckInForDay = isToday(day) && isWithinInterval(day, { start: parseISO(event.startDate), end: parseISO(event.endDate) });
+                                                const canCheckInForDay = isToday(day);
                                                 
                                                 // Show the button if the day hasn't been checked in yet and the day is not in the past
                                                 if (!isCheckedInForDay && startOfDay(day) >= startOfDay(new Date())) {
-                                                    const isButtonDisabled = isFuture(day) || !!isSubmitting;
+                                                    const isButtonDisabled = !canCheckInForDay || !!isSubmitting;
                                                     const buttonText = isFuture(day) 
                                                         ? `Check-in: ${format(day, 'MMM d')}` 
                                                         : `Check-in Today`;
@@ -317,7 +314,7 @@ export default function EmployeeDashboard() {
                                                             size="sm" 
                                                             onClick={() => handleCheckIn(event, day)} 
                                                             disabled={isButtonDisabled}
-                                                            variant={isFuture(day) ? 'outline' : 'default'}
+                                                            variant={!canCheckInForDay ? 'outline' : 'default'}
                                                         >
                                                             {isSubmitting === `${event.id}-${dateString}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MapPin className="mr-2 h-4 w-4" />}
                                                             {buttonText}
