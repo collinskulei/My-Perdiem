@@ -139,26 +139,26 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   
   const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<AppEvent | null>(null);
-  const [eventFormData, setEventFormData = useState<{name: string; facilitator: string; venueId: string; allocatedEmployees: string[] }>(defaultNewEvent);
-  const [eventDates, setEventDates = useState<Date[] | undefined>();
-  const [isEmployeeSelectOpen, setEmployeeSelectOpen = useState(false);
+  const [eventFormData, setEventFormData] = useState<{name: string; facilitator: string; venueId: string; allocatedEmployees: string[] }>(defaultNewEvent);
+  const [eventDates, setEventDates] = useState<Date[] | undefined>();
+  const [isEmployeeSelectOpen, setEmployeeSelectOpen] = useState(false);
   
-  const [isEmployeeDialogOpen, setIsEmployeeDialogOpen = useState(false);
-  const [editingEmployee, setEditingEmployee = useState<Employee | null>(null);
-  const [employeeFormData, setEmployeeFormData = useState<Partial<Employee>>({});
-  const [isSaving, setIsSaving = useState(false);
+  const [isEmployeeDialogOpen, setIsEmployeeDialogOpen] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [employeeFormData, setEmployeeFormData] = useState<Partial<Employee>>({});
+  const [isSaving, setIsSaving] = useState(false);
 
 
   // Filters for reports
-  const [filters, setFilters = useState<{
+  const [filters, setFilters] = useState<{
     date: DateRange | undefined;
     county: string;
     dutyStation: string;
     employee: string;
   }>(defaultFilters);
-  const [filteredReportData, setFilteredReportData = useState<PerdiemRequest[]>([]);
+  const [filteredReportData, setFilteredReportData] = useState<PerdiemRequest[]>([]);
   
-  const [loading, setLoading = useState(true);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   
   const handleTabChange = (value: string) => {
@@ -1091,7 +1091,7 @@ function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[]
     return <div className="text-center p-10">Loading analytics...</div>;
   }
   
-  if (!chartData) {
+  if (!chartData || !chartData.pieChartData) {
     return <div className="text-center p-10 text-muted-foreground">No data available for analytics yet.</div>;
   }
 
