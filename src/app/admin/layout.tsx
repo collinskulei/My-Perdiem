@@ -7,8 +7,6 @@
 import Link from "next/link";
 import {
   Bell,
-  Users,
-  BarChart,
   Home,
   LogOut,
   User,
@@ -60,18 +58,6 @@ export default function AdminLayout({
               <SidebarMenuButton href="/admin" isActive={pathname === '/admin'}>
                 <Home />
                 Dashboard
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton href="/admin?tab=employees">
-                <Users />
-                Employees
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton href="/admin?tab=requests">
-                <BarChart />
-                Reports
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
