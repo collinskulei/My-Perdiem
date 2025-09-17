@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
 import { isToday, parseISO, format, isFuture, startOfDay } from "date-fns";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 
@@ -63,8 +63,13 @@ const ANALYTICS_COLORS = {
   Rejected: '#ef4444', // red-500
 };
 
+export function EmployeeDashboardWrapper() {
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'events';
+  return <EmployeeDashboard currentTab={initialTab} />;
+}
 
-export default function EmployeeDashboard({ currentTab }: { currentTab: string }) {
+function EmployeeDashboard({ currentTab }: { currentTab: string }) {
   const [userRequests, setUserRequests] = useState<PerdiemRequest[]>([]);
   const [myEvents, setMyEvents] = useState<AppEvent[]>([]);
   const [venues, setVenues] = useState<Venue[]>([]);
@@ -106,7 +111,7 @@ export default function EmployeeDashboard({ currentTab }: { currentTab: string }
       setLoading(true);
       try {
         const eventsPromise = isTestMode
-            ? dataProvider.getEvents()
+            ? dataProvider.getEventsByEmployee(authUser.uid)
             : dataProvider.getEventsByEmployee(authUser.uid);
 
         const [userData, requests, eventsData, venuesData] = await Promise.all([

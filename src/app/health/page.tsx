@@ -1,3 +1,4 @@
+
 /**
  * @file This file defines a health check page to verify Firebase connectivity.
  * It attempts to fetch data from Firestore and displays the connection status.
@@ -177,7 +178,7 @@ function HealthCheck() {
 
 export default function HealthCheckPage() {
     return (
-        <Suspense fallback={<div className="flex items-center justify-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+        <Suspense fallback={<div className="flex items-center justify-center h-full w-full"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
             <HealthCheck />
         </Suspense>
     );
