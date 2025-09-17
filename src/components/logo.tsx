@@ -4,6 +4,8 @@
  */
 "use client";
 
+import { cn } from "@/lib/utils";
+
 
 /**
  * A reusable component that displays the application logo.
@@ -13,8 +15,8 @@
  */
 export function Logo({ className }: { className?: string }) {
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
-      <h1 className="text-2xl font-bold text-primary">My Perdiem</h1>
+    <div className={cn("flex items-center gap-2", className)}>
+      <h1 className="text-2xl font-bold text-primary-foreground">PerdiemPro</h1>
     </div>
   );
 }

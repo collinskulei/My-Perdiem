@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -30,7 +30,7 @@ type MockUser = {
  * The main component for the Firebase health check page.
  * @returns {JSX.Element} The rendered health check page.
  */
-export default function HealthCheckPage() {
+function HealthCheck() {
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [error, setError] = useState<Error | null>(null);
   const [projectId, setProjectId] = useState<string | null>(null);
@@ -173,4 +173,12 @@ export default function HealthCheckPage() {
       </Card>
     </div>
   );
+}
+
+export default function HealthCheckPage() {
+    return (
+        <Suspense fallback={<div className="flex items-center justify-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+            <HealthCheck />
+        </Suspense>
+    );
 }
