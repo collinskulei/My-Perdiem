@@ -17,6 +17,7 @@ export type Employee = {
   avatarUrl: string;
   email: string;
   gender: string;
+  dateOfBirth?: string;
   jobGroup?: string;
   organizationName?: string;
 };

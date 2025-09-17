@@ -48,7 +48,7 @@ const auth = getAuth(app);
  */
 export default function RegistrationWizard() {
   const [role, setRole] = useState("employee");
-  const [formData, setFormData] = useState<Partial<EmployeeData & { password?: string, confirmPassword?: string, organizationName?: string }>>({});
+  const [formData, setFormData] = useState<Partial<EmployeeData & { password?: string, confirmPassword?: string, organizationName?: string, dateOfBirth?: string }>>({});
   const router = useRouter();
   const { toast } = useToast();
 
@@ -117,6 +117,7 @@ export default function RegistrationWizard() {
           idNumber: formData.idNumber,
           email: user.email!, // Use email from the created user
           gender: formData.gender,
+          dateOfBirth: formData.dateOfBirth,
       };
 
       let registrationData: any;
@@ -256,15 +257,26 @@ export default function RegistrationWizard() {
                 </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="idNumber">ID Number</Label>
-              <Input 
-                id="idNumber" 
-                placeholder="e.g., 12345678" 
-                required 
-                onChange={handleInputChange}
-                maxLength={8}
-              />
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor="idNumber">ID Number</Label>
+                    <Input 
+                        id="idNumber" 
+                        placeholder="e.g., 12345678" 
+                        required 
+                        onChange={handleInputChange}
+                        maxLength={8}
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                    <Input 
+                        id="dateOfBirth" 
+                        type="date" 
+                        required 
+                        onChange={handleInputChange} 
+                    />
+                </div>
             </div>
             
             {role === 'employee' && (

@@ -40,6 +40,7 @@ const initialEmployees: Employee[] = [
         phoneNumber: "+254700000000",
         idNumber: "00000000",
         gender: "male",
+        dateOfBirth: "1980-01-01",
         organizationName: "PerdiemPro Inc."
     },
     {
@@ -51,6 +52,7 @@ const initialEmployees: Employee[] = [
         phoneNumber: "+254700000002",
         idNumber: "00000002",
         gender: "female",
+        dateOfBirth: "1985-05-10",
         organizationName: "HealthOrg LLC"
     },
     {
@@ -62,6 +64,7 @@ const initialEmployees: Employee[] = [
         phoneNumber: "+254711111111",
         idNumber: "11111111",
         gender: "male",
+        dateOfBirth: "1990-03-15",
         employeeNumber: "EMP001",
         dutyStation: "Nairobi",
         jobGroup: "C3"
@@ -75,6 +78,7 @@ const initialEmployees: Employee[] = [
         phoneNumber: "+254722222222",
         idNumber: "22222222",
         gender: "female",
+        dateOfBirth: "1992-07-20",
         employeeNumber: "EMP002",
         dutyStation: "Mombasa",
         jobGroup: "D1"
@@ -88,6 +92,7 @@ const initialEmployees: Employee[] = [
         phoneNumber: "+254733333333",
         idNumber: "33333333",
         gender: "male",
+        dateOfBirth: "1988-11-30",
         employeeNumber: "EMP003",
         dutyStation: "Kisumu",
         jobGroup: "B5"
@@ -101,6 +106,7 @@ const initialEmployees: Employee[] = [
         phoneNumber: "+254744444444",
         idNumber: "44444444",
         gender: "female",
+        dateOfBirth: "1995-02-25",
         employeeNumber: "EMP004",
         dutyStation: "Nairobi",
         jobGroup: "K"
