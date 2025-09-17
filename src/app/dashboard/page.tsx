@@ -294,44 +294,43 @@ export default function EmployeeDashboard() {
                                     </TableCell>
                                     <TableCell className="text-right">
                                        <div className="flex gap-2 justify-end">
-                                            {eventDays.map(day => {
-                                                const dateString = format(day, 'yyyy-MM-dd');
-                                                const isCheckedInForDay = !!event.checkedInEmployees?.[authUser?.uid ?? '']?.[dateString];
-                                                
-                                                // An active check-in button is for today AND the event is ongoing.
-                                                const canCheckInForDay = isToday(day);
-                                                
-                                                // Show the button if the day hasn't been checked in yet and the day is not in the past
-                                                if (!isCheckedInForDay && startOfDay(day) >= startOfDay(new Date())) {
-                                                    const isButtonDisabled = !canCheckInForDay || !!isSubmitting;
-                                                    const buttonText = isFuture(day) 
-                                                        ? `Check-in: ${format(day, 'MMM d')}` 
-                                                        : `Check-in Today`;
-
-                                                    return (
-                                                        <Button 
-                                                            key={dateString} 
-                                                            size="sm" 
-                                                            onClick={() => handleCheckIn(event, day)} 
-                                                            disabled={isButtonDisabled}
-                                                            variant={!canCheckInForDay ? 'outline' : 'default'}
-                                                        >
-                                                            {isSubmitting === `${event.id}-${dateString}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MapPin className="mr-2 h-4 w-4" />}
-                                                            {buttonText}
-                                                        </Button>
-                                                    );
-                                                }
-                                                return null;
-                                            })}
                                             {canRequestPerDiem && (
                                                 <Button size="sm" onClick={() => handleRequestPerDiem(event)}>
                                                     Request Per Diem
                                                 </Button>
                                             )}
+                                            {!canRequestPerDiem && hasCheckedInForAllDays(event) && hasRequestedPerDiem(event.id) && (
+                                                <Badge variant="secondary">Per Diem Requested</Badge>
+                                            )}
+                                            {!hasCheckedInForAllDays(event) && eventDays.map(day => {
+                                                const dateString = format(day, 'yyyy-MM-dd');
+                                                const isCheckedInForDay = !!event.checkedInEmployees?.[authUser?.uid ?? '']?.[dateString];
+                                                
+                                                // Don't show button if already checked in or if the day is in the past and wasn't checked in
+                                                if (isCheckedInForDay || startOfDay(day) < startOfDay(new Date())) {
+                                                    return null;
+                                                }
+
+                                                const canCheckInForDay = isToday(day);
+                                                const isButtonDisabled = !canCheckInForDay || !!isSubmitting;
+                                                const buttonText = isFuture(day) 
+                                                    ? `Check-in: ${format(day, 'MMM d')}` 
+                                                    : `Check-in Today`;
+
+                                                return (
+                                                    <Button 
+                                                        key={dateString} 
+                                                        size="sm" 
+                                                        onClick={() => handleCheckIn(event, day)} 
+                                                        disabled={isButtonDisabled}
+                                                        variant={!canCheckInForDay ? 'outline' : 'default'}
+                                                    >
+                                                        {isSubmitting === `${event.id}-${dateString}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MapPin className="mr-2 h-4 w-4" />}
+                                                        {buttonText}
+                                                    </Button>
+                                                );
+                                            })}
                                         </div>
-                                         {!canRequestPerDiem && hasCheckedInForAllDays(event) && hasRequestedPerDiem(event.id) && (
-                                            <Badge variant="secondary">Per Diem Requested</Badge>
-                                        )}
                                     </TableCell>
                                 </TableRow>
                             )
