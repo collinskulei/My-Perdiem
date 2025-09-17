@@ -118,6 +118,15 @@ function EmployeeDashboard() {
   useEffect(() => {
     fetchData();
   }, [authUser, toast]);
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab) {
+      setActiveTab(tab);
+    } else {
+      setActiveTab('events');
+    }
+  }, [searchParams]);
   
 
  const handleCheckIn = (event: AppEvent, date: Date) => {

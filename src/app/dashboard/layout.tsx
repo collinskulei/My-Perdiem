@@ -62,9 +62,8 @@ export default function DashboardLayout({
         return isPathMatch && activeTab === tab;
     }
 
-    // For the main dashboard link (Home)
-    // It should be active if we are on /dashboard and there's no tab.
-    return isPathMatch && !activeTab;
+    // For the main dashboard link (Home). It should be active if we are on /dashboard and there's no tab, or if tab is 'events'.
+    return isPathMatch && (activeTab === null || activeTab === 'events');
   };
 
   return (
