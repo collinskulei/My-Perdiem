@@ -90,10 +90,14 @@ export default function EmployeeDashboard() {
 
       setLoading(true);
       try {
+        const eventsPromise = isTestMode()
+            ? dataProvider.getEvents()
+            : dataProvider.getEventsByEmployee(authUser.uid);
+
         const [userData, requests, eventsData] = await Promise.all([
           dataProvider.getEmployeeById(authUser.uid),
           dataProvider.getPerDiemRequestsByEmployee(authUser.uid),
-          dataProvider.getEventsByEmployee(authUser.uid)
+          eventsPromise
         ]);
         
         setCurrentUser(userData);
@@ -251,7 +255,7 @@ export default function EmployeeDashboard() {
         
         <Card>
             <CardHeader>
-                <CardTitle>My Upcoming Events</CardTitle>
+                <CardTitle>My Events</CardTitle>
                 <CardDescription>Events you are allocated to. Check-in daily to record your attendance.</CardDescription>
             </CardHeader>
             <CardContent>
