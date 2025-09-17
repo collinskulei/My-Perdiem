@@ -287,7 +287,7 @@ function AdminDashboard() {
   }, [toast]);
 
 
-  const handleDownloadReport = (dataToDownload: PerdiemRequest[], reportName: string) => {
+  const handleDownloadPerDiemReport = (dataToDownload: PerdiemRequest[], reportName: string) => {
     const detailedData = dataToDownload.map(req => {
         const event = events.find(e => e.id === req.eventId);
         const employee = employees.find(emp => emp.id === req.employeeId);
@@ -316,6 +316,38 @@ function AdminDashboard() {
     ];
     const csvData = toCSV(detailedData, columns, columnHeaders);
     downloadCSV(csvData, `${reportName}_report.csv`);
+  };
+
+  const handleDownloadCheckinReport = (event: AppEvent) => {
+    const eventDays = getEventDays(event);
+    const dateColumns = eventDays.map(day => format(day, 'yyyy-MM-dd'));
+    const dateHeaders = eventDays.map(day => format(day, 'MMM d'));
+
+    const allocatedEmployees = employees.filter(emp => event.allocatedEmployees.includes(emp.id));
+
+    const reportData = allocatedEmployees.map(employee => {
+        const row: {[key: string]: any} = {
+            employeeId: employee.id,
+            employeeName: employee.name,
+        };
+
+        let checkedInCount = 0;
+        dateColumns.forEach(dateString => {
+            const isCheckedIn = !!event.checkedInEmployees?.[employee.id]?.[dateString];
+            row[dateString] = isCheckedIn ? 'Checked-In' : 'Absent';
+            if (isCheckedIn) checkedInCount++;
+        });
+        
+        row.attendancePercentage = eventDays.length > 0 ? `${Math.round((checkedInCount / eventDays.length) * 100)}%` : '0%';
+
+        return row;
+    });
+
+    const columns = ['employeeName', 'employeeId', ...dateColumns, 'attendancePercentage'];
+    const headers = ['Employee Name', 'Employee ID', ...dateHeaders, 'Attendance %'];
+
+    const csvData = toCSV(reportData, columns, headers);
+    downloadCSV(csvData, `check-in-report_${event.name.replace(/\s+/g, '-')}.csv`);
   };
 
   const nonAdminEmployees = employees.filter(e => e.role !== 'Admin');
@@ -351,7 +383,10 @@ function AdminDashboard() {
 
   const activeEvents = events.filter(event => {
     const today = new Date();
-    return isWithinInterval(today, { start: parseISO(event.startDate), end: parseISO(event.endDate) });
+    const startDate = parseISO(event.startDate);
+    const endDate = parseISO(event.endDate);
+    // Consider event active from start date until end of end date.
+    return isWithinInterval(today, { start: startDate, end: new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 23, 59, 59) });
   });
 
   return (
@@ -501,9 +536,15 @@ function AdminDashboard() {
                                 return (
                                     <TabsContent key={event.id} value={event.id}>
                                         <Card>
-                                            <CardHeader>
-                                                <CardTitle>{event.name} Attendance</CardTitle>
-                                                <CardDescription>Venue: {event.venueName}, {event.venueCity}</CardDescription>
+                                            <CardHeader className="flex flex-row items-center justify-between">
+                                                <div>
+                                                    <CardTitle>{event.name} Attendance</CardTitle>
+                                                    <CardDescription>Venue: {event.venueName}, {event.venueCity}</CardDescription>
+                                                </div>
+                                                <Button onClick={() => handleDownloadCheckinReport(event)} size="sm">
+                                                    <Download className="mr-2 h-4 w-4" />
+                                                    Download Report
+                                                </Button>
                                             </CardHeader>
                                             <CardContent>
                                                 <Table>
@@ -524,7 +565,7 @@ function AdminDashboard() {
                                                                     const isCheckedIn = !!event.checkedInEmployees?.[employee.id]?.[dateString];
                                                                     return (
                                                                         <TableCell key={dateString} className="text-center">
-                                                                            {isCheckedIn && <Check className="h-5 w-5 text-green-500 mx-auto" />}
+                                                                            {isCheckedIn ? <Check className="h-5 w-5 text-green-500 mx-auto" /> : <span className="text-muted-foreground">-</span>}
                                                                         </TableCell>
                                                                     )
                                                                 })}
@@ -691,7 +732,7 @@ function AdminDashboard() {
                              title="Approved Perdiems" 
                              data={filteredReportData.filter(r => r.status === 'Approved')}
                              loading={loading}
-                             onDownload={() => handleDownloadReport(filteredReportData.filter(r => r.status === 'Approved'), 'approved_perdiems')}
+                             onDownload={() => handleDownloadPerDiemReport(filteredReportData.filter(r => r.status === 'Approved'), 'approved_perdiems')}
                            />
                         </TabsContent>
 
@@ -700,7 +741,7 @@ function AdminDashboard() {
                              title="Paid Perdiems" 
                              data={filteredReportData.filter(r => r.status === 'Paid')}
                              loading={loading}
-                             onDownload={() => handleDownloadReport(filteredReportData.filter(r => r.status === 'Paid'), 'paid_perdiems')}
+                             onDownload={() => handleDownloadPerDiemReport(filteredReportData.filter(r => r.status === 'Paid'), 'paid_perdiems')}
                            />
                         </TabsContent>
                     </Tabs>
@@ -756,5 +797,3 @@ export default function AdminDashboardPage() {
     </Suspense>
   )
 }
-
-    
