@@ -48,7 +48,7 @@ const auth = getAuth(app);
  */
 export default function RegistrationWizard() {
   const [role, setRole] = useState("employee");
-  const [formData, setFormData] = useState<Partial<EmployeeData & { password?: string, confirmPassword?: string, organizationName?: string, dateOfBirth?: string }>>({});
+  const [formData, setFormData] = useState<Partial<EmployeeData & { password?: string, confirmPassword?: string, organizationName?: string, dateOfBirth?: string, phone?: string }>>({});
   const router = useRouter();
   const { toast } = useToast();
 
@@ -91,6 +91,15 @@ export default function RegistrationWizard() {
       toast({
         title: "Weak Password",
         description: "Password must be at least 6 characters long.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (formData.phone && !/^[17]/.test(formData.phone)) {
+       toast({
+        title: "Invalid Phone Number",
+        description: "Phone number must start with 7 or 1.",
         variant: "destructive",
       });
       return;
