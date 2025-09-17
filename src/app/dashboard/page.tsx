@@ -189,7 +189,7 @@ function EmployeeDashboard() {
 
   useEffect(() => {
     const activeSubmission = isSubmitting;
-    if (!activeSubmission || isTestMode || latitude === null || longitude === null) return;
+    if (!activeSubmission || (isTestMode && bypassLocationCheck) || latitude === null || longitude === null) return;
     
     const [eventId, dateString] = activeSubmission.split('-');
     
@@ -232,7 +232,7 @@ function EmployeeDashboard() {
     
     checkLocationAndProceed();
 
-  }, [latitude, longitude, geoError, isSubmitting, myEvents, authUser, toast, proceedWithCheckIn, isTestMode, venues]);
+  }, [latitude, longitude, geoError, isSubmitting, myEvents, authUser, toast, proceedWithCheckIn, isTestMode, venues, bypassLocationCheck]);
 
 
   const handleRequestPerDiem = (event: AppEvent) => {
@@ -418,9 +418,11 @@ function EmployeeDashboard() {
                                                         const dateString = format(day, 'yyyy-MM-dd');
                                                         const isCheckedInForDay = !!event.checkedInEmployees?.[authUser?.uid ?? '']?.[dateString];
                                                         
-                                                        if (isCheckedInForDay || startOfDay(day) < startOfDay(new Date())) {
+                                                        if (isCheckedInForDay || isFuture(startOfDay(day))) {
                                                             return null;
                                                         }
+                                                        
+                                                        const isPastDay = startOfDay(day) < startOfDay(new Date());
 
                                                         const canCheckInForDay = isToday(day);
                                                         // Disable button if not today, if submitting, or if not in range (unless bypassed)
@@ -443,8 +445,12 @@ function EmployeeDashboard() {
                                                             </Button>
                                                         );
 
-                                                        if (isButtonDisabled && !canCheckInForDay && !isSubmitting) {
+                                                        if (isButtonDisabled && !canCheckInForDay && !isSubmitting && !isPastDay) {
                                                             return null; // Don't show future buttons at all for cleaner UI
+                                                        }
+                                                        
+                                                        if (isPastDay) {
+                                                           return null;
                                                         }
 
                                                         if (isButtonDisabled && !isInRange) {
