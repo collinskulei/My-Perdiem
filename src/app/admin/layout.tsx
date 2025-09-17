@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Logo } from "@/components/logo";
+import { usePathname } from "next/navigation";
 
 
 /**
@@ -43,6 +44,8 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+
   return (
     <SidebarProvider>
       <Sidebar>
@@ -54,19 +57,19 @@ export default function AdminLayout({
         <SidebarContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/admin" isActive>
+              <SidebarMenuButton href="/admin" isActive={pathname === '/admin'}>
                 <Home />
                 Dashboard
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton href="#">
+              <SidebarMenuButton href="/admin?tab=employees">
                 <Users />
                 Employees
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton href="#">
+              <SidebarMenuButton href="/admin?tab=requests">
                 <BarChart />
                 Reports
               </SidebarMenuButton>

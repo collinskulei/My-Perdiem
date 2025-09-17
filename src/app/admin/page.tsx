@@ -5,7 +5,8 @@
  */
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
 import Image from "next/image";
 import jsPDF from "jspdf";
@@ -109,7 +110,12 @@ const toCSV = (data: any[], columns: string[], columnHeaders: string[]): string 
   return header + rows;
 };
 
-export default function AdminDashboard() {
+function AdminDashboard() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const initialTab = searchParams.get('tab') || 'requests';
+
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [perdiemRequests, setPerdiemRequests] = useState<PerdiemRequest[]>([]);
@@ -125,6 +131,11 @@ export default function AdminDashboard() {
   
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    router.push(`/admin?tab=${value}`, { scroll: false });
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -323,7 +334,7 @@ export default function AdminDashboard() {
         <h1 className="text-3xl font-bold tracking-tight">Dashboard (Admin)</h1>
         <ReportDialog reportData={perdiemRequests} venues={venues} onDownload={handleDownloadReport} />
       </div>
-      <Tabs defaultValue="requests">
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="requests">Perdiem Requests</TabsTrigger>
           <TabsTrigger value="events">Events</TabsTrigger>
@@ -585,4 +596,12 @@ export default function AdminDashboard() {
     </div>
     </>
   );
+}
+
+export default function AdminDashboardPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AdminDashboard />
+    </Suspense>
+  )
 }
