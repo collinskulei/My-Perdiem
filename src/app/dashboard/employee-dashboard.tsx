@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
 import { isToday, parseISO, format, isFuture, startOfDay } from "date-fns";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 
@@ -63,13 +63,7 @@ const ANALYTICS_COLORS = {
   Rejected: '#ef4444', // red-500
 };
 
-export function EmployeeDashboardWrapper() {
-  const searchParams = useSearchParams();
-  const initialTab = searchParams.get('tab') || 'events';
-  return <EmployeeDashboard currentTab={initialTab} />;
-}
-
-function EmployeeDashboard({ currentTab }: { currentTab: string }) {
+export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
   const [userRequests, setUserRequests] = useState<PerdiemRequest[]>([]);
   const [myEvents, setMyEvents] = useState<AppEvent[]>([]);
   const [venues, setVenues] = useState<Venue[]>([]);
