@@ -582,16 +582,14 @@ function AdminDashboard() {
                                                     <CommandEmpty>No employees found.</CommandEmpty>
                                                     <CommandGroup>
                                                         <CommandItem
-                                                          onClick={(e) => {
-                                                              e.preventDefault();
-                                                              handleSelectAllEmployees(eventFormData.allocatedEmployees.length < nonAdminEmployees.length);
-                                                          }}
+                                                          onSelect={() => handleSelectAllEmployees(!(eventFormData.allocatedEmployees.length === nonAdminEmployees.length))}
                                                           className="cursor-pointer"
                                                         >
                                                             <Checkbox
                                                                 className="mr-2"
                                                                 checked={eventFormData.allocatedEmployees.length > 0 && eventFormData.allocatedEmployees.length === nonAdminEmployees.length}
                                                                 readOnly
+                                                                indeterminate={eventFormData.allocatedEmployees.length > 0 && eventFormData.allocatedEmployees.length < nonAdminEmployees.length}
                                                             />
                                                             <span>Select All</span>
                                                         </CommandItem>
@@ -601,10 +599,7 @@ function AdminDashboard() {
                                                         {nonAdminEmployees.map((employee) => (
                                                             <CommandItem
                                                                 key={employee.id}
-                                                                onClick={(e) => {
-                                                                    e.preventDefault();
-                                                                    handleSelectEmployee(employee.id);
-                                                                }}
+                                                                onSelect={() => handleSelectEmployee(employee.id)}
                                                                 className="cursor-pointer"
                                                             >
                                                                 <Checkbox
