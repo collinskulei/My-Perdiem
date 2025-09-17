@@ -371,7 +371,6 @@ function EmployeeDashboard() {
                                     
                                     const isInRange = isTestMode && bypassLocationCheck ? true : distance !== -1 && distance <= 1000;
                                     
-                                    // "Request Per Diem" is active only if attendance is full AND location check is passed (or bypassed).
                                     const canRequestPerDiem = hasCheckedInForAllDays(event) && !hasRequestedPerDiem(event.id);
                                     const isRequestButtonDisabled = !isInRange;
 
@@ -443,7 +442,6 @@ function EmployeeDashboard() {
                                                         const isPastDay = startOfDay(day) < startOfDay(new Date());
 
                                                         const canCheckInForDay = isToday(day);
-                                                        // Disable button if not today, if submitting, or if not in range (unless bypassed)
                                                         const isButtonDisabled = !canCheckInForDay || !!isSubmitting || !isInRange;
                                                         
                                                         const buttonText = isFuture(day) 
