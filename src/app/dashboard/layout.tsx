@@ -15,6 +15,8 @@ import {
   BarChart,
 } from "lucide-react";
 import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
+
 import {
   SidebarProvider,
   Sidebar,
@@ -43,6 +45,22 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'events';
+
+  const isLinkActive = (path: string, tab?: string) => {
+    const isPathMatch = pathname === path;
+    if (tab) {
+        return isPathMatch && activeTab === tab;
+    }
+    // For dashboard home, check for path match and no tab
+    if (path === '/dashboard' && !tab) {
+        return isPathMatch && !searchParams.has('tab');
+    }
+    return isPathMatch;
+  };
+
   return (
     <SidebarProvider>
       <Sidebar>
@@ -54,37 +72,37 @@ export default function DashboardLayout({
         <SidebarContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/dashboard" isActive>
+              <SidebarMenuButton href="/dashboard" isActive={isLinkActive('/dashboard', undefined) || isLinkActive('/dashboard', 'events')}>
                 <Home />
                 Dashboard
               </SidebarMenuButton>
             </SidebarMenuItem>
              <SidebarMenuItem>
-              <SidebarMenuButton href="/dashboard">
+              <SidebarMenuButton href="/dashboard?tab=events" isActive={isLinkActive('/dashboard', 'events')}>
                 <CalendarDays />
                 My Events
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/dashboard">
+              <SidebarMenuButton href="/dashboard?tab=checkins" isActive={isLinkActive('/dashboard', 'checkins')}>
                 <ClipboardCheck />
                 My Check-ins
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/dashboard">
+              <SidebarMenuButton href="/dashboard?tab=requests" isActive={isLinkActive('/dashboard', 'requests')}>
                 <ClipboardList />
                 My Per Diem Requests
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/dashboard">
+              <SidebarMenuButton href="/dashboard/analytics" isActive={isLinkActive('/dashboard/analytics')}>
                 <BarChart />
                 Analytics
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/profile">
+              <SidebarMenuButton href="/profile" isActive={pathname === '/profile'}>
                 <User />
                 Profile
               </SidebarMenuButton>
