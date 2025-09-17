@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { DateRange } from "react-day-picker";
@@ -124,14 +124,7 @@ const downloadCSV = (csvData: string, filename: string) => {
     document.body.removeChild(link);
 }
 
-export function AdminDashboardWrapper() {
-  const searchParams = useSearchParams();
-  const initialTab = searchParams.get('tab') || 'requests';
-  return <AdminDashboard currentTab={initialTab} />;
-}
-
-
-function AdminDashboard({ currentTab }: { currentTab: string }) {
+export function AdminDashboard({ currentTab }: { currentTab: string }) {
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState(currentTab);

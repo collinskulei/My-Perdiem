@@ -1,4 +1,6 @@
 
+"use client";
+
 /**
  * @file DashboardLayout provides a consistent sidebar and header for all pages within the employee dashboard.
  * It includes navigation links for the dashboard, creating a new request, and the user's profile.
@@ -20,10 +22,10 @@ import { Logo } from "@/components/logo";
 import { EmployeeHeader } from './employee-header';
 import { EmployeeSidebarNavigation } from './employee-sidebar-navigation';
 
-export const metadata: Metadata = {
-  title: 'Employee Dashboard | PerdiemPro',
-  description: 'Manage your events, check-ins, and per diem requests.',
-};
+// export const metadata: Metadata = {
+//   title: 'Employee Dashboard | PerdiemPro',
+//   description: 'Manage your events, check-ins, and per diem requests.',
+// };
 
 
 /**

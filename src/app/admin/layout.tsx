@@ -1,4 +1,6 @@
 
+"use client";
+
 /**
  * @file AdminLayout provides a consistent sidebar and header for all pages within the admin section.
  * It includes navigation links for the admin dashboard, employees, and reports.
@@ -33,10 +35,10 @@ import {
 import { AdminHeader } from './admin-header';
 import { AdminSidebarNavigation } from './admin-sidebar-navigation';
 
-export const metadata: Metadata = {
-  title: 'Admin Dashboard | PerdiemPro',
-  description: 'Manage per diem requests, events, and employees.',
-};
+// export const metadata: Metadata = {
+//   title: 'Admin Dashboard | PerdiemPro',
+//   description: 'Manage per diem requests, events, and employees.',
+// };
 
 
 /**
