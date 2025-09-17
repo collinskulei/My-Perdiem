@@ -33,7 +33,7 @@ const initialVenues: Venue[] = [
 const initialEmployees: Employee[] = [
     {
         id: "auth-uid-admin",
-        name: "Admin User",
+        name: "Test Mode Admin",
         email: "admin@example.com",
         role: "Admin",
         avatarUrl: `https://picsum.photos/seed/auth-uid-admin/100/100`,
@@ -55,7 +55,7 @@ const initialEmployees: Employee[] = [
     },
     {
         id: "auth-uid-employee-1",
-        name: "John Doe",
+        name: "Test Mode Employee",
         email: "employee1@example.com",
         role: "Registered Nurse",
         avatarUrl: `https://picsum.photos/seed/auth-uid-employee-1/100/100`,
@@ -182,7 +182,7 @@ const initialPerDiemRequests: PerdiemRequest[] = [
     {
         id: 'req-001',
         employeeId: 'auth-uid-employee-1',
-        employeeName: 'John Doe',
+        employeeName: 'Test Mode Employee',
         eventId: 'event-001',
         eventName: 'Annual Health Conference (Past Event)',
         location: 'Nairobi',
