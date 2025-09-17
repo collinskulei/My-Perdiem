@@ -11,7 +11,7 @@ import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, 
 import Image from "next/image";
 import { DateRange } from "react-day-picker";
 import { format, differenceInCalendarDays, parseISO, isWithinInterval, isSameDay, isPast, endOfDay, subDays } from "date-fns";
-import { BarChart, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
