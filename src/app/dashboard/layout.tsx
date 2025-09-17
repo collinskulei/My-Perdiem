@@ -9,6 +9,7 @@ import {
   Home,
   LogOut,
   User,
+  CalendarDays,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -53,6 +54,12 @@ export default function DashboardLayout({
               <SidebarMenuButton href="/dashboard" isActive>
                 <Home />
                 Dashboard
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+              <SidebarMenuButton href="/dashboard">
+                <CalendarDays />
+                My Events
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
