@@ -47,18 +47,24 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'events';
+  const activeTab = searchParams.get('tab');
 
   const isLinkActive = (path: string, tab?: string) => {
     const isPathMatch = pathname === path;
+    
+    // For specific pages like /profile or /dashboard/analytics
+    if (path !== '/dashboard') {
+        return isPathMatch;
+    }
+
+    // For dashboard tabs
     if (tab) {
         return isPathMatch && activeTab === tab;
     }
-    // For dashboard home, check for path match and no tab
-    if (path === '/dashboard' && !tab) {
-        return isPathMatch && !searchParams.has('tab');
-    }
-    return isPathMatch;
+
+    // For the main dashboard link (Home)
+    // It should be active if we are on /dashboard and the tab is 'events' or there's no tab.
+    return isPathMatch && (activeTab === 'events' || !activeTab);
   };
 
   return (
@@ -72,7 +78,7 @@ export default function DashboardLayout({
         <SidebarContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/dashboard" isActive={isLinkActive('/dashboard', undefined) || isLinkActive('/dashboard', 'events')}>
+              <SidebarMenuButton href="/dashboard" isActive={isLinkActive('/dashboard')}>
                 <Home />
                 Dashboard
               </SidebarMenuButton>
@@ -102,7 +108,7 @@ export default function DashboardLayout({
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/profile" isActive={pathname === '/profile'}>
+              <SidebarMenuButton href="/profile" isActive={isLinkActive('/profile')}>
                 <User />
                 Profile
               </SidebarMenuButton>
