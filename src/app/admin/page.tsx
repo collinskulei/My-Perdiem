@@ -6,6 +6,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, Suspense, useMemo } from "react";
+import dynamic from 'next/dynamic';
 import { useSearchParams, useRouter } from "next/navigation";
 import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import Image from "next/image";
@@ -582,8 +583,8 @@ function AdminDashboard() {
                                                     <CommandEmpty>No employees found.</CommandEmpty>
                                                     <CommandGroup>
                                                         <CommandItem
-                                                          onSelect={() => handleSelectAllEmployees(!(eventFormData.allocatedEmployees.length === nonAdminEmployees.length))}
-                                                          className="cursor-pointer"
+                                                            onSelect={() => handleSelectAllEmployees(!(eventFormData.allocatedEmployees.length === nonAdminEmployees.length))}
+                                                            className="cursor-pointer"
                                                         >
                                                             <Checkbox
                                                                 className="mr-2"
@@ -1162,10 +1163,9 @@ function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[]
 }
 
 
-export default function AdminDashboardPage() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <AdminDashboard />
-    </Suspense>
-  )
-}
+const AdminDashboardPage = dynamic(() => Promise.resolve(AdminDashboard), {
+  ssr: false,
+  loading: () => <div className="flex items-center justify-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>
+});
+
+export default AdminDashboardPage;
