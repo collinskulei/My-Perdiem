@@ -68,6 +68,7 @@ const ANALYTICS_COLORS = {
 function EmployeeDashboard() {
   const [userRequests, setUserRequests] = useState<PerdiemRequest[]>([]);
   const [myEvents, setMyEvents] = useState<AppEvent[]>([]);
+  const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<Employee | null>(null);
   const [authUser, setAuthUser] = useState<User | MockUser | null>(null);
@@ -80,7 +81,7 @@ function EmployeeDashboard() {
   const initialTab = searchParams.get('tab') || 'events';
   const [activeTab, setActiveTab] = useState(initialTab);
 
-  const { latitude, longitude, error: geoError, getPosition } = useGeolocation();
+  const { latitude, longitude, error: geoError, getPosition, loading: geoLoading } = useGeolocation();
 
   useEffect(() => {
     if (isTestMode()) {
@@ -107,15 +108,17 @@ function EmployeeDashboard() {
             ? dataProvider.getEvents()
             : dataProvider.getEventsByEmployee(authUser.uid);
 
-        const [userData, requests, eventsData] = await Promise.all([
+        const [userData, requests, eventsData, venuesData] = await Promise.all([
           dataProvider.getEmployeeById(authUser.uid),
           dataProvider.getPerDiemRequestsByEmployee(authUser.uid),
-          eventsPromise
+          eventsPromise,
+          dataProvider.getVenues()
         ]);
         
         setCurrentUser(userData);
         setUserRequests(requests);
         setMyEvents(eventsData);
+        setVenues(venuesData);
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
          toast({ title: "Error", description: "Could not load dashboard data.", variant: "destructive" });
@@ -127,6 +130,16 @@ function EmployeeDashboard() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+  
+  useEffect(() => {
+    // Fetch location on mount and then every 30 seconds
+    getPosition();
+    const interval = setInterval(() => {
+      getPosition();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [getPosition]);
+
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -313,27 +326,47 @@ function EmployeeDashboard() {
                         <Table>
                             <TableHeader>
                               <TableRow>
-                                <TableHead className="w-[30%]">Event</TableHead>
+                                <TableHead className="w-[25%]">Event</TableHead>
                                 <TableHead>Venue</TableHead>
                                 <TableHead>Dates</TableHead>
+                                <TableHead>Radius Check</TableHead>
                                 <TableHead>Attendance</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {loading ? ( <TableRow><TableCell colSpan={5} className="h-24 text-center">Loading your events...</TableCell></TableRow>
+                                {loading ? ( <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading your events...</TableCell></TableRow>
                                 ) : myEvents.length === 0 ? (
-                                    <TableRow><TableCell colSpan={5} className="h-24 text-center">You have no upcoming events.</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={6} className="h-24 text-center">You have no upcoming events.</TableCell></TableRow>
                                 ) : myEvents.map((event) => {
                                     const canRequestPerDiem = hasCheckedInForAllDays(event) && !hasRequestedPerDiem(event.id);
                                     const eventDays = getEventDays(event);
                                     const { percent, color, checkedInDays, totalDays } = getAttendanceProgress(event);
+
+                                    const eventVenue = venues.find(v => v.id === event.venueId);
+                                    let distance = -1;
+                                    if (eventVenue && latitude && longitude) {
+                                      distance = getHaversineDistance(latitude, longitude, eventVenue.latitude, eventVenue.longitude);
+                                    }
 
                                     return (
                                         <TableRow key={event.id}>
                                             <TableCell className="font-medium">{event.name}</TableCell>
                                             <TableCell>{event.venueName}</TableCell>
                                             <TableCell>{(event.eventDates || []).join(', ')}</TableCell>
+                                            <TableCell>
+                                              {geoLoading ? (
+                                                <Badge variant="outline">Checking...</Badge>
+                                              ) : distance === -1 ? (
+                                                <Badge variant="outline">Unknown</Badge>
+                                              ) : distance <= 1000 ? (
+                                                <Badge className="bg-green-500 hover:bg-green-600">In Range</Badge>
+                                              ) : (
+                                                <Badge variant="destructive">
+                                                  {(distance / 1000).toFixed(1)} km away
+                                                </Badge>
+                                              )}
+                                            </TableCell>
                                             <TableCell>
                                                 <UITooltip>
                                                     <TooltipTrigger asChild>
