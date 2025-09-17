@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -35,7 +34,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogDescription
+  DialogDescription,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -1163,5 +1163,3 @@ function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[]
     </div>
   );
 }
-
-    
