@@ -172,7 +172,11 @@ function AdminDashboard() {
       setVenues(venuesData);
       setEmployees(employeesData);
       setPerdiemRequests(requestsData);
-      setEvents(eventsData.sort((a, b) => new Date(b.eventDates[0]).getTime() - new Date(a.eventDates[0]).getTime()));
+      setEvents(eventsData.sort((a, b) => {
+        const dateA = a.eventDates && a.eventDates.length > 0 ? new Date(a.eventDates[0]).getTime() : 0;
+        const dateB = b.eventDates && b.eventDates.length > 0 ? new Date(b.eventDates[0]).getTime() : 0;
+        return dateB - dateA;
+      }));
     } catch (error) {
       console.error("Failed to fetch data:", error);
       toast({
