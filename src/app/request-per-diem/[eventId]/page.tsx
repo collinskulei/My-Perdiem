@@ -142,7 +142,7 @@ export default function RequestPerDiemPage() {
     };
 
     // --- FORM SUBMISSION ---
-    const onSubmit = async (data: PerDiemFormValues) => {
+    const processSubmit = async (data: PerDiemFormValues) => {
         if (!authUser || !employee || !event) return;
         
         setIsSubmitting(true);
@@ -193,7 +193,7 @@ export default function RequestPerDiemPage() {
                      <Progress value={(currentStep + 1) / steps.length * 100} className="w-full mt-4" />
                  </CardHeader>
                 <FormProvider {...methods}>
-                    <form onSubmit={handleSubmit(onSubmit)}>
+                    <form>
                         <CardContent>
                             {currentStep === 0 && <Step1 event={event} employee={employee} venue={venue} />}
                             {currentStep === 1 && <Step2 event={event} employee={employee} />}
@@ -208,7 +208,7 @@ export default function RequestPerDiemPage() {
                                     Next <ArrowRight className="ml-2" />
                                 </Button>
                             ) : (
-                                <Button type="submit" disabled={isSubmitting}>
+                                <Button type="button" disabled={isSubmitting} onClick={handleSubmit(processSubmit)}>
                                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     Submit Request
                                 </Button>
@@ -440,5 +440,6 @@ const SummaryItem = ({ label, value }: { label: string, value: string | number }
         <p className="font-medium">{value}</p>
     </div>
 );
+
 
 
