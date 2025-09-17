@@ -16,6 +16,7 @@ import {
   Users,
   MapPin,
   FileText,
+  BarChart,
 } from "lucide-react";
 
 import {
@@ -73,6 +74,12 @@ export default function AdminLayout({
               <SidebarMenuButton href="/admin" isActive={pathname === '/admin' && !searchParams.has('tab')}>
                 <Home />
                 Dashboard
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+              <SidebarMenuButton href="/admin/analytics" isActive={pathname === '/admin/analytics'}>
+                <BarChart />
+                Analytics
               </SidebarMenuButton>
             </SidebarMenuItem>
              <SidebarMenuItem>

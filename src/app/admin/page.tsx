@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
+import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { DateRange } from "react-day-picker";
 import { format, differenceInCalendarDays, parseISO, isWithinInterval, isSameDay, isPast, endOfDay } from "date-fns";
@@ -70,6 +70,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { PerdiemRequest, Venue, Employee, AppEvent } from "@/lib/data";
 import { dutyStationCoordinates } from "@/lib/data";
@@ -96,6 +97,12 @@ const dutyStations = Object.keys(dutyStationCoordinates);
 const defaultNewVenue = { name: "", city: "", county: "Nairobi", latitude: "0", longitude: "0" };
 const defaultNewEvent = { name: "", facilitator: "", venueId: "", allocatedEmployees: [] as string[] };
 const defaultFilters = { date: undefined, county: "all", dutyStation: "all", employee: "all" };
+
+const designations = [
+    "Medical Director", "Chief Nursing Officer", "Resident Doctor", "Registered Nurse", "Clinical Officer",
+    "Pharmacist", "Laboratory Technologist", "Radiographer", "Physiotherapist", "Hospital Administrator",
+];
+const jobGroups = ["A", "B1", "B2", "B3", "B4", "B5", "C1", "C2", "C3", "C4", "C5", "D1", "D2", "D3", "D4", "D5", "E1", "E2", "E4", "H", "J", "K", "L", "M", "N", "P", "Q", "R", "S"];
 
 const toCSV = (data: any[], columns: string[], columnHeaders: string[]): string => {
   const header = columnHeaders.join(',') + '\n';
@@ -142,6 +149,12 @@ function AdminDashboard() {
   const [eventFormData, setEventFormData] = useState<{name: string; facilitator: string; venueId: string; allocatedEmployees: string[] }>(defaultNewEvent);
   const [eventDates, setEventDates] = useState<Date[] | undefined>();
   const [isEmployeeSelectOpen, setEmployeeSelectOpen] = useState(false);
+  
+  const [isEmployeeDialogOpen, setIsEmployeeDialogOpen] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [employeeFormData, setEmployeeFormData] = useState<Partial<Employee>>({});
+  const [isSaving, setIsSaving] = useState(false);
+
 
   // Filters for reports
   const [filters, setFilters] = useState<{
@@ -304,6 +317,28 @@ function AdminDashboard() {
     } catch (error) {
       console.error("Error saving event: ", error);
       toast({ title: "Error", description: `Failed to save event.`, variant: "destructive" });
+    }
+  };
+
+  const handleOpenEmployeeDialog = (employee: Employee) => {
+    setEditingEmployee(employee);
+    setEmployeeFormData(employee);
+    setIsEmployeeDialogOpen(true);
+  };
+
+  const handleSaveEmployee = async () => {
+    if (!editingEmployee) return;
+    setIsSaving(true);
+    try {
+      await dataProvider.updateEmployee(editingEmployee.id, employeeFormData);
+      toast({ title: "Success", description: "Employee details updated." });
+      setIsEmployeeDialogOpen(false);
+      await fetchAllData(); // Refresh data
+    } catch (error) {
+      console.error("Error updating employee: ", error);
+      toast({ title: "Error", description: "Failed to update employee.", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -709,7 +744,22 @@ function AdminDashboard() {
                       <TableCell>{employee.role}</TableCell>
                       <TableCell className="hidden md:table-cell">{employee.dutyStation}</TableCell>
                       <TableCell className="hidden md:table-cell">{employee.jobGroup}</TableCell>
-                      <TableCell><DropdownMenu><DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuLabel>Actions</DropdownMenuLabel><DropdownMenuItem>View</DropdownMenuItem><DropdownMenuItem>Edit</DropdownMenuItem><DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>
+                      <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button aria-haspopup="true" size="icon" variant="ghost">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                    <span className="sr-only">Toggle menu</span>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem onSelect={() => handleOpenEmployeeDialog(employee)}>Edit</DropdownMenuItem>
+                                <DropdownMenuItem>View</DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -859,6 +909,97 @@ function AdminDashboard() {
         </TabsContent>
       </Tabs>
     </div>
+    
+    <Dialog open={isEmployeeDialogOpen} onOpenChange={setIsEmployeeDialogOpen}>
+        <DialogContent className="sm:max-w-2xl flex flex-col max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Edit Employee</DialogTitle>
+            <DialogDescription>Update the details for {editingEmployee?.name}.</DialogDescription>
+          </DialogHeader>
+           <div className="flex-1 overflow-y-auto pr-6 -mr-6">
+                <div className="space-y-4 py-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="name">Full Name</Label>
+                            <Input id="name" value={employeeFormData.name || ''} onChange={(e) => setEmployeeFormData(prev => ({ ...prev, name: e.target.value }))} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="phoneNumber">Phone Number</Label>
+                            <Input id="phoneNumber" value={employeeFormData.phoneNumber || ''} onChange={(e) => setEmployeeFormData(prev => ({ ...prev, phoneNumber: e.target.value }))} />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <div className="space-y-2">
+                            <Label htmlFor="idNumber">ID Number</Label>
+                            <Input id="idNumber" value={employeeFormData.idNumber || ''} onChange={(e) => setEmployeeFormData(prev => ({ ...prev, idNumber: e.target.value }))} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="gender">Gender</Label>
+                            <Select value={employeeFormData.gender} onValueChange={(value) => setEmployeeFormData(prev => ({ ...prev, gender: value }))}>
+                                <SelectTrigger id="gender"><SelectValue placeholder="Select gender" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="male">Male</SelectItem>
+                                    <SelectItem value="female">Female</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    {editingEmployee?.role !== 'Admin' && (
+                        <>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="employeeNumber">Employee Number</Label>
+                                    <Input id="employeeNumber" value={employeeFormData.employeeNumber || ''} onChange={(e) => setEmployeeFormData(prev => ({ ...prev, employeeNumber: e.target.value }))} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="dutyStation">Duty Station</Label>
+                                    <Select value={employeeFormData.dutyStation} onValueChange={(value) => setEmployeeFormData(prev => ({ ...prev, dutyStation: value }))}>
+                                        <SelectTrigger><SelectValue placeholder="Select Station" /></SelectTrigger>
+                                        <SelectContent>
+                                            {dutyStations.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="jobGroup">Job Group</Label>
+                                    <Select value={employeeFormData.jobGroup} onValueChange={(value) => setEmployeeFormData(prev => ({ ...prev, jobGroup: value }))}>
+                                        <SelectTrigger id="jobGroup"><SelectValue placeholder="Select a job group" /></SelectTrigger>
+                                        <SelectContent>
+                                            {jobGroups.map((group) => (<SelectItem key={group} value={group}>{group}</SelectItem>))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="role">Role/Designation</Label>
+                                    <Select value={employeeFormData.role} onValueChange={(value) => setEmployeeFormData(prev => ({ ...prev, role: value }))}>
+                                        <SelectTrigger id="role"><SelectValue placeholder="Select a designation" /></SelectTrigger>
+                                        <SelectContent>
+                                            {designations.map((d) => (<SelectItem key={d} value={d}>{d}</SelectItem>))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                     {editingEmployee?.role === 'Admin' && (
+                        <div className="space-y-2">
+                            <Label htmlFor="organizationName">Organization Name</Label>
+                            <Input id="organizationName" value={employeeFormData.organizationName || ''} onChange={(e) => setEmployeeFormData(prev => ({ ...prev, organizationName: e.target.value }))} />
+                        </div>
+                    )}
+                </div>
+            </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEmployeeDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveEmployee} disabled={isSaving}>
+              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+    </Dialog>
     </>
   );
 }
