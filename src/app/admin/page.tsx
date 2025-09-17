@@ -5,12 +5,13 @@
  */
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { DateRange } from "react-day-picker";
-import { format, differenceInCalendarDays, parseISO, isWithinInterval, isSameDay, isPast, endOfDay } from "date-fns";
+import { format, differenceInCalendarDays, parseISO, isWithinInterval, isSameDay, isPast, endOfDay, subDays } from "date-fns";
+import { BarChart, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -78,7 +79,7 @@ import { useToast } from "@/hooks/use-toast";
 import * as firestore from '@/lib/firebase/firestore';
 import * as mock from '@/lib/mock-data';
 import { isTestMode } from '@/lib/test-mode';
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 
 const dataProvider = isTestMode() ? mock : firestore;
 
@@ -470,6 +471,7 @@ function AdminDashboard() {
           <TabsTrigger value="employees">Employees</TabsTrigger>
           <TabsTrigger value="venues">Venues</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
         <TabsContent value="requests">
           <Card>
@@ -909,6 +911,9 @@ function AdminDashboard() {
                 </CardContent>
             </Card>
         </TabsContent>
+        <TabsContent value="analytics">
+            <AnalyticsTabContent requests={perdiemRequests} loading={loading} />
+        </TabsContent>
       </Tabs>
     </div>
     
@@ -1039,6 +1044,117 @@ function ReportTabContent({ title, data, loading, onDownload }: { title: string,
             </CardContent>
         </Card>
     )
+}
+
+function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[], loading: boolean }) {
+  const chartData = useMemo(() => {
+    const requestsByStatus = requests.reduce((acc, req) => {
+      acc[req.status] = (acc[req.status] || 0) + 1;
+      return acc;
+    }, {} as { [key: string]: number });
+
+    const pieChartData = Object.entries(requestsByStatus).map(([name, value]) => ({ name, value }));
+
+    const requestsByDate = requests.reduce((acc, req) => {
+      const date = format(new Date(req.date), 'yyyy-MM-dd');
+      acc[date] = (acc[date] || 0) + 1;
+      return acc;
+    }, {} as { [key: string]: number });
+
+    const last30Days = Array.from({ length: 30 }, (_, i) => {
+      const date = subDays(new Date(), i);
+      const formattedDate = format(date, 'yyyy-MM-dd');
+      return {
+        date: format(date, 'MMM d'),
+        count: requestsByDate[formattedDate] || 0,
+      };
+    }).reverse();
+
+    const totalPaid = requests
+      .filter(req => req.status === 'Paid')
+      .reduce((sum, req) => sum + req.totalPerdiem, 0);
+
+    const COLORS = {
+      Pending: '#f97316',
+      Approved: '#10b981',
+      Paid: '#3b82f6',
+      Rejected: '#ef4444',
+    };
+
+    return { pieChartData, last30Days, totalPaid, requestsCount: requests.length, COLORS };
+  }, [requests]);
+
+  if (loading) {
+    return <div className="text-center p-10">Loading analytics...</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="space-y-1">
+        <h2 className="text-2xl font-bold tracking-tight">Analytics Overview</h2>
+        <p className="text-muted-foreground">A high-level view of per diem request trends.</p>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>Total Requests</CardTitle>
+            <CardDescription>All per diem requests submitted.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-4xl font-bold">{chartData.requestsCount}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Total Paid Out</CardTitle>
+            <CardDescription>The total amount for all paid per diems.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-4xl font-bold">{formatCurrency(chartData.totalPaid)}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Requests by Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie data={chartData.pieChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
+                  {chartData.pieChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={chartData.COLORS[entry.name as keyof typeof chartData.COLORS]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value, name) => [`${value} requests`, name]} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Requests in Last 30 Days</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={chartData.last30Days}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis allowDecimals={false} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="count" fill="hsl(var(--primary))" name="Requests" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
 }
 
 

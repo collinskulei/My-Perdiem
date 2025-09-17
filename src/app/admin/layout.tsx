@@ -80,7 +80,7 @@ export default function AdminLayout({
               </SidebarMenuButton>
             </SidebarMenuItem>
              <SidebarMenuItem>
-              <SidebarMenuButton href="/admin/analytics" isActive={isLinkActive('/admin/analytics', null)}>
+              <SidebarMenuButton href="/admin?tab=analytics" isActive={isLinkActive('/admin', 'analytics')}>
                 <BarChart />
                 Analytics
               </SidebarMenuButton>
