@@ -197,6 +197,7 @@ function EmployeeDashboard() {
         const distance = getHaversineDistance(latitude, longitude, venue.latitude, venue.longitude);
         
         if (distance <= 1000) { // 1000 meters = 1 km
+            toast({ title: "Location Verified", description: "You are in the correct check-in spot. Proceeding..." });
             proceedWithCheckIn(event.id, authUser.uid, dateString);
         } else {
             toast({
