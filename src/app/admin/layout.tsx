@@ -10,6 +10,12 @@ import {
   Home,
   LogOut,
   User,
+  ClipboardList,
+  CalendarDays,
+  ClipboardCheck,
+  Users,
+  MapPin,
+  FileText,
 } from "lucide-react";
 
 import {
@@ -28,7 +34,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Logo } from "@/components/logo";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 
 /**
@@ -43,6 +49,15 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'requests';
+
+  const isLinkActive = (tab: string | null) => {
+    if (tab === null && pathname === '/admin' && !searchParams.get('tab')) {
+        return true;
+    }
+    return activeTab === tab;
+  }
 
   return (
     <SidebarProvider>
@@ -55,9 +70,51 @@ export default function AdminLayout({
         <SidebarContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/admin" isActive={pathname === '/admin'}>
+              <SidebarMenuButton href="/admin" isActive={pathname === '/admin' && !searchParams.has('tab')}>
                 <Home />
                 Dashboard
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+              <SidebarMenuButton href="/admin?tab=requests" isActive={isLinkActive('requests')}>
+                <ClipboardList />
+                Per Diem Requests
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+              <SidebarMenuButton href="/admin?tab=events" isActive={isLinkActive('events')}>
+                <CalendarDays />
+                Events
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+              <SidebarMenuButton href="/admin?tab=checkins" isActive={isLinkActive('checkins')}>
+                <ClipboardCheck />
+                Event Check-ins
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+              <SidebarMenuButton href="/admin?tab=employees" isActive={isLinkActive('employees')}>
+                <Users />
+                Employees
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+              <SidebarMenuButton href="/admin?tab=venues" isActive={isLinkActive('venues')}>
+                <MapPin />
+                Venues
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton href="/admin?tab=reports" isActive={isLinkActive('reports')}>
+                <FileText />
+                Reports
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+              <SidebarMenuButton href="/profile" isActive={pathname === '/profile'}>
+                <User />
+                Profile
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
