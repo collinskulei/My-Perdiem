@@ -299,7 +299,7 @@ function AdminDashboard() {
         return {
             ...req,
             eventStartDate: event?.eventDates?.[0] || 'N/A',
-            eventEndDate: event?.eventDates?.[event.eventDates.length - 1] || 'N/A',
+            eventEndDate: event?.eventDates?.[(event.eventDates || []).length - 1] || 'N/A',
             eventFacilitator: event?.facilitator || 'N/A',
             eventAttendance: attendance,
         };
@@ -452,70 +452,94 @@ function AdminDashboard() {
             <CardHeader className="flex flex-row items-center justify-between">
                 <div><CardTitle>Events</CardTitle><CardDescription>Manage upcoming and past events.</CardDescription></div>
                 <Dialog open={isAddEventOpen} onOpenChange={setIsAddEventOpen}><DialogTrigger asChild><Button size="sm"><PlusCircle className="mr-2 h-4 w-4" />Add Event</Button></DialogTrigger>
-                <DialogContent className="sm:max-w-2xl"><DialogHeader><DialogTitle>Add New Event</DialogTitle><DialogDescription>Enter the details for the new event.</DialogDescription></DialogHeader>
-                <div className="grid gap-4 py-4"><div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="event-name" className="text-right">Name</Label><Input id="event-name" value={newEvent.name} onChange={(e) => setNewEvent({ ...newEvent, name: e.target.value })} className="col-span-3" /></div>
-                <div className="grid grid-cols-4 items-start gap-4 pt-4">
-                    <Label htmlFor="event-date" className="text-right pt-2">Event Dates</Label>
-                    <div className="col-span-3">
-                         <Calendar
-                            mode="multiple"
-                            selected={eventDates}
-                            onSelect={setEventDates}
-                            className="rounded-md border"
-                        />
-                        <p className="text-sm text-muted-foreground mt-2">
-                           {eventDates?.length ? `${eventDates.length} date(s) selected.` : 'Select one or more dates for the event.'}
-                        </p>
+                <DialogContent className="sm:max-w-2xl flex flex-col max-h-[90vh]">
+                    <DialogHeader>
+                        <DialogTitle>Add New Event</DialogTitle>
+                        <DialogDescription>Enter the details for the new event.</DialogDescription>
+                    </DialogHeader>
+                    <div className="flex-1 overflow-y-auto pr-6 -mr-6">
+                        <div className="grid gap-6 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="event-name" className="text-right">Name</Label>
+                                <Input id="event-name" value={newEvent.name} onChange={(e) => setNewEvent({ ...newEvent, name: e.target.value })} className="col-span-3" />
+                            </div>
+                            <div className="grid grid-cols-4 items-start gap-4">
+                                <Label htmlFor="event-date" className="text-right pt-2">Event Dates</Label>
+                                <div className="col-span-3">
+                                    <Calendar
+                                        mode="multiple"
+                                        selected={eventDates}
+                                        onSelect={setEventDates}
+                                        className="rounded-md border"
+                                    />
+                                    <p className="text-sm text-muted-foreground mt-2">
+                                    {eventDates?.length ? `${eventDates.length} date(s) selected.` : 'Select one or more dates for the event.'}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="event-venue" className="text-right">Venue</Label>
+                                <Select value={newEvent.venueId} onValueChange={(value) => setNewEvent({ ...newEvent, venueId: value })}>
+                                    <SelectTrigger className="col-span-3"><SelectValue placeholder="Select a venue" /></SelectTrigger>
+                                    <SelectContent>{venues.map((v) => (<SelectItem key={v.id} value={v.id}>{v.name} ({v.city})</SelectItem>))}</SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="event-facilitator" className="text-right">Facilitator</Label>
+                                <Input id="event-facilitator" value={newEvent.facilitator} onChange={(e) => setNewEvent({ ...newEvent, facilitator: e.target.value })} className="col-span-3" />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label className="text-right">Assign Employees</Label>
+                                <Popover open={isEmployeeSelectOpen} onOpenChange={setEmployeeSelectOpen}>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" className="col-span-3 justify-start text-left font-normal">
+                                            <ChevronsUpDown className="mr-2 h-4 w-4" />
+                                            {newEvent.allocatedEmployees.length > 0 ? `${newEvent.allocatedEmployees.length} selected` : "Select employees"}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                                        <Command>
+                                            <CommandInput placeholder="Search employees..." />
+                                            <CommandList>
+                                                <CommandEmpty>No employees found.</CommandEmpty>
+                                                <CommandGroup>
+                                                    <CommandItem onSelect={() => handleSelectAllEmployees(newEvent.allocatedEmployees.length < nonAdminEmployees.length)}>
+                                                        <Checkbox
+                                                            className="mr-2"
+                                                            checked={newEvent.allocatedEmployees.length > 0 && newEvent.allocatedEmployees.length === nonAdminEmployees.length}
+                                                            readOnly
+                                                        />
+                                                        <span>Select All</span>
+                                                    </CommandItem>
+                                                </CommandGroup>
+                                                <CommandSeparator />
+                                                <CommandGroup>
+                                                    {nonAdminEmployees.map((employee) => (
+                                                        <CommandItem
+                                                            key={employee.id}
+                                                            onSelect={() => handleSelectEmployee(employee.id)}
+                                                        >
+                                                            <Checkbox
+                                                                className="mr-2"
+                                                                checked={newEvent.allocatedEmployees.includes(employee.id)}
+                                                                readOnly
+                                                            />
+                                                            <span>{employee.name}</span>
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="event-venue" className="text-right">Venue</Label><Select value={newEvent.venueId} onValueChange={(value) => setNewEvent({ ...newEvent, venueId: value })}><SelectTrigger className="col-span-3"><SelectValue placeholder="Select a venue" /></SelectTrigger><SelectContent>{venues.map((v) => (<SelectItem key={v.id} value={v.id}>{v.name} ({v.city})</SelectItem>))}</SelectContent></Select></div>
-                <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="event-facilitator" className="text-right">Facilitator</Label><Input id="event-facilitator" value={newEvent.facilitator} onChange={(e) => setNewEvent({ ...newEvent, facilitator: e.target.value })} className="col-span-3" /></div>
-                 <div className="grid grid-cols-4 items-center gap-4">
-                    <Label className="text-right">Assign Employees</Label>
-                    <Popover open={isEmployeeSelectOpen} onOpenChange={setEmployeeSelectOpen}>
-                        <PopoverTrigger asChild>
-                            <Button variant="outline" className="col-span-3 justify-start text-left font-normal">
-                                <ChevronsUpDown className="mr-2 h-4 w-4" />
-                                {newEvent.allocatedEmployees.length > 0 ? `${newEvent.allocatedEmployees.length} selected` : "Select employees"}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                            <Command>
-                                <CommandInput placeholder="Search employees..." />
-                                <CommandList>
-                                    <CommandEmpty>No employees found.</CommandEmpty>
-                                    <CommandGroup>
-                                        <CommandItem onSelect={() => handleSelectAllEmployees(newEvent.allocatedEmployees.length < nonAdminEmployees.length)}>
-                                            <Checkbox
-                                                className="mr-2"
-                                                checked={newEvent.allocatedEmployees.length > 0 && newEvent.allocatedEmployees.length === nonAdminEmployees.length}
-                                                readOnly
-                                            />
-                                            <span>Select All</span>
-                                        </CommandItem>
-                                    </CommandGroup>
-                                    <CommandSeparator />
-                                    <CommandGroup>
-                                        {nonAdminEmployees.map((employee) => (
-                                            <CommandItem
-                                                key={employee.id}
-                                                onSelect={() => handleSelectEmployee(employee.id)}
-                                            >
-                                                <Checkbox
-                                                    className="mr-2"
-                                                    checked={newEvent.allocatedEmployees.includes(employee.id)}
-                                                    readOnly
-                                                />
-                                                <span>{employee.name}</span>
-                                            </CommandItem>
-                                        ))}
-                                    </CommandGroup>
-                                </CommandList>
-                            </Command>
-                        </PopoverContent>
-                    </Popover>
-                </div>
-                </div><DialogFooter><Button type="button" onClick={handleAddEvent}>Save Event</Button></DialogFooter></DialogContent></Dialog>
+                    <DialogFooter>
+                        <Button type="button" onClick={handleAddEvent}>Save Event</Button>
+                    </DialogFooter>
+                </DialogContent>
+                </Dialog>
             </CardHeader>
             <CardContent>
                 <Table>
