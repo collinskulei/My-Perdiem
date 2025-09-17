@@ -10,7 +10,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
 import Image from "next/image";
 import { DateRange } from "react-day-picker";
-import { format, differenceInCalendarDays, parseISO, isWithinInterval, eachDayOfInterval } from "date-fns";
+import { format, differenceInCalendarDays, parseISO, isWithinInterval, eachDayOfInterval, isSameDay } from "date-fns";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -456,7 +456,23 @@ function AdminDashboard() {
                 <Dialog open={isAddEventOpen} onOpenChange={setIsAddEventOpen}><DialogTrigger asChild><Button size="sm"><PlusCircle className="mr-2 h-4 w-4" />Add Event</Button></DialogTrigger>
                 <DialogContent className="sm:max-w-2xl"><DialogHeader><DialogTitle>Add New Event</DialogTitle><DialogDescription>Enter the details for the new event.</DialogDescription></DialogHeader>
                 <div className="grid gap-4 py-4"><div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="event-name" className="text-right">Name</Label><Input id="event-name" value={newEvent.name} onChange={(e) => setNewEvent({ ...newEvent, name: e.target.value })} className="col-span-3" /></div>
-                <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="event-date" className="text-right">Date Range</Label><Popover><PopoverTrigger asChild><Button id="date" variant={"outline"} className={cn("w-full justify-start text-left font-normal col-span-3",!eventDate && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{eventDate?.from ? (eventDate.to ? (<>{format(eventDate.from, "LLL dd, y")} - {format(eventDate.to, "LLL dd, y")}</>) : (format(eventDate.from, "LLL dd, y"))) : (<span>Pick a date range</span>)}</Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar initialFocus mode="range" defaultMonth={eventDate?.from} selected={eventDate} onSelect={setEventDate} numberOfMonths={2}/></PopoverContent></Popover></div>
+                <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="event-date" className="text-right">Date Range</Label><Popover><PopoverTrigger asChild><Button id="date" variant={"outline"} className={cn("w-full justify-start text-left font-normal col-span-3",!eventDate && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />
+                {eventDate?.from ? (
+                    eventDate.to ? (
+                        isSameDay(eventDate.from, eventDate.to) ? (
+                            format(eventDate.from, "LLL dd, y")
+                        ) : (
+                            <>
+                                {format(eventDate.from, "LLL dd, y")} - {format(eventDate.to, "LLL dd, y")}
+                            </>
+                        )
+                    ) : (
+                        format(eventDate.from, "LLL dd, y")
+                    )
+                ) : (
+                    <span>Pick a date range</span>
+                )}
+                </Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar initialFocus mode="range" defaultMonth={eventDate?.from} selected={eventDate} onSelect={setEventDate} numberOfMonths={2}/></PopoverContent></Popover></div>
                 <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="event-venue" className="text-right">Venue</Label><Select value={newEvent.venueId} onValueChange={(value) => setNewEvent({ ...newEvent, venueId: value })}><SelectTrigger className="col-span-3"><SelectValue placeholder="Select a venue" /></SelectTrigger><SelectContent>{venues.map((v) => (<SelectItem key={v.id} value={v.id}>{v.name} ({v.city})</SelectItem>))}</SelectContent></Select></div>
                 <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="event-facilitator" className="text-right">Facilitator</Label><Input id="event-facilitator" value={newEvent.facilitator} onChange={(e) => setNewEvent({ ...newEvent, facilitator: e.target.value })} className="col-span-3" /></div>
                  <div className="grid grid-cols-4 items-center gap-4">

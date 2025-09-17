@@ -137,7 +137,7 @@ export default function RequestPerDiemPage() {
 
     const prevStep = () => {
         if (currentStep > 0) {
-            setCurrentStep(step => step + 1);
+            setCurrentStep(step => step - 1);
         }
     };
 
@@ -292,7 +292,9 @@ const Step2 = ({ event, employee }: { event: AppEvent, employee: Employee }) => 
     const accommodation = useMemo(() => {
         const startDate = parseISO(event.startDate);
         const endDate = parseISO(event.endDate);
-        const nights = differenceInCalendarDays(endDate, startDate) || 1;
+        const diffInDays = differenceInCalendarDays(endDate, startDate);
+        // For a single day event, diff is 0, so nights should be 1. Otherwise, it's the difference.
+        const nights = diffInDays === 0 ? 1 : diffInDays;
         return { nights, total: nights * DAILY_ALLOWANCE };
     }, [event]);
 
