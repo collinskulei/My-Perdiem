@@ -65,6 +65,7 @@ export type PerdiemRequest = {
   // Detailed financial breakdown from the wizard
   mileageKm?: number;
   mileageTotal?: number;
+  airTicketCost?: number;
   airTicketUrl?: string;
   airTicketFilename?: string;
   groundTransferUrl?: string;

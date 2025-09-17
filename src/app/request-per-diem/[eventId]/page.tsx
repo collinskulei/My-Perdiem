@@ -157,6 +157,7 @@ export default function RequestPerDiemPage() {
                 status: 'Pending' as const,
                 mileageKm: data.mileageKm || 0,
                 mileageTotal: data.mileageTotal || 0,
+                airTicketCost: data.airTicketCost || 0,
                 accommodationNights: data.accommodationNights || 0,
                 accommodationTotal: data.accommodationTotal || 0,
                 outOfOfficeAllowance: data.outOfOfficeAllowance || 0,
@@ -224,7 +225,7 @@ export default function RequestPerDiemPage() {
 // --- WIZARD STEPS ---
 
 const Step1 = ({ event, employee, venue }: { event: AppEvent, employee: Employee, venue: Venue }) => {
-    const { register } = useFormContext<PerDiemFormValues>();
+    const { register, control } = useFormContext<PerDiemFormValues>();
     
     const mileage = useMemo(() => {
         if (!employee.dutyStation || !dutyStationCoordinates[employee.dutyStation] || !venue) {
@@ -264,7 +265,7 @@ const Step1 = ({ event, employee, venue }: { event: AppEvent, employee: Employee
                         <Info className="h-4 w-4" />
                         <AlertTitle>Claiming Transport</AlertTitle>
                         <AlertDescription>
-                            You can claim mileage for using a personal vehicle OR upload a ticket for air travel. Ground transfer receipts can be uploaded separately.
+                            You can claim mileage for using a personal vehicle OR claim the cost of an air ticket. Ground transfer receipts can be uploaded separately.
                         </AlertDescription>
                     </Alert>
 
@@ -284,6 +285,15 @@ const Step1 = ({ event, employee, venue }: { event: AppEvent, employee: Employee
                         </div>
                     </div>
                      <FileUpload name="airTicketFile" label="Air Ticket (PDF, PNG, JPG)" />
+                     <div className="space-y-2">
+                        <Label htmlFor="airTicketCost">Air Ticket Cost (Ksh)</Label>
+                        <Input 
+                            id="airTicketCost" 
+                            type="number" 
+                            placeholder="0" 
+                            {...register('airTicketCost', { valueAsNumber: true })}
+                        />
+                     </div>
                      <FileUpload name="groundTransferFile" label="Ground Transfer Receipts (PDF, PNG, JPG)" />
                 </div>
             </div>
@@ -355,7 +365,7 @@ const Step3 = () => {
     const groundTransferFile = values.groundTransferFile?.[0];
 
     const totalPerdiem = useMemo(() => {
-        return (values.mileageTotal || 0) + (values.accommodationTotal || 0) + (values.outOfOfficeAllowance || 0);
+        return (values.mileageTotal || 0) + (values.accommodationTotal || 0) + (values.outOfOfficeAllowance || 0) + (values.airTicketCost || 0);
     }, [values]);
 
     // Set final total
@@ -375,7 +385,8 @@ const Step3 = () => {
             <div className="space-y-6">
                 <SummarySection title="Transport Costs">
                     <SummaryItem label="Mileage Claim" value={formatCurrency(values.mileageTotal || 0)} />
-                    <SummaryItem label="Air Ticket" value={airTicketFile ? airTicketFile.name : "Not provided"} />
+                    <SummaryItem label="Air Ticket Cost" value={formatCurrency(values.airTicketCost || 0)} />
+                    <SummaryItem label="Air Ticket File" value={airTicketFile ? airTicketFile.name : "Not provided"} />
                     <SummaryItem label="Ground Transfer" value={groundTransferFile ? groundTransferFile.name : "Not provided"} />
                 </SummarySection>
 
@@ -440,6 +451,7 @@ const SummaryItem = ({ label, value }: { label: string, value: string | number }
         <p className="font-medium">{value}</p>
     </div>
 );
+
 
 
 
