@@ -370,7 +370,10 @@ function EmployeeDashboard() {
                                     }
                                     
                                     const isInRange = isTestMode && bypassLocationCheck ? true : distance !== -1 && distance <= 1000;
+                                    
+                                    // "Request Per Diem" is active only if attendance is full AND location check is passed (or bypassed).
                                     const canRequestPerDiem = hasCheckedInForAllDays(event) && !hasRequestedPerDiem(event.id);
+                                    const isRequestButtonDisabled = !isInRange;
 
                                     return (
                                         <TableRow key={event.id}>
@@ -407,9 +410,24 @@ function EmployeeDashboard() {
                                             <TableCell className="text-right">
                                                <div className="flex gap-2 justify-end">
                                                     {canRequestPerDiem && (
-                                                        <Button size="sm" onClick={() => handleRequestPerDiem(event)}>
-                                                            Request Per Diem
-                                                        </Button>
+                                                         <UITooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <span tabIndex={0}> {/* Span is needed for tooltip on disabled button */}
+                                                                    <Button 
+                                                                        size="sm" 
+                                                                        onClick={() => handleRequestPerDiem(event)}
+                                                                        disabled={isRequestButtonDisabled}
+                                                                    >
+                                                                        Request Per Diem
+                                                                    </Button>
+                                                                </span>
+                                                            </TooltipTrigger>
+                                                            {isRequestButtonDisabled && (
+                                                                <TooltipContent>
+                                                                    <p>You must be at the event location to request per diem.</p>
+                                                                </TooltipContent>
+                                                            )}
+                                                        </UITooltip>
                                                     )}
                                                     {!canRequestPerDiem && hasCheckedInForAllDays(event) && hasRequestedPerDiem(event.id) && (
                                                         <Badge variant="secondary">Requested</Badge>
@@ -636,5 +654,3 @@ export default function EmployeeDashboardPage() {
     </Suspense>
   )
 }
-
-    
