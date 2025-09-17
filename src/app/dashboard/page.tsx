@@ -39,16 +39,18 @@ import {
 import type { PerdiemRequest, Employee, AppEvent, Venue } from "@/lib/data";
 import * as firestore from '@/lib/firebase/firestore';
 import * as mock from '@/lib/mock-data';
-import { isTestMode } from '@/lib/test-mode';
+import { isTestMode as getIsTestMode } from '@/lib/test-mode';
 import app from "@/lib/firebase/config";
 import { useToast } from "@/hooks/use-toast";
 import { SuccessDialog } from "@/components/success-dialog";
-import { MapPin, Loader2, Check } from "lucide-react";
+import { MapPin, Loader2, Check, LocateFixed } from "lucide-react";
 import { cn, getHaversineDistance, formatCurrency } from "@/lib/utils";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 
-const dataProvider = isTestMode() ? mock : firestore;
+const dataProvider = getIsTestMode() ? mock : firestore;
 const auth = getAuth(app);
 const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
 
@@ -80,11 +82,15 @@ function EmployeeDashboard() {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get('tab') || 'events';
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [isTestMode, setIsTestMode] = useState(false);
+  const [bypassLocationCheck, setBypassLocationCheck] = useState(true);
 
   const { latitude, longitude, error: geoError, getPosition, loading: geoLoading } = useGeolocation();
 
   useEffect(() => {
-    if (isTestMode()) {
+    const testMode = getIsTestMode();
+    setIsTestMode(testMode);
+    if (testMode) {
         const testUserId = localStorage.getItem(TEST_USER_ID_KEY);
         if (testUserId) {
             setAuthUser({ uid: testUserId });
@@ -104,7 +110,7 @@ function EmployeeDashboard() {
 
       setLoading(true);
       try {
-        const eventsPromise = isTestMode()
+        const eventsPromise = isTestMode
             ? dataProvider.getEvents()
             : dataProvider.getEventsByEmployee(authUser.uid);
 
@@ -125,7 +131,7 @@ function EmployeeDashboard() {
       } finally {
         setLoading(false);
       }
-    }, [authUser, toast]);
+    }, [authUser, toast, isTestMode]);
 
   useEffect(() => {
     fetchData();
@@ -156,12 +162,14 @@ function EmployeeDashboard() {
     const dateString = format(date, 'yyyy-MM-dd');
     setIsSubmitting(`${event.id}-${dateString}`);
     
-    if (isTestMode()) {
+    // In test mode with bypass on, or if location is already verified, proceed directly.
+    if (isTestMode && bypassLocationCheck) {
       proceedWithCheckIn(event.id, authUser.uid, dateString);
       return;
     }
 
     toast({ title: "Verifying Location", description: "Please wait while we check your location..." });
+    // Trigger a fresh position check
     getPosition(); 
   };
   
@@ -181,7 +189,7 @@ function EmployeeDashboard() {
 
   useEffect(() => {
     const activeSubmission = isSubmitting;
-    if (!activeSubmission || latitude === null || longitude === null || isTestMode()) return;
+    if (!activeSubmission || isTestMode || latitude === null || longitude === null) return;
     
     const [eventId, dateString] = activeSubmission.split('-');
     
@@ -200,7 +208,7 @@ function EmployeeDashboard() {
     }
     
     const checkLocationAndProceed = async () => {
-        const venue = await dataProvider.getVenueById(event.venueId);
+        const venue = venues.find(v => v.id === event.venueId);
         if (!venue) {
             toast({ title: "Check-in Failed", description: "Could not find event venue details.", variant: "destructive" });
             setIsSubmitting(null);
@@ -224,7 +232,7 @@ function EmployeeDashboard() {
     
     checkLocationAndProceed();
 
-  }, [latitude, longitude, geoError, isSubmitting, myEvents, authUser, toast, proceedWithCheckIn]);
+  }, [latitude, longitude, geoError, isSubmitting, myEvents, authUser, toast, proceedWithCheckIn, isTestMode, venues]);
 
 
   const handleRequestPerDiem = (event: AppEvent) => {
@@ -303,9 +311,22 @@ function EmployeeDashboard() {
         description={successMessage.description}
       />
       <div className="grid flex-1 items-start gap-6">
-        <div className="space-y-1">
-            <h1 className="text-3xl font-bold tracking-tight">Welcome Back, {getFirstName(currentUser?.name)}!</h1>
-            <p className="text-muted-foreground">Here's an overview of your events and requests.</p>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="space-y-1">
+                <h1 className="text-3xl font-bold tracking-tight">Welcome Back, {getFirstName(currentUser?.name)}!</h1>
+                <p className="text-muted-foreground">Here's an overview of your events and requests.</p>
+            </div>
+             {isTestMode && (
+                <div className="flex items-center space-x-2 rounded-lg border p-3 bg-card">
+                    <LocateFixed className="h-5 w-5 text-muted-foreground" />
+                    <Label htmlFor="location-bypass" className="text-sm font-medium">Bypass Location Check</Label>
+                    <Switch
+                        id="location-bypass"
+                        checked={bypassLocationCheck}
+                        onCheckedChange={setBypassLocationCheck}
+                    />
+                </div>
+            )}
         </div>
         
         <Tabs value={activeTab} onValueChange={handleTabChange}>
@@ -339,7 +360,6 @@ function EmployeeDashboard() {
                                 ) : myEvents.length === 0 ? (
                                     <TableRow><TableCell colSpan={6} className="h-24 text-center">You have no upcoming events.</TableCell></TableRow>
                                 ) : myEvents.map((event) => {
-                                    const canRequestPerDiem = hasCheckedInForAllDays(event) && !hasRequestedPerDiem(event.id);
                                     const eventDays = getEventDays(event);
                                     const { percent, color, checkedInDays, totalDays } = getAttendanceProgress(event);
 
@@ -348,6 +368,9 @@ function EmployeeDashboard() {
                                     if (eventVenue && latitude && longitude) {
                                       distance = getHaversineDistance(latitude, longitude, eventVenue.latitude, eventVenue.longitude);
                                     }
+                                    
+                                    const isInRange = isTestMode && bypassLocationCheck ? true : distance !== -1 && distance <= 1000;
+                                    const canRequestPerDiem = hasCheckedInForAllDays(event) && !hasRequestedPerDiem(event.id);
 
                                     return (
                                         <TableRow key={event.id}>
@@ -357,9 +380,11 @@ function EmployeeDashboard() {
                                             <TableCell>
                                               {geoLoading ? (
                                                 <Badge variant="outline">Checking...</Badge>
+                                              ) : isTestMode && bypassLocationCheck ? (
+                                                <Badge className="bg-blue-500 hover:bg-blue-600">Bypassed</Badge>
                                               ) : distance === -1 ? (
                                                 <Badge variant="outline">Unknown</Badge>
-                                              ) : distance <= 1000 ? (
+                                              ) : isInRange ? (
                                                 <Badge className="bg-green-500 hover:bg-green-600">In Range</Badge>
                                               ) : (
                                                 <Badge variant="destructive">
@@ -398,13 +423,15 @@ function EmployeeDashboard() {
                                                         }
 
                                                         const canCheckInForDay = isToday(day);
-                                                        const isButtonDisabled = !canCheckInForDay || !!isSubmitting;
+                                                        // Disable button if not today, if submitting, or if not in range (unless bypassed)
+                                                        const isButtonDisabled = !canCheckInForDay || !!isSubmitting || !isInRange;
+                                                        
                                                         const buttonText = isFuture(day) 
                                                             ? `Check-in: ${format(day, 'MMM d')}` 
                                                             : `Check-in Today`;
 
-                                                        return (
-                                                            <Button 
+                                                        const button = (
+                                                             <Button 
                                                                 key={dateString} 
                                                                 size="sm" 
                                                                 onClick={() => handleCheckIn(event, day)} 
@@ -415,6 +442,25 @@ function EmployeeDashboard() {
                                                                 {buttonText}
                                                             </Button>
                                                         );
+
+                                                        if (isButtonDisabled && !canCheckInForDay && !isSubmitting) {
+                                                            return null; // Don't show future buttons at all for cleaner UI
+                                                        }
+
+                                                        if (isButtonDisabled && !isInRange) {
+                                                            return (
+                                                                <UITooltip key={dateString}>
+                                                                    <TooltipTrigger asChild>
+                                                                        <span>{button}</span>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>
+                                                                        <p>You must be at the event location to check in.</p>
+                                                                    </TooltipContent>
+                                                                </UITooltip>
+                                                            );
+                                                        }
+
+                                                        return button;
                                                     })}
                                                 </div>
                                             </TableCell>
@@ -460,6 +506,7 @@ function EmployeeDashboard() {
                                 ) : (
                                      myEvents.flatMap(event => 
                                         Object.entries(event.checkedInEmployees?.[authUser?.uid ?? ''] || {})
+                                            .sort(([dateA], [dateB]) => parseISO(dateB).getTime() - parseISO(dateA).getTime())
                                             .map(([date, timestamp]) => (
                                                 <TableRow key={`${event.id}-${date}`}>
                                                     <TableCell>{event.name}</TableCell>
@@ -583,3 +630,5 @@ export default function EmployeeDashboardPage() {
     </Suspense>
   )
 }
+
+    
