@@ -2,7 +2,7 @@
  * @file This file contains helper functions for interacting with Cloud Firestore.
  * It abstracts the logic for common database operations like getting and adding documents.
  */
-import { getFirestore, collection, getDocs, addDoc, query, where, doc, setDoc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, addDoc, query, where, doc, setDoc, getDoc, updateDoc, arrayUnion, limit } from 'firebase/firestore';
 import app from './config';
 import type { Venue, PerdiemRequest, Employee, AppEvent } from '../data';
 
@@ -136,6 +136,41 @@ export const addEmployee = async (userData: any, uid: string): Promise<void> => 
 export const updateEmployee = async (uid: string, dataToUpdate: Partial<Employee>): Promise<void> => {
     const userDocRef = doc(db, 'employees', uid);
     await updateDoc(userDocRef, dataToUpdate);
+};
+
+// --- UNIQUENESS CHECKS ---
+
+/**
+ * Checks if an email is unique in the 'employees' collection.
+ * @param {string} email - The email to check.
+ * @returns {Promise<boolean>} True if unique, false otherwise.
+ */
+export const isEmailUnique = async (email: string): Promise<boolean> => {
+    const q = query(collection(db, 'employees'), where("email", "==", email), limit(1));
+    const snapshot = await getDocs(q);
+    return snapshot.empty;
+};
+
+/**
+ * Checks if an ID number is unique in the 'employees' collection.
+ * @param {string} idNumber - The ID number to check.
+ * @returns {Promise<boolean>} True if unique, false otherwise.
+ */
+export const isIdNumberUnique = async (idNumber: string): Promise<boolean> => {
+    const q = query(collection(db, 'employees'), where("idNumber", "==", idNumber), limit(1));
+    const snapshot = await getDocs(q);
+    return snapshot.empty;
+};
+
+/**
+ * Checks if a phone number is unique in the 'employees' collection.
+ * @param {string} phoneNumber - The phone number to check.
+ * @returns {Promise<boolean>} True if unique, false otherwise.
+ */
+export const isPhoneNumberUnique = async (phoneNumber: string): Promise<boolean> => {
+    const q = query(collection(db, 'employees'), where("phoneNumber", "==", phoneNumber), limit(1));
+    const snapshot = await getDocs(q);
+    return snapshot.empty;
 };
 
 

@@ -78,40 +78,46 @@ export default function RegistrationWizard() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // --- Form Validation ---
     if (formData.password !== formData.confirmPassword) {
-      toast({
-        title: "Passwords do not match",
-        description: "Please ensure your passwords match.",
-        variant: "destructive",
-      });
+      toast({ title: "Passwords do not match", description: "Please ensure your passwords match.", variant: "destructive" });
       return;
     }
     
     if ((formData.password?.length ?? 0) < 6) {
-      toast({
-        title: "Weak Password",
-        description: "Password must be at least 6 characters long.",
-        variant: "destructive",
-      });
+      toast({ title: "Weak Password", description: "Password must be at least 6 characters long.", variant: "destructive" });
       return;
     }
 
     if (formData.phone && !/^[17]/.test(formData.phone)) {
-       toast({
-        title: "Invalid Phone Number",
-        description: "Phone number must start with 7 or 1.",
-        variant: "destructive",
-      });
+       toast({ title: "Invalid Phone Number", description: "Phone number must start with 7 or 1.", variant: "destructive" });
       return;
     }
 
-    if (!formData.email || !formData.password) {
-        toast({
-            title: "Missing required fields",
-            description: "Please fill out all fields.",
-            variant: "destructive",
-        });
+    if (!formData.email || !formData.password || !formData.idNumber) {
+        toast({ title: "Missing required fields", description: "Please fill out all fields.", variant: "destructive" });
         return;
+    }
+
+    const fullPhoneNumber = `+254${formData.phone}`;
+
+    // --- Uniqueness Validation ---
+    const isEmailTaken = !(await dataProvider.isEmailUnique(formData.email));
+    if (isEmailTaken) {
+      toast({ title: "Registration Failed", description: "This email address is already registered.", variant: "destructive" });
+      return;
+    }
+
+    const isIdNumberTaken = !(await dataProvider.isIdNumberUnique(formData.idNumber));
+    if (isIdNumberTaken) {
+      toast({ title: "Registration Failed", description: "This ID number is already registered.", variant: "destructive" });
+      return;
+    }
+
+    const isPhoneTaken = !(await dataProvider.isPhoneNumberUnique(fullPhoneNumber));
+    if (isPhoneTaken) {
+      toast({ title: "Registration Failed", description: "This phone number is already registered.", variant: "destructive" });
+      return;
     }
     
     try {
@@ -122,7 +128,7 @@ export default function RegistrationWizard() {
       // 2. Save additional employee details to Firestore
       const commonData = {
           name: `${formData.firstName} ${formData.sirName}`,
-          phoneNumber: `+254${formData.phone}`,
+          phoneNumber: fullPhoneNumber,
           idNumber: formData.idNumber,
           email: user.email!, // Use email from the created user
           gender: formData.gender,

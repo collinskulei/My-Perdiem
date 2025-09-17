@@ -329,6 +329,19 @@ export const updateEmployee = async (uid: string, dataToUpdate: Partial<Employee
   }
 };
 
+export const isEmailUnique = async (email: string): Promise<boolean> => {
+    return !getDb().employees.some(emp => emp.email === email);
+};
+
+export const isIdNumberUnique = async (idNumber: string): Promise<boolean> => {
+    return !getDb().employees.some(emp => emp.idNumber === idNumber);
+};
+
+export const isPhoneNumberUnique = async (phoneNumber: string): Promise<boolean> => {
+    return !getDb().employees.some(emp => emp.phoneNumber === phoneNumber);
+};
+
+
 export const addEvent = async (event: EventData): Promise<string> => {
     const newEvent: AppEvent = { id: generateId(), ...event };
     getDb().events.push(newEvent);
