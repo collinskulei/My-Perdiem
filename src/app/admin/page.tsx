@@ -1163,9 +1163,10 @@ function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[]
 }
 
 
-const AdminDashboardPage = dynamic(() => Promise.resolve(AdminDashboard), {
-  ssr: false,
-  loading: () => <div className="flex items-center justify-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>
-});
-
-export default AdminDashboardPage;
+export default function AdminDashboardPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+      <AdminDashboard />
+    </Suspense>
+  );
+}

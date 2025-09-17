@@ -372,7 +372,7 @@ function EmployeeDashboard() {
                                     const isInRange = isTestMode && bypassLocationCheck ? true : distance !== -1 && distance <= 1000;
                                     
                                     const canRequestPerDiem = hasCheckedInForAllDays(event) && !hasRequestedPerDiem(event.id);
-                                    const isRequestButtonDisabled = !isInRange;
+                                    const isRequestButtonDisabled = canRequestPerDiem && !isInRange;
 
                                     return (
                                         <TableRow key={event.id}>
@@ -647,7 +647,7 @@ function EmployeeDashboard() {
 
 export default function EmployeeDashboardPage() {
   return (
-    <Suspense fallback={<div>Loading dashboard...</div>}>
+    <Suspense fallback={<div className="flex items-center justify-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
       <EmployeeDashboard />
     </Suspense>
   )
