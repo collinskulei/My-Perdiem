@@ -75,6 +75,7 @@ import * as firestore from '@/lib/firebase/firestore';
 import * as mock from '@/lib/mock-data';
 import { isTestMode } from '@/lib/test-mode';
 import { cn, formatCurrency } from "@/lib/utils";
+import { ClientOnly } from "@/components/client-only";
 
 const dataProvider = isTestMode() ? mock : firestore;
 
@@ -459,6 +460,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground">Signed in as Admin</p>
       </div>
+      <ClientOnly>
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="requests">Perdiem Requests</TabsTrigger>
@@ -915,6 +917,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
             <AnalyticsTabContent requests={perdiemRequests} loading={loading} />
         </TabsContent>
       </Tabs>
+      </ClientOnly>
     </div>
     
     <Dialog open={isEmployeeDialogOpen} onOpenChange={setIsEmployeeDialogOpen}>
@@ -1133,7 +1136,7 @@ function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[]
               <PieChart>
                 <Pie data={chartData.pieChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
                   {chartData.pieChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={chartData.COLORS[entry.name as keyof typeof chartData.COLORS]} />
+                    <Cell key={`cell-${index}`} fill={chartData.COLORS[entry.name as keyof typeof chartData.COLORS] || '#ccc'} />
                   ))}
                 </Pie>
                 <Tooltip formatter={(value, name) => [`${value} requests`, name]} />

@@ -45,6 +45,7 @@ import { cn, getHaversineDistance, formatCurrency } from "@/lib/utils";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { ClientOnly } from "@/components/client-only";
 
 
 const dataProvider = getIsTestMode() ? mock : firestore;
@@ -317,7 +318,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                 </div>
             )}
         </div>
-        
+        <ClientOnly>
         <Tabs value={activeTab} onValueChange={handleTabChange}>
             <TabsList>
                 <TabsTrigger value="events">My Events</TabsTrigger>
@@ -629,6 +630,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                 </div>
             </TabsContent>
         </Tabs>
+        </ClientOnly>
       </div>
     </>
   );
