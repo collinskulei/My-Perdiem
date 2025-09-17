@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { useState, useEffect, Suspense, useMemo } from "react";
+import { useState, useEffect, Suspense, useMemo, useCallback } from "react";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
 import { isToday, parseISO, format, isFuture, startOfDay } from "date-fns";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -98,7 +98,7 @@ function EmployeeDashboard() {
     }
   }, []);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
       if (!authUser) return;
 
       setLoading(true);
@@ -122,11 +122,11 @@ function EmployeeDashboard() {
       } finally {
         setLoading(false);
       }
-    }
+    }, [authUser, toast]);
 
   useEffect(() => {
     fetchData();
-  }, [authUser, toast]);
+  }, [fetchData]);
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -152,11 +152,31 @@ function EmployeeDashboard() {
     getPosition(); 
   };
   
+  const proceedWithCheckIn = useCallback(async (eventId: string, userId: string, dateString: string) => {
+     try {
+        await dataProvider.checkInToEvent(eventId, userId, dateString);
+        setSuccessMessage({ title: "Check-in Successful!", description: `Your check-in for ${dateString} has been recorded.` });
+        setIsSuccess(true);
+        await fetchData();
+    } catch (error) {
+        console.error("Error checking in:", error);
+        toast({ title: "Check-in Failed", description: "Could not record your check-in.", variant: "destructive" });
+    } finally {
+        setIsSubmitting(null);
+    }
+  }, [fetchData, toast]);
+
   useEffect(() => {
     const activeSubmission = isSubmitting;
     if (!activeSubmission || latitude === null || longitude === null || isTestMode()) return;
     
     const [eventId, dateString] = activeSubmission.split('-');
+    
+    if (!authUser?.uid || !eventId || !dateString) {
+      setIsSubmitting(null);
+      return;
+    }
+
     const event = myEvents.find(e => e.id === eventId);
     if (!event) return;
 
@@ -177,7 +197,7 @@ function EmployeeDashboard() {
         const distance = getHaversineDistance(latitude, longitude, venue.latitude, venue.longitude);
         
         if (distance <= 1000) { // 1000 meters = 1 km
-            proceedWithCheckIn(event.id, authUser!.uid, dateString);
+            proceedWithCheckIn(event.id, authUser.uid, dateString);
         } else {
             toast({
                 title: "Check-in Failed",
@@ -190,21 +210,7 @@ function EmployeeDashboard() {
     
     checkLocationAndProceed();
 
-  }, [latitude, longitude, geoError, isSubmitting, myEvents, authUser]);
-
-  const proceedWithCheckIn = async (eventId: string, userId: string, dateString: string) => {
-     try {
-        await dataProvider.checkInToEvent(eventId, userId, dateString);
-        setSuccessMessage({ title: "Check-in Successful!", description: `Your check-in for ${dateString} has been recorded.` });
-        setIsSuccess(true);
-        await fetchData();
-    } catch (error) {
-        console.error("Error checking in:", error);
-        toast({ title: "Check-in Failed", description: "Could not record your check-in.", variant: "destructive" });
-    } finally {
-        setIsSubmitting(null);
-    }
-  }
+  }, [latitude, longitude, geoError, isSubmitting, myEvents, authUser, toast, proceedWithCheckIn]);
 
 
   const handleRequestPerDiem = (event: AppEvent) => {
