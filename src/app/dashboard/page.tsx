@@ -203,7 +203,7 @@ export default function EmployeeDashboard() {
   };
 
   const getEventDays = (event: AppEvent) => {
-    return event.eventDates.map(dateStr => parseISO(dateStr));
+    return (event.eventDates || []).map(dateStr => parseISO(dateStr));
   }
 
   const getAttendanceProgress = (event: AppEvent) => {
@@ -279,7 +279,7 @@ export default function EmployeeDashboard() {
                                 <TableRow key={event.id}>
                                     <TableCell className="font-medium">{event.name}</TableCell>
                                     <TableCell>{event.venueName}</TableCell>
-                                    <TableCell>{event.eventDates.join(', ')}</TableCell>
+                                    <TableCell>{(event.eventDates || []).join(', ')}</TableCell>
                                     <TableCell>
                                         <Tooltip>
                                             <TooltipTrigger asChild>

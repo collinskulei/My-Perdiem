@@ -292,14 +292,14 @@ function AdminDashboard() {
     const detailedData = dataToDownload.map(req => {
         const event = events.find(e => e.id === req.eventId);
         const employee = employees.find(emp => emp.id === req.employeeId);
-        const eventDuration = event ? event.eventDates.length : 0;
+        const eventDuration = event && event.eventDates ? event.eventDates.length : 0;
         const daysAttended = employee && event?.checkedInEmployees?.[employee.id] ? Object.keys(event.checkedInEmployees[employee.id]).length : 0;
         const attendance = eventDuration > 0 ? `${daysAttended}/${eventDuration}` : 'N/A';
 
         return {
             ...req,
-            eventStartDate: event?.eventDates[0] || 'N/A',
-            eventEndDate: event?.eventDates[event.eventDates.length - 1] || 'N/A',
+            eventStartDate: event?.eventDates?.[0] || 'N/A',
+            eventEndDate: event?.eventDates?.[event.eventDates.length - 1] || 'N/A',
             eventFacilitator: event?.facilitator || 'N/A',
             eventAttendance: attendance,
         };
@@ -376,12 +376,12 @@ function AdminDashboard() {
   };
   
   const getEventDays = (event: AppEvent) => {
-    return event.eventDates.map(dateStr => parseISO(dateStr));
+    return (event.eventDates || []).map(dateStr => parseISO(dateStr));
   }
 
   const activeEvents = events.filter(event => {
     const today = new Date();
-    return event.eventDates.some(dateStr => isWithinInterval(today, {
+    return (event.eventDates || []).some(dateStr => isWithinInterval(today, {
         start: parseISO(dateStr),
         end: new Date(parseISO(dateStr).getFullYear(), parseISO(dateStr).getMonth(), parseISO(dateStr).getDate(), 23, 59, 59)
     }));
@@ -520,7 +520,7 @@ function AdminDashboard() {
             <CardContent>
                 <Table>
                     <TableHeader><TableRow><TableHead>Event Name</TableHead><TableHead>Venue</TableHead><TableHead>Dates</TableHead><TableHead>Assigned</TableHead><TableHead>Attendance</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
-                    <TableBody>{loading ? <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading events...</TableCell></TableRow> : events.map((event) => (<TableRow key={event.id}><TableCell className="font-medium">{event.name}</TableCell><TableCell>{event.venueName}</TableCell><TableCell>{event.eventDates.join(', ')}</TableCell><TableCell>{event.allocatedEmployees.length}</TableCell><TableCell>{getTotalCheckinsForEvent(event)}</TableCell><TableCell><DropdownMenu><DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuLabel>Actions</DropdownMenuLabel><DropdownMenuItem>Edit</DropdownMenuItem><DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody>
+                    <TableBody>{loading ? <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading events...</TableCell></TableRow> : events.map((event) => (<TableRow key={event.id}><TableCell className="font-medium">{event.name}</TableCell><TableCell>{event.venueName}</TableCell><TableCell>{(event.eventDates || []).join(', ')}</TableCell><TableCell>{event.allocatedEmployees.length}</TableCell><TableCell>{getTotalCheckinsForEvent(event)}</TableCell><TableCell><DropdownMenu><DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuLabel>Actions</DropdownMenuLabel><DropdownMenuItem>Edit</DropdownMenuItem><DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}</TableBody>
                 </Table>
             </CardContent>
            </Card>
