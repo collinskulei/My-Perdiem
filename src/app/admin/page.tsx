@@ -9,8 +9,6 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
 import Image from "next/image";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
 import { DateRange } from "react-day-picker";
 import { format, differenceInCalendarDays, parseISO, isWithinInterval, eachDayOfInterval } from "date-fns";
 
@@ -74,8 +72,8 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { PerdiemRequest, Venue, Employee, AppEvent } from "@/lib/data";
+import { dutyStationCoordinates } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
-import { ReportDialog } from "@/components/report-dialog";
 import * as firestore from '@/lib/firebase/firestore';
 import * as mock from '@/lib/mock-data';
 import { isTestMode } from '@/lib/test-mode';
@@ -93,8 +91,11 @@ const kenyanCounties = [
     "Nyamira", "Nairobi"
 ];
 
+const dutyStations = Object.keys(dutyStationCoordinates);
+
 const defaultNewVenue = { name: "", city: "", county: "Nairobi", latitude: "0", longitude: "0" };
 const defaultNewEvent = { name: "", facilitator: "", venueId: "", allocatedEmployees: [] as string[] };
+const defaultFilters = { date: undefined, county: "all", dutyStation: "all", employee: "all" };
 
 const toCSV = (data: any[], columns: string[], columnHeaders: string[]): string => {
   const header = columnHeaders.join(',') + '\n';
@@ -109,6 +110,18 @@ const toCSV = (data: any[], columns: string[], columnHeaders: string[]): string 
   ).join('\n');
   return header + rows;
 };
+
+const downloadCSV = (csvData: string, filename: string) => {
+    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
 
 function AdminDashboard() {
   const searchParams = useSearchParams();
@@ -128,6 +141,15 @@ function AdminDashboard() {
   const [newEvent, setNewEvent] = useState(defaultNewEvent);
   const [eventDate, setEventDate] = useState<DateRange | undefined>();
   const [isEmployeeSelectOpen, setEmployeeSelectOpen] = useState(false);
+
+  // Filters for reports
+  const [filters, setFilters] = useState<{
+    date: DateRange | undefined;
+    county: string;
+    dutyStation: string;
+    employee: string;
+  }>(defaultFilters);
+  const [filteredReportData, setFilteredReportData] = useState<PerdiemRequest[]>([]);
   
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -164,6 +186,39 @@ function AdminDashboard() {
     }
     fetchData();
   }, [toast]);
+
+  const applyFilters = useCallback(() => {
+        let data = perdiemRequests;
+        const allEmployees = employees;
+
+        if (filters.date?.from && filters.date.to) {
+            data = data.filter(item => {
+                const itemDate = new Date(item.date);
+                return isWithinInterval(itemDate, { start: filters.date!.from!, end: filters.date!.to! });
+            });
+        }
+        
+        if (filters.county !== 'all') {
+            const venueInCounty = venues.filter(v => v.county === filters.county).map(v => v.id);
+            const eventsInCounty = events.filter(e => venueInCounty.includes(e.venueId)).map(e => e.id);
+            data = data.filter(req => eventsInCounty.includes(req.eventId));
+        }
+
+        if (filters.dutyStation !== 'all') {
+            const employeeIds = allEmployees.filter(e => e.dutyStation === filters.dutyStation).map(e => e.id);
+            data = data.filter(req => employeeIds.includes(req.employeeId));
+        }
+
+        if (filters.employee !== 'all') {
+            data = data.filter(req => req.employeeId === filters.employee);
+        }
+
+        setFilteredReportData(data);
+    }, [perdiemRequests, events, venues, employees, filters]);
+
+    useEffect(() => {
+        applyFilters();
+    }, [filters, perdiemRequests, applyFilters]);
 
   const handleAddVenue = async () => {
     if (!newVenue.name || !newVenue.city || !newVenue.county) {
@@ -232,8 +287,8 @@ function AdminDashboard() {
   }, [toast]);
 
 
-  const handleDownloadReport = (filteredData: PerdiemRequest[], format: 'pdf' | 'csv') => {
-    const detailedData = filteredData.map(req => {
+  const handleDownloadReport = (dataToDownload: PerdiemRequest[], reportName: string) => {
+    const detailedData = dataToDownload.map(req => {
         const event = events.find(e => e.id === req.eventId);
         const employee = employees.find(emp => emp.id === req.employeeId);
         const eventDuration = event ? differenceInCalendarDays(parseISO(event.endDate), parseISO(event.startDate)) + 1 : 0;
@@ -249,46 +304,18 @@ function AdminDashboard() {
         };
     });
 
-    if (format === 'pdf') {
-        const doc = new jsPDF();
-        doc.text("Perdiem Requests Report", 14, 16);
-        const tableColumn = ["Date", "Employee", "Event", "Event Dates", "Attendance", "Amount", "Status"];
-        const tableRows = detailedData.map(req => [
-            req.date, 
-            req.employeeName, 
-            req.eventName, 
-            `${req.eventStartDate} to ${req.eventEndDate}`,
-            req.eventAttendance,
-            `Ksh ${req.totalPerdiem.toLocaleString()}`, 
-            req.status
-        ]);
-        (doc as any).autoTable({ 
-            head: [tableColumn], 
-            body: tableRows, 
-            startY: 20,
-        });
-        doc.save("perdiem_requests_report.pdf");
-    } else if (format === 'csv') {
-        const columns = [
-            "date", "employeeName", "eventName", "eventStartDate", "eventEndDate", "eventFacilitator",
-            "eventAttendance", "location", "mileageTotal", "accommodationTotal", "outOfOfficeAllowance", 
-            "totalPerdiem", "status"
-        ];
-        const columnHeaders = [
-            "Request Date", "Employee Name", "Event", "Event Start", "Event End", "Facilitator",
-            "Attendance (Days)", "Location", "Mileage (Ksh)", "Accommodation (Ksh)", "Allowance (Ksh)",
-            "Total Amount (Ksh)", "Status"
-        ];
-        const csvData = toCSV(detailedData, columns, columnHeaders);
-        const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', 'perdiem_requests_report.csv');
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
+    const columns = [
+        "date", "employeeName", "eventName", "eventStartDate", "eventEndDate", "eventFacilitator",
+        "eventAttendance", "location", "mileageTotal", "accommodationTotal", "outOfOfficeAllowance", 
+        "totalPerdiem", "status"
+    ];
+    const columnHeaders = [
+        "Request Date", "Employee Name", "Event", "Event Start", "Event End", "Facilitator",
+        "Attendance (Days)", "Location", "Mileage (Ksh)", "Accommodation (Ksh)", "Allowance (Ksh)",
+        "Total Amount (Ksh)", "Status"
+    ];
+    const csvData = toCSV(detailedData, columns, columnHeaders);
+    downloadCSV(csvData, `${reportName}_report.csv`);
   };
 
   const nonAdminEmployees = employees.filter(e => e.role !== 'Admin');
@@ -332,7 +359,6 @@ function AdminDashboard() {
     <div className="grid flex-1 items-start gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Dashboard (Admin)</h1>
-        <ReportDialog reportData={perdiemRequests} venues={venues} onDownload={handleDownloadReport} />
       </div>
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
@@ -341,6 +367,7 @@ function AdminDashboard() {
           <TabsTrigger value="checkins">Event Check-ins</TabsTrigger>
           <TabsTrigger value="employees">Employees</TabsTrigger>
           <TabsTrigger value="venues">Venues</TabsTrigger>
+          <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
         <TabsContent value="requests">
           <Card>
@@ -540,6 +567,7 @@ function AdminDashboard() {
             </CardContent>
           </Card>
         </TabsContent>
+
         <TabsContent value="venues">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
@@ -592,11 +620,134 @@ function AdminDashboard() {
             </CardContent>
           </Card>
         </TabsContent>
+        
+        <TabsContent value="reports">
+            <Card>
+                 <CardHeader>
+                    <CardTitle>Reports</CardTitle>
+                    <CardDescription>Filter and download per diem reports.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    {/* Filter Section */}
+                    <div className="p-4 border rounded-lg space-y-4">
+                        <h3 className="font-medium">Filter Options</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div>
+                                <Label htmlFor="date-range">Date Range</Label>
+                                <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button id="date" variant={"outline"} className={cn("w-full justify-start text-left font-normal", !filters.date && "text-muted-foreground")}>
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {filters.date?.from ? (filters.date.to ? (<>{format(filters.date.from, "LLL dd, y")} - {format(filters.date.to, "LLL dd, y")}</>) : (format(filters.date.from, "LLL dd, y"))) : (<span>Pick a date range</span>)}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar initialFocus mode="range" selected={filters.date} onSelect={(d) => setFilters(f => ({ ...f, date: d }))} numberOfMonths={2} />
+                                </PopoverContent>
+                                </Popover>
+                            </div>
+                             <div>
+                                <Label htmlFor="county-filter">County</Label>
+                                <Select value={filters.county} onValueChange={(v) => setFilters(f => ({ ...f, county: v }))}>
+                                    <SelectTrigger><SelectValue placeholder="Select County" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Counties</SelectItem>
+                                        {kenyanCounties.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <Label htmlFor="duty-station-filter">Duty Station</Label>
+                                <Select value={filters.dutyStation} onValueChange={(v) => setFilters(f => ({ ...f, dutyStation: v }))}>
+                                    <SelectTrigger><SelectValue placeholder="Select Station" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Stations</SelectItem>
+                                        {dutyStations.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <Label htmlFor="employee-filter">Employee</Label>
+                                <Select value={filters.employee} onValueChange={(v) => setFilters(f => ({ ...f, employee: v }))}>
+                                    <SelectTrigger><SelectValue placeholder="Select Employee" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Employees</SelectItem>
+                                        {nonAdminEmployees.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Reports Sub-tabs */}
+                    <Tabs defaultValue="approved">
+                        <TabsList>
+                            <TabsTrigger value="approved">Approved</TabsTrigger>
+                            <TabsTrigger value="paid">Paid</TabsTrigger>
+                        </TabsList>
+                        
+                        <TabsContent value="approved">
+                           <ReportTabContent 
+                             title="Approved Perdiems" 
+                             data={filteredReportData.filter(r => r.status === 'Approved')}
+                             loading={loading}
+                             onDownload={() => handleDownloadReport(filteredReportData.filter(r => r.status === 'Approved'), 'approved_perdiems')}
+                           />
+                        </TabsContent>
+
+                         <TabsContent value="paid">
+                           <ReportTabContent 
+                             title="Paid Perdiems" 
+                             data={filteredReportData.filter(r => r.status === 'Paid')}
+                             loading={loading}
+                             onDownload={() => handleDownloadReport(filteredReportData.filter(r => r.status === 'Paid'), 'paid_perdiems')}
+                           />
+                        </TabsContent>
+                    </Tabs>
+                </CardContent>
+            </Card>
+        </TabsContent>
       </Tabs>
     </div>
     </>
   );
 }
+
+// Helper component for the report tabs to reduce repetition
+function ReportTabContent({ title, data, loading, onDownload }: { title: string, data: PerdiemRequest[], loading: boolean, onDownload: () => void }) {
+    return (
+        <Card>
+            <CardHeader className="flex-row items-center justify-between">
+                <CardTitle>{title}</CardTitle>
+                <Button onClick={onDownload} size="sm">
+                    <Download className="mr-2 h-4 w-4" />
+                    Download CSV
+                </Button>
+            </CardHeader>
+            <CardContent>
+                 <Table>
+                    <TableHeader><TableRow><TableHead>Employee</TableHead><TableHead>Event</TableHead><TableHead>Status</TableHead><TableHead>Date</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                    {loading ? (
+                        <TableRow><TableCell colSpan={5} className="h-24 text-center">Loading report data...</TableCell></TableRow>
+                    ) : data.length === 0 ? (
+                         <TableRow><TableCell colSpan={5} className="h-24 text-center">No requests match the current filters.</TableCell></TableRow>
+                    ) : data.map(request => (
+                        <TableRow key={request.id}>
+                        <TableCell>{request.employeeName}</TableCell>
+                        <TableCell>{request.eventName}</TableCell>
+                        <TableCell><Badge variant={request.status === "Approved" ? "secondary" : "default"}>{request.status}</Badge></TableCell>
+                        <TableCell>{request.date}</TableCell>
+                        <TableCell className="text-right">Ksh {request.totalPerdiem.toLocaleString()}</TableCell>
+                        </TableRow>
+                    ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    )
+}
+
 
 export default function AdminDashboardPage() {
   return (
@@ -605,3 +756,5 @@ export default function AdminDashboardPage() {
     </Suspense>
   )
 }
+
+    
