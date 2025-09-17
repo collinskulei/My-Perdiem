@@ -49,7 +49,7 @@ export default function DashboardLayout({
   const searchParams = useSearchParams();
   const activeTab = searchParams.get('tab');
 
-  const isLinkActive = (path: string, tab?: string) => {
+  const isLinkActive = (path: string, tab?: string | null) => {
     const isPathMatch = pathname === path;
     
     // For specific pages like /profile or /dashboard/analytics
@@ -103,7 +103,7 @@ export default function DashboardLayout({
             <SidebarMenuItem>
               <SidebarMenuButton href="/dashboard/analytics" isActive={isLinkActive('/dashboard/analytics')}>
                 <BarChart />
-                Analytics
+                My Analytics
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>

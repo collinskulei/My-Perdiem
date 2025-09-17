@@ -53,11 +53,14 @@ export default function AdminLayout({
   const searchParams = useSearchParams();
   const activeTab = searchParams.get('tab') || 'requests';
 
-  const isLinkActive = (tab: string | null) => {
-    if (tab === null && pathname === '/admin' && !searchParams.get('tab')) {
+  const isLinkActive = (path: string, tab: string | null) => {
+    if (path !== '/admin') {
+      return pathname === path;
+    }
+    if (tab === null && pathname === '/admin' && !searchParams.has('tab')) {
         return true;
     }
-    return activeTab === tab;
+    return pathname === path && activeTab === tab;
   }
 
   return (
@@ -71,55 +74,55 @@ export default function AdminLayout({
         <SidebarContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/admin" isActive={pathname === '/admin' && !searchParams.has('tab')}>
+              <SidebarMenuButton href="/admin" isActive={isLinkActive('/admin', null)}>
                 <Home />
                 Dashboard
               </SidebarMenuButton>
             </SidebarMenuItem>
              <SidebarMenuItem>
-              <SidebarMenuButton href="/admin/analytics" isActive={pathname === '/admin/analytics'}>
+              <SidebarMenuButton href="/admin/analytics" isActive={isLinkActive('/admin/analytics', null)}>
                 <BarChart />
                 Analytics
               </SidebarMenuButton>
             </SidebarMenuItem>
              <SidebarMenuItem>
-              <SidebarMenuButton href="/admin?tab=requests" isActive={isLinkActive('requests')}>
+              <SidebarMenuButton href="/admin?tab=requests" isActive={isLinkActive('/admin', 'requests')}>
                 <ClipboardList />
                 Per Diem Requests
               </SidebarMenuButton>
             </SidebarMenuItem>
              <SidebarMenuItem>
-              <SidebarMenuButton href="/admin?tab=events" isActive={isLinkActive('events')}>
+              <SidebarMenuButton href="/admin?tab=events" isActive={isLinkActive('/admin', 'events')}>
                 <CalendarDays />
                 Events
               </SidebarMenuButton>
             </SidebarMenuItem>
              <SidebarMenuItem>
-              <SidebarMenuButton href="/admin?tab=checkins" isActive={isLinkActive('checkins')}>
+              <SidebarMenuButton href="/admin?tab=checkins" isActive={isLinkActive('/admin', 'checkins')}>
                 <ClipboardCheck />
                 Event Check-ins
               </SidebarMenuButton>
             </SidebarMenuItem>
              <SidebarMenuItem>
-              <SidebarMenuButton href="/admin?tab=employees" isActive={isLinkActive('employees')}>
+              <SidebarMenuButton href="/admin?tab=employees" isActive={isLinkActive('/admin', 'employees')}>
                 <Users />
                 Employees
               </SidebarMenuButton>
             </SidebarMenuItem>
              <SidebarMenuItem>
-              <SidebarMenuButton href="/admin?tab=venues" isActive={isLinkActive('venues')}>
+              <SidebarMenuButton href="/admin?tab=venues" isActive={isLinkActive('/admin', 'venues')}>
                 <MapPin />
                 Venues
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/admin?tab=reports" isActive={isLinkActive('reports')}>
+              <SidebarMenuButton href="/admin?tab=reports" isActive={isLinkActive('/admin', 'reports')}>
                 <FileText />
                 Reports
               </SidebarMenuButton>
             </SidebarMenuItem>
              <SidebarMenuItem>
-              <SidebarMenuButton href="/profile" isActive={pathname === '/profile'}>
+              <SidebarMenuButton href="/profile" isActive={isLinkActive('/profile', null)}>
                 <User />
                 Profile
               </SidebarMenuButton>

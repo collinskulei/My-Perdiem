@@ -448,17 +448,19 @@ function AdminDashboard() {
 
   const activeEvents = events.filter(event => {
     const today = new Date();
-    return (event.eventDates || []).some(dateStr => isSameDay(today, parseISO(dateStr)) || isWithinInterval(today, {
-        start: parseISO(dateStr),
-        end: new Date(parseISO(dateStr).getFullYear(), parseISO(dateStr).getMonth(), parseISO(dateStr).getDate(), 23, 59, 59)
-    }));
+    const eventDays = getEventDays(event);
+    if (eventDays.length === 0) return false;
+    const startDate = eventDays[0];
+    const endDate = eventDays[eventDays.length - 1];
+    return isWithinInterval(today, { start: startDate, end: endOfDay(endDate) });
   });
 
   return (
     <>
     <div className="grid flex-1 items-start gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard (Admin)</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-muted-foreground">Signed in as Admin</p>
       </div>
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
