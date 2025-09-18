@@ -204,7 +204,7 @@ function RegistrationWizard() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-2xl">
+      <Card className="w-full max-w-2xl mx-auto">
         <CardHeader>
           <CardTitle className="text-2xl">Create an Account</CardTitle>
           <CardDescription>

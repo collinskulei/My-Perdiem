@@ -476,44 +476,93 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         <TabsContent value="requests">
           <Card>
             <CardHeader><CardTitle>Perdiem Requests</CardTitle><CardDescription>Overview of all submitted per diem requests.</CardDescription></CardHeader>
-            <CardContent className="overflow-x-auto">
-              <Table>
-                <TableHeader><TableRow><TableHead>Employee</TableHead><TableHead>Event</TableHead><TableHead>Status</TableHead><TableHead className="hidden md:table-cell">Date</TableHead><TableHead className="text-right">Amount</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
-                <TableBody>
-                  {loading ? <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading requests...</TableCell></TableRow> : perdiemRequests.map(request => (
-                    <TableRow key={request.id}>
-                      <TableCell><div className="font-medium">{request.employeeName}</div><div className="hidden text-sm text-muted-foreground md:inline">ID: {request.employeeId}</div></TableCell>
-                      <TableCell>{request.eventName}</TableCell>
-                      <TableCell><Badge variant={request.status === "Approved" ? "secondary" : request.status === "Pending" ? "outline" : request.status === "Paid" ? "default" : "destructive"}>{request.status}</Badge></TableCell>
-                      <TableCell className="hidden md:table-cell">{request.date}</TableCell>
-                      <TableCell className="text-right whitespace-nowrap">Ksh {request.totalPerdiem.toLocaleString()}</TableCell>
-                       <TableCell>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button aria-haspopup="true" size="icon" variant="ghost">
-                                        <MoreHorizontal className="h-4 w-4" />
-                                        <span className="sr-only">Toggle menu</span>
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                    <DropdownMenuItem onSelect={() => updateRequestStatus(request.id, 'Approved')} disabled={request.status === 'Approved' || request.status === 'Paid'}>
-                                        Approve
-                                    </DropdownMenuItem>
-                                     <DropdownMenuItem onSelect={() => updateRequestStatus(request.id, 'Paid')} disabled={request.status !== 'Approved'}>
-                                        Mark as Paid
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onSelect={() => updateRequestStatus(request.id, 'Rejected')} disabled={request.status === 'Rejected'}>
-                                        Reject
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem>View Details</DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <CardContent>
+              {/* Desktop Table */}
+              <div className="hidden md:block">
+                <Table>
+                    <TableHeader><TableRow><TableHead>Employee</TableHead><TableHead>Event</TableHead><TableHead>Status</TableHead><TableHead>Date</TableHead><TableHead className="text-right">Amount</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
+                    <TableBody>
+                    {loading ? <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading requests...</TableCell></TableRow> : perdiemRequests.map(request => (
+                        <TableRow key={request.id}>
+                        <TableCell><div className="font-medium">{request.employeeName}</div><div className="text-sm text-muted-foreground">ID: {request.employeeId}</div></TableCell>
+                        <TableCell>{request.eventName}</TableCell>
+                        <TableCell><Badge variant={request.status === "Approved" ? "secondary" : request.status === "Pending" ? "outline" : request.status === "Paid" ? "default" : "destructive"}>{request.status}</Badge></TableCell>
+                        <TableCell>{request.date}</TableCell>
+                        <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.totalPerdiem)}</TableCell>
+                        <TableCell>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button aria-haspopup="true" size="icon" variant="ghost">
+                                            <MoreHorizontal className="h-4 w-4" />
+                                            <span className="sr-only">Toggle menu</span>
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                        <DropdownMenuItem onSelect={() => updateRequestStatus(request.id, 'Approved')} disabled={request.status === 'Approved' || request.status === 'Paid'}>
+                                            Approve
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => updateRequestStatus(request.id, 'Paid')} disabled={request.status !== 'Approved'}>
+                                            Mark as Paid
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => updateRequestStatus(request.id, 'Rejected')} disabled={request.status === 'Rejected'}>
+                                            Reject
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem>View Details</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                    </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-4">
+                {loading ? <div className="text-center p-8 text-muted-foreground">Loading requests...</div> 
+                : perdiemRequests.map(request => (
+                    <Card key={request.id} className="w-full">
+                        <CardHeader>
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <CardTitle className="text-base">{request.employeeName}</CardTitle>
+                                    <CardDescription>{request.eventName}</CardDescription>
+                                </div>
+                                 <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button aria-haspopup="true" size="icon" variant="ghost" className="-mt-2 -mr-2">
+                                            <MoreHorizontal className="h-4 w-4" />
+                                            <span className="sr-only">Toggle menu</span>
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                        <DropdownMenuItem onSelect={() => updateRequestStatus(request.id, 'Approved')} disabled={request.status === 'Approved' || request.status === 'Paid'}>Approve</DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => updateRequestStatus(request.id, 'Paid')} disabled={request.status !== 'Approved'}>Mark as Paid</DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => updateRequestStatus(request.id, 'Rejected')} disabled={request.status === 'Rejected'}>Reject</DropdownMenuItem>
+                                        <DropdownMenuItem>View Details</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="text-sm space-y-2">
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Status:</span>
+                                <Badge variant={request.status === "Approved" ? "secondary" : request.status === "Pending" ? "outline" : request.status === "Paid" ? "default" : "destructive"}>{request.status}</Badge>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Date:</span>
+                                <span>{request.date}</span>
+                            </div>
+                            <div className="flex justify-between items-baseline pt-2">
+                                <span className="text-muted-foreground">Amount:</span>
+                                <span className="font-semibold text-lg">{formatCurrency(request.totalPerdiem)}</span>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -566,7 +615,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                     <Label htmlFor="event-facilitator" className="text-left sm:text-right">Facilitator</Label>
                                     <Input id="event-facilitator" value={eventFormData.facilitator} onChange={(e) => setEventFormData({ ...eventFormData, facilitator: e.target.value })} className="col-span-3" />
                                 </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-4">
                                     <Label className="text-left sm:text-right">Assign Employees</Label>
                                     <Popover open={isEmployeeSelectOpen} onOpenChange={setEmployeeSelectOpen}>
                                         <PopoverTrigger asChild>
@@ -624,43 +673,77 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                     </DialogContent>
                 </Dialog>
             </CardHeader>
-            <CardContent className="overflow-x-auto">
-                <Table>
-                    <TableHeader><TableRow><TableHead>Event Name</TableHead><TableHead>Venue</TableHead><TableHead>Dates</TableHead><TableHead>Assigned</TableHead><TableHead>Attendance</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
-                    <TableBody>
-                        {loading ? <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading events...</TableCell></TableRow> 
-                        : events.map((event) => {
-                            const lastEventDate = event.eventDates?.length ? parseISO(event.eventDates[event.eventDates.length - 1]) : new Date(0);
-                            const isEventPast = isPast(endOfDay(lastEventDate));
-                            return (
-                                <TableRow key={event.id}>
-                                    <TableCell className="font-medium">{event.name}</TableCell>
-                                    <TableCell>{event.venueName}</TableCell>
-                                    <TableCell className="whitespace-nowrap">{(event.eventDates || []).join(', ')}</TableCell>
-                                    <TableCell>{event.allocatedEmployees.length}</TableCell>
-                                    <TableCell>{getTotalCheckinsForEvent(event)}</TableCell>
-                                    <TableCell>
+            <CardContent>
+                <div className="hidden md:block">
+                    <Table>
+                        <TableHeader><TableRow><TableHead>Event Name</TableHead><TableHead>Venue</TableHead><TableHead>Dates</TableHead><TableHead>Assigned</TableHead><TableHead>Attendance</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
+                        <TableBody>
+                            {loading ? <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading events...</TableCell></TableRow> 
+                            : events.map((event) => {
+                                const lastEventDate = event.eventDates?.length ? parseISO(event.eventDates[event.eventDates.length - 1]) : new Date(0);
+                                const isEventPast = isPast(endOfDay(lastEventDate));
+                                return (
+                                    <TableRow key={event.id}>
+                                        <TableCell className="font-medium">{event.name}</TableCell>
+                                        <TableCell>{event.venueName}</TableCell>
+                                        <TableCell className="whitespace-nowrap">{(event.eventDates || []).join(', ')}</TableCell>
+                                        <TableCell>{event.allocatedEmployees.length}</TableCell>
+                                        <TableCell>{getTotalCheckinsForEvent(event)}</TableCell>
+                                        <TableCell>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button aria-haspopup="true" size="icon" variant="ghost">
+                                                        <MoreHorizontal className="h-4 w-4" />
+                                                        <span className="sr-only">Toggle menu</span>
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                    <DropdownMenuItem onSelect={() => handleOpenEventDialog(event)} disabled={isEventPast}>
+                                                        Edit
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableCell>
+                                    </TableRow>
+                                )
+                            })}
+                        </TableBody>
+                    </Table>
+                </div>
+                 <div className="md:hidden space-y-4">
+                     {loading ? <div className="text-center p-8 text-muted-foreground">Loading events...</div>
+                     : events.map((event) => {
+                        const lastEventDate = event.eventDates?.length ? parseISO(event.eventDates[event.eventDates.length - 1]) : new Date(0);
+                        const isEventPast = isPast(endOfDay(lastEventDate));
+                        return (
+                            <Card key={event.id}>
+                                <CardHeader>
+                                     <div className="flex justify-between items-start">
+                                        <div>
+                                            <CardTitle className="text-base">{event.name}</CardTitle>
+                                            <CardDescription>{event.venueName}</CardDescription>
+                                        </div>
                                         <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button aria-haspopup="true" size="icon" variant="ghost">
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                    <span className="sr-only">Toggle menu</span>
-                                                </Button>
-                                            </DropdownMenuTrigger>
+                                            <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost" className="-mt-2 -mr-2"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
                                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                <DropdownMenuItem onSelect={() => handleOpenEventDialog(event)} disabled={isEventPast}>
-                                                    Edit
-                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => handleOpenEventDialog(event)} disabled={isEventPast}>Edit</DropdownMenuItem>
                                                 <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
-                                    </TableCell>
-                                </TableRow>
-                            )
-                        })}
-                    </TableBody>
-                </Table>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="text-sm space-y-2">
+                                     <div className="flex justify-between"><span className="text-muted-foreground">Dates:</span> <span className="text-right">{(event.eventDates || []).join(', ')}</span></div>
+                                     <div className="flex justify-between"><span className="text-muted-foreground">Assigned:</span> <span>{event.allocatedEmployees.length} employees</span></div>
+                                     <div className="flex justify-between"><span className="text-muted-foreground">Attendance:</span> <span>{getTotalCheckinsForEvent(event)} check-ins</span></div>
+                                </CardContent>
+                            </Card>
+                        )
+                     })}
+                 </div>
             </CardContent>
            </Card>
         </TabsContent>
@@ -743,37 +826,72 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         <TabsContent value="employees">
           <Card>
             <CardHeader><CardTitle>Employees</CardTitle><CardDescription>A list of all registered employees.</CardDescription></CardHeader>
-            <CardContent className="overflow-x-auto">
-              <Table>
-                <TableHeader><TableRow><TableHead className="hidden w-[100px] sm:table-cell"><span className="sr-only">Image</span></TableHead><TableHead>Name</TableHead><TableHead>Role</TableHead><TableHead className="hidden md:table-cell">Duty Station</TableHead><TableHead className="hidden md:table-cell">Job Group</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
-                <TableBody>
-                   {loading ? <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading employees...</TableCell></TableRow> : employees.map(employee => (
-                    <TableRow key={employee.id}>
-                      <TableCell className="hidden sm:table-cell"><Image alt="Employee avatar" className="aspect-square rounded-full object-cover" height="40" src={employee.avatarUrl} width="40" data-ai-hint="person portrait"/></TableCell>
-                      <TableCell className="font-medium whitespace-nowrap">{employee.name}<div className="text-sm text-muted-foreground">{employee.employeeNumber}</div></TableCell>
-                      <TableCell>{employee.role}</TableCell>
-                      <TableCell className="hidden md:table-cell">{employee.dutyStation}</TableCell>
-                      <TableCell className="hidden md:table-cell">{employee.jobGroup}</TableCell>
-                      <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button aria-haspopup="true" size="icon" variant="ghost">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                    <span className="sr-only">Toggle menu</span>
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem onSelect={() => handleOpenEmployeeDialog(employee)}>Edit</DropdownMenuItem>
-                                <DropdownMenuItem>View</DropdownMenuItem>
-                                <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <CardContent>
+              <div className="hidden md:block">
+                <Table>
+                    <TableHeader><TableRow><TableHead className="w-[64px]"><span className="sr-only">Image</span></TableHead><TableHead>Name</TableHead><TableHead>Role</TableHead><TableHead>Duty Station</TableHead><TableHead>Job Group</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
+                    <TableBody>
+                    {loading ? <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading employees...</TableCell></TableRow> : employees.map(employee => (
+                        <TableRow key={employee.id}>
+                        <TableCell><Image alt="Employee avatar" className="aspect-square rounded-full object-cover" height="40" src={employee.avatarUrl} width="40" data-ai-hint="person portrait"/></TableCell>
+                        <TableCell className="font-medium whitespace-nowrap">{employee.name}<div className="text-sm text-muted-foreground">{employee.employeeNumber}</div></TableCell>
+                        <TableCell>{employee.role}</TableCell>
+                        <TableCell>{employee.dutyStation}</TableCell>
+                        <TableCell>{employee.jobGroup}</TableCell>
+                        <TableCell>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button aria-haspopup="true" size="icon" variant="ghost">
+                                        <MoreHorizontal className="h-4 w-4" />
+                                        <span className="sr-only">Toggle menu</span>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                    <DropdownMenuItem onSelect={() => handleOpenEmployeeDialog(employee)}>Edit</DropdownMenuItem>
+                                    <DropdownMenuItem>View</DropdownMenuItem>
+                                    <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </TableCell>
+                        </TableRow>
+                    ))}
+                    </TableBody>
+                </Table>
+              </div>
+               <div className="md:hidden space-y-4">
+                 {loading ? <div className="text-center p-8 text-muted-foreground">Loading employees...</div>
+                 : employees.map(employee => (
+                    <Card key={employee.id}>
+                        <CardHeader>
+                            <div className="flex items-start gap-4">
+                                <Avatar className="w-12 h-12">
+                                    <AvatarImage src={employee.avatarUrl} alt={employee.name} data-ai-hint="person portrait"/>
+                                    <AvatarFallback>{employee.name.slice(0,2)}</AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1">
+                                    <CardTitle className="text-base">{employee.name}</CardTitle>
+                                    <CardDescription>{employee.role}</CardDescription>
+                                </div>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="-mt-2 -mr-2"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                        <DropdownMenuItem onSelect={() => handleOpenEmployeeDialog(employee)}>Edit</DropdownMenuItem>
+                                        <DropdownMenuItem>View</DropdownMenuItem>
+                                        <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="text-sm space-y-2 pt-0">
+                             <div className="flex justify-between"><span className="text-muted-foreground">ID:</span> <span>{employee.employeeNumber || 'N/A'}</span></div>
+                             <div className="flex justify-between"><span className="text-muted-foreground">Duty Station:</span> <span>{employee.dutyStation || 'N/A'}</span></div>
+                             <div className="flex justify-between"><span className="text-muted-foreground">Job Group:</span> <span>{employee.jobGroup || 'N/A'}</span></div>
+                        </CardContent>
+                    </Card>
+                 ))}
+                </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -794,39 +912,70 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                 </DialogContent>
               </Dialog>
             </CardHeader>
-            <CardContent className="overflow-x-auto">
-              <Table>
-                <TableHeader><TableRow><TableHead>Venue Name</TableHead><TableHead>City</TableHead><TableHead>County</TableHead><TableHead>Coordinates</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
-                <TableBody>
-                  {loading ? <TableRow><TableCell colSpan={5} className="h-24 text-center">Loading venues...</TableCell></TableRow> : venues.map(venue => (
-                    <TableRow key={venue.id}>
-                      <TableCell className="font-medium">{venue.name}</TableCell>
-                      <TableCell>{venue.city}</TableCell>
-                      <TableCell>{venue.county}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{venue.latitude.toFixed(4)}, {venue.longitude.toFixed(4)}</TableCell>
-                       <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              aria-haspopup="true"
-                              size="icon"
-                              variant="ghost"
-                            >
-                              <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Toggle menu</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem>Edit</DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <CardContent>
+                <div className="hidden md:block">
+                    <Table>
+                        <TableHeader><TableRow><TableHead>Venue Name</TableHead><TableHead>City</TableHead><TableHead>County</TableHead><TableHead>Coordinates</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
+                        <TableBody>
+                        {loading ? <TableRow><TableCell colSpan={5} className="h-24 text-center">Loading venues...</TableCell></TableRow> : venues.map(venue => (
+                            <TableRow key={venue.id}>
+                            <TableCell className="font-medium">{venue.name}</TableCell>
+                            <TableCell>{venue.city}</TableCell>
+                            <TableCell>{venue.county}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{venue.latitude.toFixed(4)}, {venue.longitude.toFixed(4)}</TableCell>
+                            <TableCell>
+                                <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                    aria-haspopup="true"
+                                    size="icon"
+                                    variant="ghost"
+                                    >
+                                    <MoreHorizontal className="h-4 w-4" />
+                                    <span className="sr-only">Toggle menu</span>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                    <DropdownMenuItem>Edit</DropdownMenuItem>
+                                    <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                                </DropdownMenuContent>
+                                </DropdownMenu>
+                            </TableCell>
+                            </TableRow>
+                        ))}
+                        </TableBody>
+                    </Table>
+                </div>
+                 <div className="md:hidden space-y-4">
+                    {loading ? <div className="text-center p-8 text-muted-foreground">Loading venues...</div>
+                    : venues.map(venue => (
+                        <Card key={venue.id}>
+                             <CardHeader>
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <CardTitle className="text-base">{venue.name}</CardTitle>
+                                        <CardDescription>{venue.city}, {venue.county}</CardDescription>
+                                    </div>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="-mt-2 -mr-2"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                            <DropdownMenuItem>Edit</DropdownMenuItem>
+                                            <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="text-sm pt-0">
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Coords:</span>
+                                    <span className="font-mono text-xs">{venue.latitude.toFixed(4)}, {venue.longitude.toFixed(4)}</span>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
+                 </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1031,8 +1180,8 @@ function ReportTabContent({ title, data, loading, onDownload }: { title: string,
                     Download CSV
                 </Button>
             </CardHeader>
-            <CardContent className="overflow-x-auto">
-                 <Table>
+            <CardContent>
+                 <Table className="hidden md:table">
                     <TableHeader><TableRow><TableHead>Employee</TableHead><TableHead>Event</TableHead><TableHead>Status</TableHead><TableHead>Date</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                     <TableBody>
                     {loading ? (
@@ -1050,6 +1199,32 @@ function ReportTabContent({ title, data, loading, onDownload }: { title: string,
                     ))}
                     </TableBody>
                 </Table>
+                 <div className="md:hidden space-y-4">
+                    {loading ? <div className="text-center p-8 text-muted-foreground">Loading report data...</div> 
+                    : data.length === 0 ? <div className="text-center p-8 text-muted-foreground">No requests match filters.</div>
+                    : data.map(request => (
+                        <Card key={request.id} className="w-full">
+                            <CardHeader>
+                                <CardTitle className="text-base">{request.employeeName}</CardTitle>
+                                <CardDescription>{request.eventName}</CardDescription>
+                            </CardHeader>
+                            <CardContent className="text-sm space-y-2">
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Status:</span>
+                                    <Badge variant={request.status === "Approved" ? "secondary" : "default"}>{request.status}</Badge>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-muted-foreground">Date:</span>
+                                    <span>{request.date}</span>
+                                </div>
+                                <div className="flex justify-between items-baseline pt-2">
+                                    <span className="text-muted-foreground">Amount:</span>
+                                    <span className="font-semibold text-lg">{formatCurrency(request.totalPerdiem)}</span>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
             </CardContent>
         </Card>
     )

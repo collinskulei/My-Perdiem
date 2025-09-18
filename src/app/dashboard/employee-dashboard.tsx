@@ -14,6 +14,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -334,8 +335,9 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                         <CardTitle>My Events</CardTitle>
                         <CardDescription>Events you are allocated to. Check-in daily to record your attendance.</CardDescription>
                     </CardHeader>
-                    <CardContent className="overflow-x-auto">
+                    <CardContent>
                      <TooltipProvider>
+                       <div className="hidden md:block">
                         <Table>
                             <TableHeader>
                               <TableRow>
@@ -353,7 +355,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                     <TableRow><TableCell colSpan={6} className="h-24 text-center">You have no upcoming events.</TableCell></TableRow>
                                 ) : myEvents.map((event) => {
                                     const eventDays = getEventDays(event);
-                                    const { percent, color, checkedInDays, totalDays } = getAttendanceProgress(event);
+                                    const { percent, color } = getAttendanceProgress(event);
 
                                     const eventVenue = venues.find(v => v.id === event.venueId);
                                     let distance = -1;
@@ -362,122 +364,41 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                     }
                                     
                                     const isInRange = isTestMode && bypassLocationCheck ? true : distance !== -1 && distance <= 1000;
-                                    
                                     const canRequestPerDiem = hasCheckedInForAllDays(event) && !hasRequestedPerDiem(event.id);
-                                    const isRequestButtonDisabled = canRequestPerDiem && !isInRange;
-
+                                    
                                     return (
                                         <TableRow key={event.id}>
                                             <TableCell className="font-medium">{event.name}</TableCell>
                                             <TableCell>{event.venueName}</TableCell>
                                             <TableCell className="whitespace-nowrap">{(event.eventDates || []).join(', ')}</TableCell>
                                             <TableCell>
-                                              {geoLoading ? (
-                                                <Badge variant="outline">Checking...</Badge>
-                                              ) : isTestMode && bypassLocationCheck ? (
-                                                <Badge className="bg-blue-500 hover:bg-blue-600">Bypassed</Badge>
-                                              ) : distance === -1 ? (
-                                                <Badge variant="outline">Unknown</Badge>
-                                              ) : isInRange ? (
-                                                <Badge className="bg-green-500 hover:bg-green-600">In Range</Badge>
-                                              ) : (
-                                                <Badge variant="destructive">
-                                                  {(distance / 1000).toFixed(1)} km away
-                                                </Badge>
-                                              )}
+                                              {geoLoading ? ( <Badge variant="outline">Checking...</Badge>
+                                              ) : isTestMode && bypassLocationCheck ? ( <Badge className="bg-blue-500 hover:bg-blue-600">Bypassed</Badge>
+                                              ) : distance === -1 ? ( <Badge variant="outline">Unknown</Badge>
+                                              ) : isInRange ? ( <Badge className="bg-green-500 hover:bg-green-600">In Range</Badge>
+                                              ) : ( <Badge variant="destructive">{(distance / 1000).toFixed(1)} km away</Badge> )}
                                             </TableCell>
                                             <TableCell>
-                                                <UITooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <div className="w-24">
-                                                            <Progress value={percent} indicatorClassName={color} className="h-3" />
-                                                        </div>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>Attended {checkedInDays} of {totalDays} days.</p>
-                                                    </TooltipContent>
-                                                </UITooltip>
+                                                <div className="w-24"><Progress value={percent} indicatorClassName={color} className="h-3" /></div>
                                             </TableCell>
                                             <TableCell className="text-right">
                                                <div className="flex gap-2 justify-end">
-                                                    {canRequestPerDiem && (
-                                                         <UITooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <span tabIndex={0}> {/* Span is needed for tooltip on disabled button */}
-                                                                    <Button 
-                                                                        size="sm" 
-                                                                        onClick={() => handleRequestPerDiem(event)}
-                                                                        disabled={isRequestButtonDisabled}
-                                                                        className="whitespace-nowrap"
-                                                                    >
-                                                                        Request Per Diem
-                                                                    </Button>
-                                                                </span>
-                                                            </TooltipTrigger>
-                                                            {isRequestButtonDisabled && (
-                                                                <TooltipContent>
-                                                                    <p>You must be at the event location to request per diem.</p>
-                                                                </TooltipContent>
-                                                            )}
-                                                        </UITooltip>
-                                                    )}
-                                                    {!canRequestPerDiem && hasCheckedInForAllDays(event) && hasRequestedPerDiem(event.id) && (
-                                                        <Badge variant="secondary">Requested</Badge>
-                                                    )}
-                                                    {!hasCheckedInForAllDays(event) && eventDays.map(day => {
+                                                   {canRequestPerDiem && <Button size="sm" onClick={() => handleRequestPerDiem(event)} className="whitespace-nowrap">Request Per Diem</Button> }
+                                                   {hasCheckedInForAllDays(event) && hasRequestedPerDiem(event.id) && <Badge variant="secondary">Requested</Badge>}
+                                                   
+                                                   {!hasCheckedInForAllDays(event) && eventDays.map(day => {
                                                         const dateString = format(day, 'yyyy-MM-dd');
                                                         const isCheckedInForDay = !!event.checkedInEmployees?.[authUser?.uid ?? '']?.[dateString];
+                                                        if (isCheckedInForDay || isFuture(startOfDay(day)) || startOfDay(day) < startOfDay(new Date())) return null;
                                                         
-                                                        if (isCheckedInForDay || isFuture(startOfDay(day))) {
-                                                            return null;
-                                                        }
-                                                        
-                                                        const isPastDay = startOfDay(day) < startOfDay(new Date());
-
-                                                        const canCheckInForDay = isToday(day);
-                                                        const isButtonDisabled = !canCheckInForDay || !!isSubmitting || !isInRange;
-                                                        
-                                                        const buttonText = isFuture(day) 
-                                                            ? `Check-in: ${format(day, 'MMM d')}` 
-                                                            : `Check-in Today`;
-
-                                                        const button = (
-                                                             <Button 
-                                                                key={dateString} 
-                                                                size="sm" 
-                                                                onClick={() => handleCheckIn(event, day)} 
-                                                                disabled={isButtonDisabled}
-                                                                variant={!canCheckInForDay ? 'outline' : 'default'}
-                                                                className="whitespace-nowrap"
-                                                            >
+                                                        const canCheckIn = isToday(day) && isInRange;
+                                                        return (
+                                                             <Button key={dateString} size="sm" onClick={() => handleCheckIn(event, day)} disabled={!canCheckIn || !!isSubmitting} variant={!isToday(day) ? 'outline' : 'default'} className="whitespace-nowrap">
                                                                 {isSubmitting === `${event.id}-${dateString}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MapPin className="mr-2 h-4 w-4" />}
-                                                                {buttonText}
+                                                                Check-in Today
                                                             </Button>
-                                                        );
-
-                                                        if (isButtonDisabled && !canCheckInForDay && !isSubmitting && !isPastDay) {
-                                                            return null; // Don't show future buttons at all for cleaner UI
-                                                        }
-                                                        
-                                                        if (isPastDay) {
-                                                           return null;
-                                                        }
-
-                                                        if (isButtonDisabled && !isInRange) {
-                                                            return (
-                                                                <UITooltip key={dateString}>
-                                                                    <TooltipTrigger asChild>
-                                                                        <span>{button}</span>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent>
-                                                                        <p>You must be at the event location to check in.</p>
-                                                                    </TooltipContent>
-                                                                </UITooltip>
-                                                            );
-                                                        }
-
-                                                        return button;
-                                                    })}
+                                                        )
+                                                   })}
                                                 </div>
                                             </TableCell>
                                         </TableRow>
@@ -485,6 +406,65 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                 })}
                             </TableBody>
                         </Table>
+                       </div>
+
+                        {/* Mobile Card View */}
+                        <div className="md:hidden space-y-4">
+                            {loading ? <div className="text-center p-8 text-muted-foreground">Loading your events...</div>
+                            : myEvents.length === 0 ? <div className="text-center p-8 text-muted-foreground">You have no upcoming events.</div>
+                            : myEvents.map((event) => {
+                                const eventDays = getEventDays(event);
+                                const { percent, color, checkedInDays, totalDays } = getAttendanceProgress(event);
+                                const eventVenue = venues.find(v => v.id === event.venueId);
+                                let distance = -1;
+                                if (eventVenue && latitude && longitude) {
+                                    distance = getHaversineDistance(latitude, longitude, eventVenue.latitude, eventVenue.longitude);
+                                }
+                                const isInRange = isTestMode && bypassLocationCheck ? true : distance !== -1 && distance <= 1000;
+                                const canRequestPerDiem = hasCheckedInForAllDays(event) && !hasRequestedPerDiem(event.id);
+                                return (
+                                <Card key={event.id}>
+                                    <CardHeader>
+                                        <CardTitle className="text-base">{event.name}</CardTitle>
+                                        <CardDescription>{event.venueName}</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4 text-sm">
+                                         <div>
+                                            <p className="font-medium mb-1">Attendance ({checkedInDays}/{totalDays})</p>
+                                            <Progress value={percent} indicatorClassName={color} className="h-2" />
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-muted-foreground">Location:</span>
+                                            {geoLoading ? ( <Badge variant="outline" className="text-xs">Checking...</Badge>
+                                            ) : isTestMode && bypassLocationCheck ? ( <Badge className="bg-blue-500 hover:bg-blue-600 text-xs">Bypassed</Badge>
+                                            ) : distance === -1 ? ( <Badge variant="outline" className="text-xs">Unknown</Badge>
+                                            ) : isInRange ? ( <Badge className="bg-green-500 hover:bg-green-600 text-xs">In Range</Badge>
+                                            ) : ( <Badge variant="destructive" className="text-xs">{(distance / 1000).toFixed(1)} km away</Badge> )}
+                                        </div>
+                                        <p><strong className="text-muted-foreground">Dates:</strong> {(event.eventDates || []).join(', ')}</p>
+                                    </CardContent>
+                                    <CardFooter className="flex flex-col items-stretch gap-2">
+                                        {canRequestPerDiem && <Button size="sm" onClick={() => handleRequestPerDiem(event)} className="w-full">Request Per Diem</Button>}
+                                        {hasCheckedInForAllDays(event) && hasRequestedPerDiem(event.id) && <Badge variant="secondary" className="justify-center py-2 text-sm">Requested</Badge>}
+                                        
+                                        {!hasCheckedInForAllDays(event) && eventDays.map(day => {
+                                            const dateString = format(day, 'yyyy-MM-dd');
+                                            const isCheckedInForDay = !!event.checkedInEmployees?.[authUser?.uid ?? '']?.[dateString];
+                                            if (isCheckedInForDay || isFuture(startOfDay(day)) || startOfDay(day) < startOfDay(new Date())) return null;
+                                            
+                                            const canCheckIn = isToday(day) && isInRange;
+                                            return (
+                                                <Button key={dateString} size="sm" onClick={() => handleCheckIn(event, day)} disabled={!canCheckIn || !!isSubmitting} variant={!isToday(day) ? 'outline' : 'default'} className="w-full">
+                                                    {isSubmitting === `${event.id}-${dateString}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MapPin className="mr-2 h-4 w-4" />}
+                                                    Check-in Today
+                                                </Button>
+                                            )
+                                        })}
+                                    </CardFooter>
+                                </Card>
+                                )
+                            })}
+                        </div>
                       </TooltipProvider>
                     </CardContent>
                 </Card>
@@ -495,47 +475,67 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                         <CardTitle>My Check-in History</CardTitle>
                         <CardDescription>A record of all your event check-ins.</CardDescription>
                     </CardHeader>
-                    <CardContent className="overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Event</TableHead>
-                                    <TableHead>Date Checked In</TableHead>
-                                    <TableHead className="text-center">Status</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {loading ? (
-                                    <TableRow><TableCell colSpan={3} className="h-24 text-center">Loading check-in data...</TableCell></TableRow>
-                                ) : myEvents.flatMap(event => 
-                                    Object.entries(event.checkedInEmployees?.[authUser?.uid ?? ''] || {})
-                                      .map(([date, timestamp]) => (
-                                        <TableRow key={`${event.id}-${date}`}>
-                                            <TableCell>{event.name}</TableCell>
-                                            <TableCell className="whitespace-nowrap">{format(parseISO(date), 'PPP')}</TableCell>
-                                            <TableCell className="text-center">
-                                                <Badge variant="secondary"><Check className="mr-1 h-3 w-3" />Checked-In</Badge>
-                                            </TableCell>
-                                        </TableRow>
-                                ))).length === 0 ? (
-                                     <TableRow><TableCell colSpan={3} className="h-24 text-center">You have no check-ins yet.</TableCell></TableRow>
-                                ) : (
-                                     myEvents.flatMap(event => 
+                    <CardContent>
+                        <div className="hidden md:block">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Event</TableHead>
+                                        <TableHead>Date Checked In</TableHead>
+                                        <TableHead className="text-center">Status</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {loading ? (
+                                        <TableRow><TableCell colSpan={3} className="h-24 text-center">Loading check-in data...</TableCell></TableRow>
+                                    ) : myEvents.flatMap(event => 
                                         Object.entries(event.checkedInEmployees?.[authUser?.uid ?? ''] || {})
-                                            .sort(([dateA], [dateB]) => parseISO(dateB).getTime() - parseISO(dateA).getTime())
-                                            .map(([date, timestamp]) => (
-                                                <TableRow key={`${event.id}-${date}`}>
-                                                    <TableCell>{event.name}</TableCell>
-                                                    <TableCell className="whitespace-nowrap">{format(parseISO(date), 'PPP')}</TableCell>
-                                                    <TableCell className="text-center">
-                                                        <Badge variant="secondary"><Check className="mr-1 h-3 w-3" />Checked-In</Badge>
-                                                    </TableCell>
-                                                </TableRow>
-                                        ))
-                                     )
+                                        .map(([date, timestamp]) => (
+                                            <TableRow key={`${event.id}-${date}`}>
+                                                <TableCell>{event.name}</TableCell>
+                                                <TableCell className="whitespace-nowrap">{format(parseISO(date), 'PPP')}</TableCell>
+                                                <TableCell className="text-center">
+                                                    <Badge variant="secondary"><Check className="mr-1 h-3 w-3" />Checked-In</Badge>
+                                                </TableCell>
+                                            </TableRow>
+                                    ))).length === 0 ? (
+                                        <TableRow><TableCell colSpan={3} className="h-24 text-center">You have no check-ins yet.</TableCell></TableRow>
+                                    ) : (
+                                        myEvents.flatMap(event => 
+                                            Object.entries(event.checkedInEmployees?.[authUser?.uid ?? ''] || {})
+                                                .sort(([dateA], [dateB]) => parseISO(dateB).getTime() - parseISO(dateA).getTime())
+                                                .map(([date, timestamp]) => (
+                                                    <TableRow key={`${event.id}-${date}`}>
+                                                        <TableCell>{event.name}</TableCell>
+                                                        <TableCell className="whitespace-nowrap">{format(parseISO(date), 'PPP')}</TableCell>
+                                                        <TableCell className="text-center">
+                                                            <Badge variant="secondary"><Check className="mr-1 h-3 w-3" />Checked-In</Badge>
+                                                        </TableCell>
+                                                    </TableRow>
+                                            ))
+                                        )
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                        <div className="md:hidden space-y-3">
+                             {loading ? <div className="text-center p-8 text-muted-foreground">Loading check-ins...</div>
+                             : myEvents.flatMap(event => Object.entries(event.checkedInEmployees?.[authUser?.uid ?? ''] || {})).length === 0 
+                             ? <div className="text-center p-8 text-muted-foreground">You have no check-ins yet.</div>
+                             : myEvents.flatMap(event => 
+                                    Object.entries(event.checkedInEmployees?.[authUser?.uid ?? ''] || {})
+                                    .sort(([dateA], [dateB]) => parseISO(dateB).getTime() - parseISO(dateA).getTime())
+                                    .map(([date]) => (
+                                        <div key={`${event.id}-${date}`} className="p-3 border rounded-lg flex justify-between items-center text-sm">
+                                            <div>
+                                                <p className="font-medium">{event.name}</p>
+                                                <p className="text-muted-foreground">{format(parseISO(date), 'PPP')}</p>
+                                            </div>
+                                            <Badge variant="secondary"><Check className="mr-1 h-3 w-3" />Checked-In</Badge>
+                                        </div>
+                                    ))
                                 )}
-                            </TableBody>
-                        </Table>
+                        </div>
                     </CardContent>
                 </Card>
             </TabsContent>
@@ -547,36 +547,64 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                       A history of all your submitted per diem requests.
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Event</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Date Submitted</TableHead>
-                          <TableHead className="text-right">Amount</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {loading ? (
-                          <TableRow><TableCell colSpan={4} className="h-24 text-center">Loading your requests...</TableCell></TableRow>
-                        ) : userRequests.length === 0 ? (
-                           <TableRow><TableCell colSpan={4} className="h-24 text-center">You have not submitted any requests.</TableCell></TableRow>
-                        ) : userRequests.map((request) => (
-                          <TableRow key={request.id}>
-                            <TableCell>
-                              <div className="font-medium">{request.eventName}</div>
-                              <div className="text-sm text-muted-foreground">{request.location}</div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={request.status === "Approved" ? "secondary" : request.status === "Pending" ? "outline" : request.status === "Paid" ? "default" : "destructive"}>{request.status}</Badge>
-                            </TableCell>
-                            <TableCell className="whitespace-nowrap">{format(parseISO(request.date), 'PPP')}</TableCell>
-                            <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.totalPerdiem)}</TableCell>
-                          </TableRow>
+                  <CardContent>
+                     <div className="hidden md:block">
+                        <Table>
+                        <TableHeader>
+                            <TableRow>
+                            <TableHead>Event</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Date Submitted</TableHead>
+                            <TableHead className="text-right">Amount</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {loading ? (
+                            <TableRow><TableCell colSpan={4} className="h-24 text-center">Loading your requests...</TableCell></TableRow>
+                            ) : userRequests.length === 0 ? (
+                            <TableRow><TableCell colSpan={4} className="h-24 text-center">You have not submitted any requests.</TableCell></TableRow>
+                            ) : userRequests.map((request) => (
+                            <TableRow key={request.id}>
+                                <TableCell>
+                                <div className="font-medium">{request.eventName}</div>
+                                <div className="text-sm text-muted-foreground">{request.location}</div>
+                                </TableCell>
+                                <TableCell>
+                                <Badge variant={request.status === "Approved" ? "secondary" : request.status === "Pending" ? "outline" : request.status === "Paid" ? "default" : "destructive"}>{request.status}</Badge>
+                                </TableCell>
+                                <TableCell className="whitespace-nowrap">{format(parseISO(request.date), 'PPP')}</TableCell>
+                                <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.totalPerdiem)}</TableCell>
+                            </TableRow>
+                            ))}
+                        </TableBody>
+                        </Table>
+                    </div>
+                     <div className="md:hidden space-y-4">
+                        {loading ? <div className="text-center p-8 text-muted-foreground">Loading your requests...</div>
+                        : userRequests.length === 0 ? <div className="text-center p-8 text-muted-foreground">You have no requests.</div>
+                        : userRequests.map((request) => (
+                             <Card key={request.id}>
+                                <CardHeader>
+                                    <CardTitle className="text-base">{request.eventName}</CardTitle>
+                                    <CardDescription>{request.location}</CardDescription>
+                                </CardHeader>
+                                <CardContent className="text-sm space-y-2">
+                                     <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Status:</span>
+                                        <Badge variant={request.status === "Approved" ? "secondary" : request.status === "Pending" ? "outline" : request.status === "Paid" ? "default" : "destructive"}>{request.status}</Badge>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Date:</span>
+                                        <span>{format(parseISO(request.date), 'PPP')}</span>
+                                    </div>
+                                    <div className="flex justify-between items-baseline pt-2">
+                                        <span className="text-muted-foreground">Amount:</span>
+                                        <span className="font-semibold text-lg">{formatCurrency(request.totalPerdiem)}</span>
+                                    </div>
+                                </CardContent>
+                             </Card>
                         ))}
-                      </TableBody>
-                    </Table>
+                     </div>
                   </CardContent>
                 </Card>
             </TabsContent>

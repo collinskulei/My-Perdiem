@@ -144,7 +144,7 @@ function LoginCard() {
   
   if (!hasMounted) {
     return (
-        <Card className="w-full max-w-sm">
+        <Card className="w-full max-w-sm mx-auto">
             <CardHeader className="text-center">
               <CardTitle className="text-2xl">Welcome Back</CardTitle>
               <CardDescription>
@@ -170,7 +170,7 @@ function LoginCard() {
 
 
   return (
-      <Card className="w-full max-w-sm">
+      <Card className="w-full max-w-sm mx-auto">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Welcome Back</CardTitle>
           <CardDescription>
