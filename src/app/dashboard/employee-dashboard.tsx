@@ -303,11 +303,11 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
       <div className="grid flex-1 items-start gap-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="space-y-1">
-                <h1 className="text-3xl font-bold tracking-tight">Welcome Back, {getFirstName(currentUser?.name)}!</h1>
+                <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Welcome Back, {getFirstName(currentUser?.name)}!</h1>
                 <p className="text-muted-foreground">Here's an overview of your events and requests.</p>
             </div>
              {isTestMode && (
-                <div className="flex items-center space-x-2 rounded-lg border p-3 bg-card">
+                <div className="flex items-center space-x-2 rounded-lg border p-3 bg-card self-start sm:self-center">
                     <LocateFixed className="h-5 w-5 text-muted-foreground" />
                     <Label htmlFor="location-bypass" className="text-sm font-medium">Bypass Location Check</Label>
                     <Switch
@@ -320,19 +320,21 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
         </div>
         <ClientOnly>
         <Tabs value={activeTab} onValueChange={handleTabChange}>
-            <TabsList>
-                <TabsTrigger value="events">My Events</TabsTrigger>
-                <TabsTrigger value="checkins">My Check-ins</TabsTrigger>
-                <TabsTrigger value="requests">My Per Diem Requests</TabsTrigger>
-                <TabsTrigger value="analytics">My Analytics</TabsTrigger>
-            </TabsList>
+            <div className="overflow-x-auto pb-2">
+                <TabsList>
+                    <TabsTrigger value="events">My Events</TabsTrigger>
+                    <TabsTrigger value="checkins">My Check-ins</TabsTrigger>
+                    <TabsTrigger value="requests">My Per Diem Requests</TabsTrigger>
+                    <TabsTrigger value="analytics">My Analytics</TabsTrigger>
+                </TabsList>
+            </div>
             <TabsContent value="events">
                  <Card>
                     <CardHeader>
                         <CardTitle>My Events</CardTitle>
                         <CardDescription>Events you are allocated to. Check-in daily to record your attendance.</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="overflow-x-auto">
                      <TooltipProvider>
                         <Table>
                             <TableHeader>
@@ -368,7 +370,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                         <TableRow key={event.id}>
                                             <TableCell className="font-medium">{event.name}</TableCell>
                                             <TableCell>{event.venueName}</TableCell>
-                                            <TableCell>{(event.eventDates || []).join(', ')}</TableCell>
+                                            <TableCell className="whitespace-nowrap">{(event.eventDates || []).join(', ')}</TableCell>
                                             <TableCell>
                                               {geoLoading ? (
                                                 <Badge variant="outline">Checking...</Badge>
@@ -387,7 +389,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                             <TableCell>
                                                 <UITooltip>
                                                     <TooltipTrigger asChild>
-                                                        <div>
+                                                        <div className="w-24">
                                                             <Progress value={percent} indicatorClassName={color} className="h-3" />
                                                         </div>
                                                     </TooltipTrigger>
@@ -406,6 +408,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                                                         size="sm" 
                                                                         onClick={() => handleRequestPerDiem(event)}
                                                                         disabled={isRequestButtonDisabled}
+                                                                        className="whitespace-nowrap"
                                                                     >
                                                                         Request Per Diem
                                                                     </Button>
@@ -445,6 +448,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                                                 onClick={() => handleCheckIn(event, day)} 
                                                                 disabled={isButtonDisabled}
                                                                 variant={!canCheckInForDay ? 'outline' : 'default'}
+                                                                className="whitespace-nowrap"
                                                             >
                                                                 {isSubmitting === `${event.id}-${dateString}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MapPin className="mr-2 h-4 w-4" />}
                                                                 {buttonText}
@@ -491,7 +495,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                         <CardTitle>My Check-in History</CardTitle>
                         <CardDescription>A record of all your event check-ins.</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="overflow-x-auto">
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -508,7 +512,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                       .map(([date, timestamp]) => (
                                         <TableRow key={`${event.id}-${date}`}>
                                             <TableCell>{event.name}</TableCell>
-                                            <TableCell>{format(parseISO(date), 'PPP')}</TableCell>
+                                            <TableCell className="whitespace-nowrap">{format(parseISO(date), 'PPP')}</TableCell>
                                             <TableCell className="text-center">
                                                 <Badge variant="secondary"><Check className="mr-1 h-3 w-3" />Checked-In</Badge>
                                             </TableCell>
@@ -522,7 +526,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                             .map(([date, timestamp]) => (
                                                 <TableRow key={`${event.id}-${date}`}>
                                                     <TableCell>{event.name}</TableCell>
-                                                    <TableCell>{format(parseISO(date), 'PPP')}</TableCell>
+                                                    <TableCell className="whitespace-nowrap">{format(parseISO(date), 'PPP')}</TableCell>
                                                     <TableCell className="text-center">
                                                         <Badge variant="secondary"><Check className="mr-1 h-3 w-3" />Checked-In</Badge>
                                                     </TableCell>
@@ -543,7 +547,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                       A history of all your submitted per diem requests.
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -567,8 +571,8 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                             <TableCell>
                               <Badge variant={request.status === "Approved" ? "secondary" : request.status === "Pending" ? "outline" : request.status === "Paid" ? "default" : "destructive"}>{request.status}</Badge>
                             </TableCell>
-                            <TableCell>{format(parseISO(request.date), 'PPP')}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(request.totalPerdiem)}</TableCell>
+                            <TableCell className="whitespace-nowrap">{format(parseISO(request.date), 'PPP')}</TableCell>
+                            <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.totalPerdiem)}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -594,7 +598,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                 <CardDescription>The total amount for all your paid per diems.</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-4xl font-bold">{formatCurrency(totalPaid)}</p>
+                                <p className="text-3xl md:text-4xl font-bold">{formatCurrency(totalPaid)}</p>
                             </CardContent>
                         </Card>
                     </div>

@@ -1,3 +1,4 @@
+
 /**
  * @file This file defines the user profile page.
  * It allows both employees and admins to view and edit their personal information.
@@ -159,9 +160,9 @@ function Profile() {
                     <AvatarImage src={employee.avatarUrl} data-ai-hint="person avatar" />
                     <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
                 </Avatar>
-                <div className="space-y-1">
-                    <h2 className="text-2xl font-semibold">{employee.name}</h2>
-                    <p className="text-muted-foreground">{employee.email}</p>
+                <div className="space-y-1 overflow-hidden">
+                    <h2 className="text-2xl font-semibold truncate">{employee.name}</h2>
+                    <p className="text-muted-foreground truncate">{employee.email}</p>
                 </div>
             </div>
 

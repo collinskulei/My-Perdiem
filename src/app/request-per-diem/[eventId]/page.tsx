@@ -1,3 +1,4 @@
+
 /**
  * @file This file defines the multi-step wizard for requesting a per diem.
  * It guides the user through Event Information, Transport, Accommodation, Allowances, and a final Preview.
@@ -187,7 +188,7 @@ function PerDiemWizard() {
     }
     
     return (
-        <div className="flex flex-col items-center justify-start p-4 sm:p-6 min-h-screen bg-gray-50">
+        <div className="flex flex-col items-center justify-start p-4 sm:p-6 min-h-screen bg-gray-50 dark:bg-background">
              <Card className="w-full max-w-4xl">
                  <CardHeader>
                      <CardTitle>Request Per Diem</CardTitle>
@@ -421,7 +422,7 @@ const Step3 = () => {
 
                  <Separator />
 
-                <div className="flex justify-between items-center text-xl font-bold">
+                <div className="flex justify-between items-center text-lg sm:text-xl font-bold">
                     <span>Total Per Diem Request</span>
                     <span>{formatCurrency(totalPerdiem)}</span>
                 </div>
@@ -440,7 +441,7 @@ const FileUpload = ({ name, label }: { name: "airTicketFile" | "groundTransferFi
         <div className="space-y-2">
             <Label htmlFor={name}>{label}</Label>
             {!file ? (
-                 <Label htmlFor={name} className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                 <Label htmlFor={name} className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 dark:bg-muted/20 dark:hover:bg-muted/40">
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
                         <Upload className="w-8 h-8 mb-2 text-gray-500" />
                         <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Click to upload</span> or drag and drop</p>
@@ -448,10 +449,10 @@ const FileUpload = ({ name, label }: { name: "airTicketFile" | "groundTransferFi
                     <Input id={name} type="file" className="hidden" {...register(name)} accept=".pdf,.png,.jpg,.jpeg" />
                 </Label>
             ) : (
-                <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50">
-                    <div className="flex items-center gap-3">
-                        <FileIcon className="h-6 w-6 text-gray-600"/>
-                        <span className="text-sm font-medium">{file.name}</span>
+                <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50 dark:bg-muted/20">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                        <FileIcon className="h-6 w-6 text-gray-600 flex-shrink-0"/>
+                        <span className="text-sm font-medium truncate">{file.name}</span>
                     </div>
                     <Button type="button" variant="ghost" size="icon" onClick={() => setValue(name, null)}>
                         <X className="h-4 w-4" />
@@ -470,8 +471,8 @@ const SummarySection = ({ title, children }: { title: string, children: React.Re
 );
 
 const SummaryItem = ({ label, value }: { label: string, value: string | number }) => (
-    <div className="flex justify-between text-sm">
+    <div className="flex flex-col sm:flex-row justify-between text-sm">
         <p className="text-muted-foreground">{label}</p>
-        <p className="font-medium">{value}</p>
+        <p className="font-medium text-left sm:text-right">{value}</p>
     </div>
 );

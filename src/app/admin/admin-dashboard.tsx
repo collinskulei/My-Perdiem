@@ -457,24 +457,26 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
     <>
     <div className="grid flex-1 items-start gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">Signed in as Admin</p>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-sm text-muted-foreground">Signed in as Admin</p>
       </div>
       <ClientOnly>
       <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList>
-          <TabsTrigger value="requests">Perdiem Requests</TabsTrigger>
-          <TabsTrigger value="events">Events</TabsTrigger>
-          <TabsTrigger value="checkins">Event Check-ins</TabsTrigger>
-          <TabsTrigger value="employees">Employees</TabsTrigger>
-          <TabsTrigger value="venues">Venues</TabsTrigger>
-          <TabsTrigger value="reports">Reports</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto pb-2">
+            <TabsList>
+            <TabsTrigger value="requests">Perdiem Requests</TabsTrigger>
+            <TabsTrigger value="events">Events</TabsTrigger>
+            <TabsTrigger value="checkins">Event Check-ins</TabsTrigger>
+            <TabsTrigger value="employees">Employees</TabsTrigger>
+            <TabsTrigger value="venues">Venues</TabsTrigger>
+            <TabsTrigger value="reports">Reports</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            </TabsList>
+        </div>
         <TabsContent value="requests">
           <Card>
             <CardHeader><CardTitle>Perdiem Requests</CardTitle><CardDescription>Overview of all submitted per diem requests.</CardDescription></CardHeader>
-            <CardContent>
+            <CardContent className="overflow-x-auto">
               <Table>
                 <TableHeader><TableRow><TableHead>Employee</TableHead><TableHead>Event</TableHead><TableHead>Status</TableHead><TableHead className="hidden md:table-cell">Date</TableHead><TableHead className="text-right">Amount</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
                 <TableBody>
@@ -484,7 +486,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                       <TableCell>{request.eventName}</TableCell>
                       <TableCell><Badge variant={request.status === "Approved" ? "secondary" : request.status === "Pending" ? "outline" : request.status === "Paid" ? "default" : "destructive"}>{request.status}</Badge></TableCell>
                       <TableCell className="hidden md:table-cell">{request.date}</TableCell>
-                      <TableCell className="text-right">Ksh {request.totalPerdiem.toLocaleString()}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">Ksh {request.totalPerdiem.toLocaleString()}</TableCell>
                        <TableCell>
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -518,11 +520,11 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
 
         <TabsContent value="events">
            <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div><CardTitle>Events</CardTitle><CardDescription>Manage upcoming and past events.</CardDescription></div>
                 <Dialog open={isEventDialogOpen} onOpenChange={setIsEventDialogOpen}>
                     <DialogTrigger asChild>
-                        <Button size="sm" onClick={() => handleOpenEventDialog()}>
+                        <Button size="sm" onClick={() => handleOpenEventDialog()} className="w-full md:w-auto">
                             <PlusCircle className="mr-2 h-4 w-4" />Add Event
                         </Button>
                     </DialogTrigger>
@@ -535,12 +537,12 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                         </DialogHeader>
                         <div className="flex-1 overflow-y-auto pr-6 -mr-6">
                             <div className="grid gap-6 py-4">
-                                <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="event-name" className="text-right">Name</Label>
+                                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="event-name" className="text-left sm:text-right">Name</Label>
                                     <Input id="event-name" value={eventFormData.name} onChange={(e) => setEventFormData({ ...eventFormData, name: e.target.value })} className="col-span-3" />
                                 </div>
-                                <div className="grid grid-cols-4 items-start gap-4">
-                                    <Label htmlFor="event-date" className="text-right pt-2">Event Dates</Label>
+                                <div className="grid grid-cols-1 sm:grid-cols-4 items-start gap-4">
+                                    <Label htmlFor="event-date" className="text-left sm:text-right pt-2">Event Dates</Label>
                                     <div className="col-span-3">
                                         <Calendar
                                             mode="multiple"
@@ -553,19 +555,19 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                         </p>
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="event-venue" className="text-right">Venue</Label>
+                                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="event-venue" className="text-left sm:text-right">Venue</Label>
                                     <Select value={eventFormData.venueId} onValueChange={(value) => setEventFormData({ ...eventFormData, venueId: value })}>
                                         <SelectTrigger className="col-span-3"><SelectValue placeholder="Select a venue" /></SelectTrigger>
                                         <SelectContent>{venues.map((v) => (<SelectItem key={v.id} value={v.id}>{v.name} ({v.city})</SelectItem>))}</SelectContent>
                                     </Select>
                                 </div>
-                                <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="event-facilitator" className="text-right">Facilitator</Label>
+                                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="event-facilitator" className="text-left sm:text-right">Facilitator</Label>
                                     <Input id="event-facilitator" value={eventFormData.facilitator} onChange={(e) => setEventFormData({ ...eventFormData, facilitator: e.target.value })} className="col-span-3" />
                                 </div>
-                                <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label className="text-right">Assign Employees</Label>
+                                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                                    <Label className="text-left sm:text-right">Assign Employees</Label>
                                     <Popover open={isEmployeeSelectOpen} onOpenChange={setEmployeeSelectOpen}>
                                         <PopoverTrigger asChild>
                                             <Button variant="outline" className="col-span-3 justify-start text-left font-normal">
@@ -622,7 +624,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                     </DialogContent>
                 </Dialog>
             </CardHeader>
-            <CardContent>
+            <CardContent className="overflow-x-auto">
                 <Table>
                     <TableHeader><TableRow><TableHead>Event Name</TableHead><TableHead>Venue</TableHead><TableHead>Dates</TableHead><TableHead>Assigned</TableHead><TableHead>Attendance</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
                     <TableBody>
@@ -634,7 +636,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                 <TableRow key={event.id}>
                                     <TableCell className="font-medium">{event.name}</TableCell>
                                     <TableCell>{event.venueName}</TableCell>
-                                    <TableCell>{(event.eventDates || []).join(', ')}</TableCell>
+                                    <TableCell className="whitespace-nowrap">{(event.eventDates || []).join(', ')}</TableCell>
                                     <TableCell>{event.allocatedEmployees.length}</TableCell>
                                     <TableCell>{getTotalCheckinsForEvent(event)}</TableCell>
                                     <TableCell>
@@ -672,11 +674,13 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                 <CardContent>
                     {activeEvents.length > 0 ? (
                         <Tabs defaultValue={activeEvents[0].id}>
-                            <TabsList>
-                                {activeEvents.map(event => (
-                                    <TabsTrigger key={event.id} value={event.id}>{event.name}</TabsTrigger>
-                                ))}
-                            </TabsList>
+                             <div className="overflow-x-auto pb-2">
+                                <TabsList>
+                                    {activeEvents.map(event => (
+                                        <TabsTrigger key={event.id} value={event.id}>{event.name}</TabsTrigger>
+                                    ))}
+                                </TabsList>
+                             </div>
                             {activeEvents.map(event => {
                                 const eventDays = getEventDays(event);
                                 const allocatedEmployees = employees.filter(emp => event.allocatedEmployees.includes(emp.id));
@@ -684,12 +688,12 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                 return (
                                     <TabsContent key={event.id} value={event.id}>
                                         <Card>
-                                            <CardHeader className="flex flex-row items-center justify-between">
+                                            <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                                                 <div>
                                                     <CardTitle>{event.name} Attendance</CardTitle>
                                                     <CardDescription>Venue: {event.venueName}, {event.venueCity}</CardDescription>
                                                 </div>
-                                                <Button onClick={() => handleDownloadCheckinReport(event)} size="sm">
+                                                <Button onClick={() => handleDownloadCheckinReport(event)} size="sm" className="w-full md:w-auto">
                                                     <Download className="mr-2 h-4 w-4" />
                                                     Download CSV
                                                 </Button>
@@ -701,14 +705,14 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                                             <TableRow>
                                                                 <TableHead>Employee</TableHead>
                                                                 {eventDays.map(day => (
-                                                                    <TableHead key={format(day, 'yyyy-MM-dd')} className="text-center">{format(day, 'MMM d')}</TableHead>
+                                                                    <TableHead key={format(day, 'yyyy-MM-dd')} className="text-center whitespace-nowrap">{format(day, 'MMM d')}</TableHead>
                                                                 ))}
                                                             </TableRow>
                                                         </TableHeader>
                                                         <TableBody>
                                                             {allocatedEmployees.map(employee => (
                                                                 <TableRow key={employee.id}>
-                                                                    <TableCell>{employee.name}</TableCell>
+                                                                    <TableCell className="whitespace-nowrap">{employee.name}</TableCell>
                                                                     {eventDays.map(day => {
                                                                         const dateString = format(day, 'yyyy-MM-dd');
                                                                         const isCheckedIn = !!event.checkedInEmployees?.[employee.id]?.[dateString];
@@ -739,14 +743,14 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         <TabsContent value="employees">
           <Card>
             <CardHeader><CardTitle>Employees</CardTitle><CardDescription>A list of all registered employees.</CardDescription></CardHeader>
-            <CardContent>
+            <CardContent className="overflow-x-auto">
               <Table>
                 <TableHeader><TableRow><TableHead className="hidden w-[100px] sm:table-cell"><span className="sr-only">Image</span></TableHead><TableHead>Name</TableHead><TableHead>Role</TableHead><TableHead className="hidden md:table-cell">Duty Station</TableHead><TableHead className="hidden md:table-cell">Job Group</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
                 <TableBody>
                    {loading ? <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading employees...</TableCell></TableRow> : employees.map(employee => (
                     <TableRow key={employee.id}>
                       <TableCell className="hidden sm:table-cell"><Image alt="Employee avatar" className="aspect-square rounded-full object-cover" height="40" src={employee.avatarUrl} width="40" data-ai-hint="person portrait"/></TableCell>
-                      <TableCell className="font-medium">{employee.name}<div className="text-sm text-muted-foreground">{employee.employeeNumber}</div></TableCell>
+                      <TableCell className="font-medium whitespace-nowrap">{employee.name}<div className="text-sm text-muted-foreground">{employee.employeeNumber}</div></TableCell>
                       <TableCell>{employee.role}</TableCell>
                       <TableCell className="hidden md:table-cell">{employee.dutyStation}</TableCell>
                       <TableCell className="hidden md:table-cell">{employee.jobGroup}</TableCell>
@@ -776,9 +780,9 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
 
         <TabsContent value="venues">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div><CardTitle>Venues</CardTitle><CardDescription>A list of all registered venues.</CardDescription></div>
-               <Dialog open={isAddVenueOpen} onOpenChange={setIsAddVenueOpen}><DialogTrigger asChild><Button size="sm"><PlusCircle className="mr-2 h-4 w-4" />Add Venue</Button></DialogTrigger>
+               <Dialog open={isAddVenueOpen} onOpenChange={setIsAddVenueOpen}><DialogTrigger asChild><Button size="sm" className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4" />Add Venue</Button></DialogTrigger>
                 <DialogContent><DialogHeader><DialogTitle>Add New Venue</DialogTitle><DialogDescription>Enter the details for the new venue.</DialogDescription></DialogHeader>
                   <div className="grid gap-4 py-4"><div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="venue-name" className="text-right">Name</Label><Input id="venue-name" value={newVenue.name} onChange={(e) => setNewVenue({ ...newVenue, name: e.target.value })} className="col-span-3"/></div>
                     <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="venue-county" className="text-right">County</Label><Select value={newVenue.county} onValueChange={(value) => setNewVenue({ ...newVenue, county: value })}><SelectTrigger className="col-span-3"><SelectValue placeholder="Select a county" /></SelectTrigger><SelectContent>{kenyanCounties.map(county => (<SelectItem key={county} value={county}>{county}</SelectItem>))}</SelectContent></Select></div>
@@ -790,7 +794,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                 </DialogContent>
               </Dialog>
             </CardHeader>
-            <CardContent>
+            <CardContent className="overflow-x-auto">
               <Table>
                 <TableHeader><TableRow><TableHead>Venue Name</TableHead><TableHead>City</TableHead><TableHead>County</TableHead><TableHead>Coordinates</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
                 <TableBody>
@@ -799,7 +803,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                       <TableCell className="font-medium">{venue.name}</TableCell>
                       <TableCell>{venue.city}</TableCell>
                       <TableCell>{venue.county}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{venue.latitude.toFixed(4)}, {venue.longitude.toFixed(4)}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{venue.latitude.toFixed(4)}, {venue.longitude.toFixed(4)}</TableCell>
                        <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -887,10 +891,12 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
 
                     {/* Reports Sub-tabs */}
                     <Tabs defaultValue="approved">
-                        <TabsList>
-                            <TabsTrigger value="approved">Approved</TabsTrigger>
-                            <TabsTrigger value="paid">Paid</TabsTrigger>
-                        </TabsList>
+                        <div className="overflow-x-auto pb-2">
+                            <TabsList>
+                                <TabsTrigger value="approved">Approved</TabsTrigger>
+                                <TabsTrigger value="paid">Paid</TabsTrigger>
+                            </TabsList>
+                        </div>
                         
                         <TabsContent value="approved">
                            <ReportTabContent 
@@ -1025,7 +1031,7 @@ function ReportTabContent({ title, data, loading, onDownload }: { title: string,
                     Download CSV
                 </Button>
             </CardHeader>
-            <CardContent>
+            <CardContent className="overflow-x-auto">
                  <Table>
                     <TableHeader><TableRow><TableHead>Employee</TableHead><TableHead>Event</TableHead><TableHead>Status</TableHead><TableHead>Date</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
                     <TableBody>
@@ -1038,8 +1044,8 @@ function ReportTabContent({ title, data, loading, onDownload }: { title: string,
                         <TableCell>{request.employeeName}</TableCell>
                         <TableCell>{request.eventName}</TableCell>
                         <TableCell><Badge variant={request.status === "Approved" ? "secondary" : "default"}>{request.status}</Badge></TableCell>
-                        <TableCell>{request.date}</TableCell>
-                        <TableCell className="text-right">Ksh {request.totalPerdiem.toLocaleString()}</TableCell>
+                        <TableCell className="whitespace-nowrap">{request.date}</TableCell>
+                        <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.totalPerdiem)}</TableCell>
                         </TableRow>
                     ))}
                     </TableBody>
@@ -1112,7 +1118,7 @@ function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[]
             <CardDescription>All per diem requests submitted.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-4xl font-bold">{chartData.requestsCount}</p>
+            <p className="text-3xl md:text-4xl font-bold">{chartData.requestsCount}</p>
           </CardContent>
         </Card>
         <Card>
@@ -1121,7 +1127,7 @@ function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[]
             <CardDescription>The total amount for all paid per diems.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-4xl font-bold">{formatCurrency(chartData.totalPaid)}</p>
+            <p className="text-3xl md:text-4xl font-bold">{formatCurrency(chartData.totalPaid)}</p>
           </CardContent>
         </Card>
       </div>

@@ -372,11 +372,11 @@ function RegistrationWizard() {
                 </div>
             </div>
           </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button variant="ghost" asChild>
+          <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-4">
+            <Button variant="ghost" asChild className="w-full sm:w-auto">
                 <Link href="/">Cancel</Link>
             </Button>
-            <Button type="submit">
+            <Button type="submit" className="w-full sm:w-auto">
               Submit Registration
             </Button>
           </CardFooter>
