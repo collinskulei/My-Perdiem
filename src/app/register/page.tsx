@@ -200,6 +200,16 @@ function RegistrationWizard() {
     "employee4@example.com",
     "admin@example.com",
     "admin2@example.com",
+    "outreach@health.org",
+    "wellness@health.org",
+    "community@health.org",
+    "training@health.org",
+    "education@health.org",
+    "research@health.org",
+    "innovation@health.org",
+    "telemedicine@health.org",
+    "patientcare@health.org",
+    "appointments@health.org"
   ];
 
   return (
