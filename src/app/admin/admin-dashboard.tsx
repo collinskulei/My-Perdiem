@@ -68,6 +68,7 @@ import {
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { PerdiemRequest, Venue, Employee, AppEvent } from "@/lib/data";
 import { dutyStationCoordinates } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
@@ -1347,3 +1348,4 @@ function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[]
     </div>
   );
 }
+
