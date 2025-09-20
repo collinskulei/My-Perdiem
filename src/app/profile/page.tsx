@@ -30,7 +30,7 @@ import app from "@/lib/firebase/config";
 import { Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-const dataProvider = isTestMode() ? mock : firestore;
+const dataProvider = mock;
 const auth = getAuth(app);
 const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
 
@@ -271,3 +271,6 @@ export default function ProfilePage() {
         </Suspense>
     );
 }
+
+
+    

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -49,7 +50,7 @@ import { Label } from "@/components/ui/label";
 import { ClientOnly } from "@/components/client-only";
 
 
-const dataProvider = getIsTestMode() ? mock : firestore;
+const dataProvider = mock;
 const auth = getAuth(app);
 const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
 
@@ -667,3 +668,6 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
     </>
   );
 }
+
+
+    

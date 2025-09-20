@@ -30,7 +30,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, ArrowLeft, ArrowRight, Info, Upload, File as FileIcon, X } from "lucide-react";
 
 
-const dataProvider = isTestMode() ? mock : firestore;
+const dataProvider = mock;
 const auth = getAuth(app);
 const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
 
@@ -138,7 +138,7 @@ function PerDiemWizard() {
 
     const prevStep = () => {
         if (currentStep > 0) {
-            setCurrentStep(step => step - 1);
+            setCurrentStep(step => step + 1);
         }
     };
 
@@ -476,3 +476,6 @@ const SummaryItem = ({ label, value }: { label: string, value: string | number }
         <p className="font-medium text-left sm:text-right">{value}</p>
     </div>
 );
+
+
+    

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -78,7 +79,7 @@ import { isTestMode } from '@/lib/test-mode';
 import { cn, formatCurrency } from "@/lib/utils";
 import { ClientOnly } from "@/components/client-only";
 
-const dataProvider = isTestMode() ? mock : firestore;
+const dataProvider = mock;
 
 const kenyanCounties = [
     "Mombasa", "Kwale", "Kilifi", "Tana River", "Lamu", "Taita-Taveta", "Garissa", "Wajir",
@@ -1349,3 +1350,6 @@ function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[]
   );
 }
 
+
+
+    

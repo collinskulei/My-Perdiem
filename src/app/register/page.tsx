@@ -38,7 +38,7 @@ import type { EmployeeData } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import app from "@/lib/firebase/config";
 
-const dataProvider = isTestMode() ? mock : firestore;
+const dataProvider = mock;
 const auth = getAuth(app);
 
 
@@ -403,5 +403,8 @@ export default function RegistrationPage() {
         </Suspense>
     );
 }
+
+    
+
 
     

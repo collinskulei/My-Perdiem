@@ -38,7 +38,7 @@ function HealthCheck() {
   const [currentUser, setCurrentUser] = useState<User | MockUser | null>(null);
   const [testMode, setTestMode] = useState(false);
   
-  const dataProvider = isTestMode() ? mock : firestore;
+  const dataProvider = mock;
 
 
   useEffect(() => {
@@ -183,3 +183,6 @@ export default function HealthCheckPage() {
         </Suspense>
     );
 }
+
+
+    
