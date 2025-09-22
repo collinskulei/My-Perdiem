@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 export function Logo({ className }: { className?: string }) {
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      <h1 className="text-2xl font-bold text-primary-foreground">PerdiemPro</h1>
+      <h1 className="text-2xl font-bold text-primary-foreground">My Perdiem</h1>
     </div>
   );
 }
