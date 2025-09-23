@@ -287,6 +287,10 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
     setIsEventDialogOpen(true);
   };
   
+  const handleOpenQrDialog = (event: AppEvent) => {
+      setSuccessDialogData({ title: event.name, eventId: event.id });
+      setIsSuccessDialogOpen(true);
+  }
 
   const handleSaveEvent = async () => {
     const selectedVenue = venues.find(v => v.id === eventFormData.venueId);
@@ -717,6 +721,9 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                                     <DropdownMenuItem onSelect={() => handleOpenEventDialog(event)} disabled={isEventPast}>
                                                         Edit
                                                     </DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => handleOpenQrDialog(event)}>
+                                                        Generate QR Code
+                                                    </DropdownMenuItem>
                                                     <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
@@ -745,6 +752,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                             <DropdownMenuContent align="end">
                                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                                 <DropdownMenuItem onSelect={() => handleOpenEventDialog(event)} disabled={isEventPast}>Edit</DropdownMenuItem>
+                                                <DropdownMenuItem onSelect={() => handleOpenQrDialog(event)}>Generate QR Code</DropdownMenuItem>
                                                 <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
@@ -1376,13 +1384,28 @@ function SuccessDialog({ isOpen, onClose, eventName, eventId }: { isOpen: boolea
     const downloadQRCode = () => {
         const canvas = qrCodeRef.current?.querySelector('canvas');
         if (canvas) {
-            const pngUrl = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
-            let downloadLink = document.createElement("a");
-            downloadLink.href = pngUrl;
-            downloadLink.download = `${eventName.replace(/\s+/g, '_').toLowerCase()}_qr_code.png`;
-            document.body.appendChild(downloadLink);
-            downloadLink.click();
-            document.body.removeChild(downloadLink);
+            // Create a new canvas with padding
+            const padding = 10;
+            const newCanvas = document.createElement('canvas');
+            newCanvas.width = canvas.width + padding * 2;
+            newCanvas.height = canvas.height + padding * 2;
+            const ctx = newCanvas.getContext('2d');
+            
+            if (ctx) {
+                // Fill background with white
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, newCanvas.width, newCanvas.height);
+                // Draw the QR code canvas onto the new canvas with padding
+                ctx.drawImage(canvas, padding, padding);
+
+                const pngUrl = newCanvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+                let downloadLink = document.createElement("a");
+                downloadLink.href = pngUrl;
+                downloadLink.download = `${eventName.replace(/\s+/g, '_').toLowerCase()}_qr_code.png`;
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+            }
         }
     };
 
@@ -1390,7 +1413,7 @@ function SuccessDialog({ isOpen, onClose, eventName, eventId }: { isOpen: boolea
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle className="text-center">Event Saved Successfully!</DialogTitle>
+                    <DialogTitle className="text-center">Event QR Code</DialogTitle>
                     <DialogDescription className="text-center">Share this QR code with employees for easy check-in.</DialogDescription>
                 </DialogHeader>
                 <div className="flex flex-col items-center justify-center gap-4 py-4">
