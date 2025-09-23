@@ -20,6 +20,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/logo";
@@ -50,6 +51,7 @@ const auth = getAuth(app);
 function RegistrationWizard() {
   const [role, setRole] = useState("employee");
   const [formData, setFormData] = useState<Partial<EmployeeData & { password?: string, confirmPassword?: string, organizationName?: string, dateOfBirth?: string, phone?: string }>>({});
+  const [isAgreed, setIsAgreed] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -80,6 +82,11 @@ function RegistrationWizard() {
     e.preventDefault();
 
     // --- Form Validation ---
+     if (!isAgreed) {
+      toast({ title: "Agreement Required", description: "You must agree to the terms and conditions and privacy policy to register.", variant: "destructive" });
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       toast({ title: "Passwords do not match", description: "Please ensure your passwords match.", variant: "destructive" });
       return;
@@ -381,12 +388,31 @@ function RegistrationWizard() {
                     <Input id="confirmPassword" type="password" required onChange={handleInputChange} />
                 </div>
             </div>
+            <div className="items-top flex space-x-2">
+                <Checkbox id="terms" checked={isAgreed} onCheckedChange={(checked) => setIsAgreed(checked as boolean)} />
+                <div className="grid gap-1.5 leading-none">
+                    <label
+                    htmlFor="terms"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                    I agree to the{" "}
+                    <Link href="#" className="underline">
+                        terms and conditions
+                    </Link>{" "}
+                    and{" "}
+                    <Link href="#" className="underline">
+                        privacy policy
+                    </Link>
+                    .
+                    </label>
+                </div>
+            </div>
           </CardContent>
           <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-4">
             <Button variant="ghost" asChild className="w-full sm:w-auto">
                 <Link href="/">Cancel</Link>
             </Button>
-            <Button type="submit" className="w-full sm:w-auto">
+            <Button type="submit" className="w-full sm:w-auto" disabled={!isAgreed}>
               Submit Registration
             </Button>
           </CardFooter>
@@ -403,8 +429,4 @@ export default function RegistrationPage() {
         </Suspense>
     );
 }
-
-    
-
-
     
