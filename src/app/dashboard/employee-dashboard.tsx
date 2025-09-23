@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -19,6 +17,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -49,6 +55,7 @@ import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ClientOnly } from "@/components/client-only";
+import { Input } from "@/components/ui/input";
 
 
 const dataProvider = mock;
@@ -65,6 +72,7 @@ const ANALYTICS_COLORS = {
   Approved: '#10b981', // emerald-500
   Paid: '#3b82f6', // blue-500
   Rejected: '#ef4444', // red-500
+  Confirmed: '#22c55e', // green-500
 };
 
 export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
@@ -82,6 +90,11 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
   const [activeTab, setActiveTab] = useState(currentTab);
   const [isTestMode, setIsTestMode] = useState(false);
   const [bypassLocationCheck, setBypassLocationCheck] = useState(true);
+
+  // State for Confirm Payment dialog
+  const [isConfirmingPayment, setIsConfirmingPayment] = useState(false);
+  const [confirmingRequest, setConfirmingRequest] = useState<PerdiemRequest | null>(null);
+  const [confirmMpesaCode, setConfirmMpesaCode] = useState("");
 
   const { latitude, longitude, error: geoError, getPosition, loading: geoLoading } = useGeolocation();
 
@@ -293,6 +306,43 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
   const totalPaid = useMemo(() => userRequests
     .filter(req => req.status === 'Paid')
     .reduce((sum, req) => sum + req.totalPerdiem, 0), [userRequests]);
+
+  const handleOpenConfirmDialog = (request: PerdiemRequest) => {
+    setConfirmingRequest(request);
+    setConfirmMpesaCode("");
+    setIsConfirmingPayment(true);
+  };
+
+  const handleConfirmPayment = async () => {
+    if (!confirmingRequest || !confirmMpesaCode) {
+      toast({ title: "Missing Code", description: "Please enter the M-Pesa transaction code.", variant: "destructive" });
+      return;
+    }
+    if (confirmingRequest.mpesaTransactionCode !== confirmMpesaCode) {
+        toast({ title: "Incorrect Code", description: "The transaction code does not match.", variant: "destructive" });
+        return;
+    }
+
+    try {
+      await dataProvider.updatePerDiemRequest(confirmingRequest.id, { status: 'Confirmed' });
+      setUserRequests(prev => prev.map(req => req.id === confirmingRequest.id ? { ...req, status: 'Confirmed' } : req));
+      toast({ title: "Payment Confirmed", description: "Thank you for confirming receipt of payment." });
+      setIsConfirmingPayment(false);
+    } catch (error) {
+      toast({ title: "Error", description: "Could not confirm payment.", variant: "destructive" });
+    }
+  };
+
+  const getBadgeVariant = (status: PerdiemRequest['status']) => {
+    switch (status) {
+        case 'Pending': return 'outline';
+        case 'Approved': return 'secondary';
+        case 'Paid': return 'default';
+        case 'Confirmed': return 'success';
+        case 'Rejected': return 'destructive';
+        default: return 'outline';
+    }
+   };
 
 
   return (
@@ -568,13 +618,14 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                             <TableHead>Status</TableHead>
                             <TableHead>Date Submitted</TableHead>
                             <TableHead className="text-right">Amount</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {loading ? (
-                            <TableRow><TableCell colSpan={4} className="h-24 text-center">Loading your requests...</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={5} className="h-24 text-center">Loading your requests...</TableCell></TableRow>
                             ) : userRequests.length === 0 ? (
-                            <TableRow><TableCell colSpan={4} className="h-24 text-center">You have not submitted any requests.</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={5} className="h-24 text-center">You have not submitted any requests.</TableCell></TableRow>
                             ) : userRequests.map((request) => (
                             <TableRow key={request.id}>
                                 <TableCell>
@@ -582,10 +633,15 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                 <div className="text-sm text-muted-foreground">{request.location}</div>
                                 </TableCell>
                                 <TableCell>
-                                <Badge variant={request.status === "Approved" ? "secondary" : request.status === "Pending" ? "outline" : request.status === "Paid" ? "default" : "destructive"}>{request.status}</Badge>
+                                    <Badge variant={getBadgeVariant(request.status)}>{request.status}</Badge>
                                 </TableCell>
                                 <TableCell className="whitespace-nowrap">{format(parseISO(request.date), 'PPP')}</TableCell>
                                 <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.totalPerdiem)}</TableCell>
+                                <TableCell className="text-right">
+                                    {request.status === 'Paid' && (
+                                        <Button size="sm" onClick={() => handleOpenConfirmDialog(request)}>Confirm Payment</Button>
+                                    )}
+                                </TableCell>
                             </TableRow>
                             ))}
                         </TableBody>
@@ -603,7 +659,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                 <CardContent className="text-sm space-y-2">
                                      <div className="flex justify-between">
                                         <span className="text-muted-foreground">Status:</span>
-                                        <Badge variant={request.status === "Approved" ? "secondary" : request.status === "Pending" ? "outline" : request.status === "Paid" ? "default" : "destructive"}>{request.status}</Badge>
+                                        <Badge variant={getBadgeVariant(request.status)}>{request.status}</Badge>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Date:</span>
@@ -614,6 +670,11 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                         <span className="font-semibold text-lg">{formatCurrency(request.totalPerdiem)}</span>
                                     </div>
                                 </CardContent>
+                                {request.status === 'Paid' && (
+                                    <CardFooter>
+                                        <Button size="sm" className="w-full" onClick={() => handleOpenConfirmDialog(request)}>Confirm Payment</Button>
+                                    </CardFooter>
+                                )}
                              </Card>
                         ))}
                      </div>
@@ -676,6 +737,35 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
         </Tabs>
         </ClientOnly>
       </div>
+
+       <Dialog open={isConfirmingPayment} onOpenChange={setIsConfirmingPayment}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Confirm Payment Received</DialogTitle>
+                <DialogDescription>
+                    Please enter the M-Pesa transaction code to confirm you have received this payment.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="confirm-mpesa-code" className="text-right">
+                    M-Pesa Code
+                    </Label>
+                    <Input
+                    id="confirm-mpesa-code"
+                    value={confirmMpesaCode}
+                    onChange={(e) => setConfirmMpesaCode(e.target.value.toUpperCase())}
+                    className="col-span-3"
+                    placeholder="e.g., SDE8A4D2F1"
+                    />
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsConfirmingPayment(false)}>Cancel</Button>
+                <Button onClick={handleConfirmPayment}>Confirm</Button>
+            </DialogFooter>
+        </DialogContent>
+        </Dialog>
     </>
   );
 }

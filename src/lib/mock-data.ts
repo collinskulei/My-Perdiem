@@ -194,6 +194,7 @@ const initialPerDiemRequests: PerdiemRequest[] = [
         location: 'Nairobi',
         date: formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 9)),
         status: 'Paid',
+        mpesaTransactionCode: 'ABC123XYZ',
         accommodationNights: 2,
         accommodationTotal: 10000,
         outOfOfficeAllowance: 8000,

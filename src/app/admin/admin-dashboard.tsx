@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
@@ -162,6 +160,11 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
   const [successDialogData, setSuccessDialogData] = useState<{ event: AppEvent; } | null>(null);
 
+  // Mark as Paid Dialog
+  const [isPaidDialogOpen, setIsPaidDialogOpen] = useState(false);
+  const [paidRequest, setPaidRequest] = useState<PerdiemRequest | null>(null);
+  const [mpesaCode, setMpesaCode] = useState("");
+
 
   // Filters for reports
   const [filters, setFilters] = useState<{
@@ -307,7 +310,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
 
     const formattedDates = eventDates.map(date => format(date, 'yyyy-MM-dd')).sort();
 
-    const eventData: EventData = {
+    const eventData = {
         name: eventFormData.name,
         eventDates: formattedDates,
         venueId: eventFormData.venueId,
@@ -378,7 +381,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   };
 
 
-  const updateRequestStatus = useCallback(async (requestId: string, status: 'Approved' | 'Rejected' | 'Paid') => {
+  const updateRequestStatus = useCallback(async (requestId: string, status: 'Approved' | 'Rejected') => {
     try {
       await dataProvider.updatePerDiemRequest(requestId, { status });
       setPerdiemRequests(prev => prev.map(req => req.id === requestId ? { ...req, status } : req));
@@ -388,6 +391,31 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
       toast({ title: "Error", description: "Failed to update request status.", variant: "destructive" });
     }
   }, [toast]);
+
+  const handleOpenPaidDialog = (request: PerdiemRequest) => {
+    setPaidRequest(request);
+    setMpesaCode("");
+    setIsPaidDialogOpen(true);
+  };
+
+  const handleConfirmPaid = async () => {
+    if (!paidRequest || !mpesaCode) {
+      toast({ title: "Missing Code", description: "Please enter the M-Pesa transaction code.", variant: "destructive" });
+      return;
+    }
+    try {
+      await dataProvider.updatePerDiemRequest(paidRequest.id, { 
+        status: 'Paid', 
+        mpesaTransactionCode: mpesaCode 
+      });
+      setPerdiemRequests(prev => prev.map(req => req.id === paidRequest.id ? { ...req, status: 'Paid', mpesaTransactionCode: mpesaCode } : req));
+      toast({ title: "Success", description: `Request marked as Paid.` });
+      setIsPaidDialogOpen(false);
+    } catch (error) {
+      console.error(`Error marking request as paid ${paidRequest.id}:`, error);
+      toast({ title: "Error", description: "Failed to update request status.", variant: "destructive" });
+    }
+  };
 
 
   const handleDownloadPerDiemReport = (dataToDownload: PerdiemRequest[], reportName: string) => {
@@ -410,12 +438,12 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
     const columns = [
         "date", "employeeName", "eventName", "eventStartDate", "eventEndDate", "eventFacilitator",
         "eventAttendance", "location", "mileageTotal", "accommodationTotal", "outOfOfficeAllowance", 
-        "totalPerdiem", "status"
+        "totalPerdiem", "status", "mpesaTransactionCode"
     ];
     const columnHeaders = [
         "Request Date", "Employee Name", "Event", "Event Start", "Event End", "Facilitator",
         "Attendance (Days)", "Location", "Mileage (Ksh)", "Accommodation (Ksh)", "Allowance (Ksh)",
-        "Total Amount (Ksh)", "Status"
+        "Total Amount (Ksh)", "Status", "M-Pesa Code"
     ];
     const csvData = toCSV(detailedData, columns, columnHeaders);
     downloadCSV(csvData, `${reportName}_report.csv`);
@@ -490,6 +518,17 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
     return isWithinInterval(today, { start: startDate, end: endOfDay(endDate) });
   });
 
+  const getBadgeVariant = (status: PerdiemRequest['status']) => {
+    switch (status) {
+        case 'Pending': return 'outline';
+        case 'Approved': return 'secondary';
+        case 'Paid': return 'default';
+        case 'Confirmed': return 'success';
+        case 'Rejected': return 'destructive';
+        default: return 'outline';
+    }
+   };
+
   return (
     <>
     <div className="grid flex-1 items-start gap-4">
@@ -523,7 +562,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                         <TableRow key={request.id}>
                         <TableCell><div className="font-medium">{request.employeeName}</div><div className="text-sm text-muted-foreground">ID: {request.employeeId}</div></TableCell>
                         <TableCell>{request.eventName}</TableCell>
-                        <TableCell><Badge variant={request.status === "Approved" ? "secondary" : request.status === "Pending" ? "outline" : request.status === "Paid" ? "default" : "destructive"}>{request.status}</Badge></TableCell>
+                        <TableCell><Badge variant={getBadgeVariant(request.status)}>{request.status}</Badge></TableCell>
                         <TableCell>{request.date}</TableCell>
                         <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.totalPerdiem)}</TableCell>
                         <TableCell>
@@ -536,13 +575,13 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
                                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                        <DropdownMenuItem onSelect={() => updateRequestStatus(request.id, 'Approved')} disabled={request.status === 'Approved' || request.status === 'Paid'}>
+                                        <DropdownMenuItem onSelect={() => updateRequestStatus(request.id, 'Approved')} disabled={request.status !== 'Pending'}>
                                             Approve
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onSelect={() => updateRequestStatus(request.id, 'Paid')} disabled={request.status !== 'Approved'}>
+                                        <DropdownMenuItem onSelect={() => handleOpenPaidDialog(request)} disabled={request.status !== 'Approved'}>
                                             Mark as Paid
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onSelect={() => updateRequestStatus(request.id, 'Rejected')} disabled={request.status === 'Rejected'}>
+                                        <DropdownMenuItem onSelect={() => updateRequestStatus(request.id, 'Rejected')} disabled={request.status === 'Rejected' || request.status === 'Paid' || request.status === 'Confirmed'}>
                                             Reject
                                         </DropdownMenuItem>
                                         <DropdownMenuItem>View Details</DropdownMenuItem>
@@ -575,9 +614,9 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
                                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                        <DropdownMenuItem onSelect={() => updateRequestStatus(request.id, 'Approved')} disabled={request.status === 'Approved' || request.status === 'Paid'}>Approve</DropdownMenuItem>
-                                        <DropdownMenuItem onSelect={() => updateRequestStatus(request.id, 'Paid')} disabled={request.status !== 'Approved'}>Mark as Paid</DropdownMenuItem>
-                                        <DropdownMenuItem onSelect={() => updateRequestStatus(request.id, 'Rejected')} disabled={request.status === 'Rejected'}>Reject</DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => updateRequestStatus(request.id, 'Approved')} disabled={request.status !== 'Pending'}>Approve</DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => handleOpenPaidDialog(request)} disabled={request.status !== 'Approved'}>Mark as Paid</DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => updateRequestStatus(request.id, 'Rejected')} disabled={request.status === 'Rejected' || request.status === 'Paid' || request.status === 'Confirmed'}>Reject</DropdownMenuItem>
                                         <DropdownMenuItem>View Details</DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
@@ -586,7 +625,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                         <CardContent className="text-sm space-y-2">
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Status:</span>
-                                <Badge variant={request.status === "Approved" ? "secondary" : request.status === "Pending" ? "outline" : request.status === "Paid" ? "default" : "destructive"}>{request.status}</Badge>
+                                <Badge variant={getBadgeVariant(request.status)}>{request.status}</Badge>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Date:</span>
@@ -1219,6 +1258,34 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         onClose={() => setIsSuccessDialogOpen(false)}
         event={successDialogData?.event}
     />
+    <Dialog open={isPaidDialogOpen} onOpenChange={setIsPaidDialogOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Mark as Paid</DialogTitle>
+          <DialogDescription>
+            Enter the M-Pesa transaction code to confirm payment for this per diem request.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="mpesa-code" className="text-right">
+              M-Pesa Code
+            </Label>
+            <Input
+              id="mpesa-code"
+              value={mpesaCode}
+              onChange={(e) => setMpesaCode(e.target.value.toUpperCase())}
+              className="col-span-3"
+              placeholder="e.g., SDE8A4D2F1"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setIsPaidDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleConfirmPaid}>Confirm Payment</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </>
   );
 }
@@ -1320,6 +1387,7 @@ function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[]
       Approved: '#10b981',
       Paid: '#3b82f6',
       Rejected: '#ef4444',
+      Confirmed: '#22c55e',
     };
 
     return { pieChartData, last30Days, totalPaid, requestsCount: requests.length, COLORS };
@@ -1479,5 +1547,6 @@ function SuccessDialog({ isOpen, onClose, event }: { isOpen: boolean; onClose: (
 }
 
     
+
 
 
