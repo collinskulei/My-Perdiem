@@ -154,7 +154,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
 
   // QR Code Success Dialog
   const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
-  const [successDialogData, setSuccessDialogData] = useState<{ title: string; eventId: string; } | null>(null);
+  const [successDialogData, setSuccessDialogData] = useState<{ event: AppEvent; } | null>(null);
 
 
   // Filters for reports
@@ -288,7 +288,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   };
   
   const handleOpenQrDialog = (event: AppEvent) => {
-      setSuccessDialogData({ title: event.name, eventId: event.id });
+      setSuccessDialogData({ event });
       setIsSuccessDialogOpen(true);
   }
 
@@ -301,7 +301,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
 
     const formattedDates = eventDates.map(date => format(date, 'yyyy-MM-dd')).sort();
 
-    const eventData = {
+    const eventData: EventData = {
         name: eventFormData.name,
         eventDates: formattedDates,
         venueId: eventFormData.venueId,
@@ -313,13 +313,16 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
     
     try {
       let eventId = editingEvent?.id;
+      let finalEvent: AppEvent;
       if (editingEvent) {
         // Update existing event
         await dataProvider.updateEvent(editingEvent.id, eventData);
+        finalEvent = { ...editingEvent, ...eventData };
         toast({ title: "Success", description: "Event updated successfully." });
       } else {
         // Add new event
         eventId = await dataProvider.addEvent(eventData);
+        finalEvent = { id: eventId, ...eventData };
         toast({ title: "Success", description: "Event created successfully." });
       }
       setIsEventDialogOpen(false);
@@ -327,7 +330,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
 
       // Open success dialog with QR code
       if(eventId) {
-        setSuccessDialogData({ title: eventData.name, eventId });
+        setSuccessDialogData({ event: finalEvent });
         setIsSuccessDialogOpen(true);
       }
 
@@ -1191,8 +1194,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
     <SuccessDialog
         isOpen={isSuccessDialogOpen}
         onClose={() => setIsSuccessDialogOpen(false)}
-        eventName={successDialogData?.title || ''}
-        eventId={successDialogData?.eventId || ''}
+        event={successDialogData?.event}
     />
     </>
   );
@@ -1377,26 +1379,45 @@ function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[]
   );
 }
 
-function SuccessDialog({ isOpen, onClose, eventName, eventId }: { isOpen: boolean; onClose: () => void; eventName: string; eventId: string; }) {
+function SuccessDialog({ isOpen, onClose, event }: { isOpen: boolean; onClose: () => void; event: AppEvent | undefined }) {
     const qrCodeRef = useRef<HTMLDivElement>(null);
+
+    if (!event) return null;
+
+    const { name: eventName, id: eventId, eventDates } = event;
     const checkinUrl = typeof window !== 'undefined' ? `${window.location.origin}/dashboard?tab=checkins&eventId=${eventId}` : '';
+    const dateString = (eventDates || []).join(', ');
 
     const downloadQRCode = () => {
         const canvas = qrCodeRef.current?.querySelector('canvas');
         if (canvas) {
-            // Create a new canvas with padding
-            const padding = 10;
+            const padding = 20;
+            const textHeight = 60; // Space for two lines of text
             const newCanvas = document.createElement('canvas');
             newCanvas.width = canvas.width + padding * 2;
-            newCanvas.height = canvas.height + padding * 2;
+            newCanvas.height = canvas.height + padding * 2 + textHeight;
             const ctx = newCanvas.getContext('2d');
             
             if (ctx) {
                 // Fill background with white
                 ctx.fillStyle = '#FFFFFF';
                 ctx.fillRect(0, 0, newCanvas.width, newCanvas.height);
+                
                 // Draw the QR code canvas onto the new canvas with padding
                 ctx.drawImage(canvas, padding, padding);
+
+                // Add text below the QR code
+                ctx.fillStyle = '#000000';
+                ctx.textAlign = 'center';
+                
+                // Event Name
+                ctx.font = '16px sans-serif';
+                ctx.fillText(eventName, newCanvas.width / 2, canvas.height + padding * 2);
+
+                // Event Dates
+                ctx.font = '12px sans-serif';
+                ctx.fillStyle = '#555555';
+                ctx.fillText(dateString, newCanvas.width / 2, canvas.height + padding * 2 + 20);
 
                 const pngUrl = newCanvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
                 let downloadLink = document.createElement("a");
@@ -1417,9 +1438,12 @@ function SuccessDialog({ isOpen, onClose, eventName, eventId }: { isOpen: boolea
                     <DialogDescription className="text-center">Share this QR code with employees for easy check-in.</DialogDescription>
                 </DialogHeader>
                 <div className="flex flex-col items-center justify-center gap-4 py-4">
-                    <p className="font-semibold text-lg">{eventName}</p>
-                    <div ref={qrCodeRef} className="p-4 bg-white rounded-lg">
+                    <div ref={qrCodeRef} className="p-4 bg-white rounded-lg inline-block">
                        <QRCodeCanvas value={checkinUrl} size={256} />
+                    </div>
+                     <div>
+                        <p className="font-semibold text-lg text-center">{eventName}</p>
+                        <p className="text-sm text-muted-foreground text-center">{dateString}</p>
                     </div>
                 </div>
                 <DialogFooter className="sm:justify-center gap-2">
@@ -1432,3 +1456,4 @@ function SuccessDialog({ isOpen, onClose, eventName, eventId }: { isOpen: boolea
 }
 
     
+
