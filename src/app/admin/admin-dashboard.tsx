@@ -2,13 +2,14 @@
 
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2 } from "lucide-react";
+import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2, QrCode } from "lucide-react";
 import Image from "next/image";
 import { DateRange } from "react-day-picker";
 import { format, isWithinInterval, parseISO, isPast, endOfDay, subDays } from "date-fns";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { QRCodeCanvas } from 'qrcode.react';
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -150,6 +151,10 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [employeeFormData, setEmployeeFormData] = useState<Partial<Employee>>({});
   const [isSaving, setIsSaving] = useState(false);
+
+  // QR Code Success Dialog
+  const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
+  const [successDialogData, setSuccessDialogData] = useState<{ title: string; eventId: string; } | null>(null);
 
 
   // Filters for reports
@@ -303,17 +308,25 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
     };
     
     try {
+      let eventId = editingEvent?.id;
       if (editingEvent) {
         // Update existing event
         await dataProvider.updateEvent(editingEvent.id, eventData);
         toast({ title: "Success", description: "Event updated successfully." });
       } else {
         // Add new event
-        await dataProvider.addEvent(eventData);
+        eventId = await dataProvider.addEvent(eventData);
         toast({ title: "Success", description: "Event created successfully." });
       }
       setIsEventDialogOpen(false);
       await fetchAllData(); // Refresh all data
+
+      // Open success dialog with QR code
+      if(eventId) {
+        setSuccessDialogData({ title: eventData.name, eventId });
+        setIsSuccessDialogOpen(true);
+      }
+
     } catch (error) {
       console.error("Error saving event: ", error);
       toast({ title: "Error", description: `Failed to save event.`, variant: "destructive" });
@@ -1167,6 +1180,12 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
           </DialogFooter>
         </DialogContent>
     </Dialog>
+    <SuccessDialog
+        isOpen={isSuccessDialogOpen}
+        onClose={() => setIsSuccessDialogOpen(false)}
+        eventName={successDialogData?.title || ''}
+        eventId={successDialogData?.eventId || ''}
+    />
     </>
   );
 }
@@ -1350,6 +1369,43 @@ function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[]
   );
 }
 
+function SuccessDialog({ isOpen, onClose, eventName, eventId }: { isOpen: boolean; onClose: () => void; eventName: string; eventId: string; }) {
+    const qrCodeRef = useRef<HTMLDivElement>(null);
+    const checkinUrl = typeof window !== 'undefined' ? `${window.location.origin}/dashboard?tab=checkins&eventId=${eventId}` : '';
 
+    const downloadQRCode = () => {
+        const canvas = qrCodeRef.current?.querySelector('canvas');
+        if (canvas) {
+            const pngUrl = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+            let downloadLink = document.createElement("a");
+            downloadLink.href = pngUrl;
+            downloadLink.download = `${eventName.replace(/\s+/g, '_').toLowerCase()}_qr_code.png`;
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle className="text-center">Event Saved Successfully!</DialogTitle>
+                    <DialogDescription className="text-center">Share this QR code with employees for easy check-in.</DialogDescription>
+                </DialogHeader>
+                <div className="flex flex-col items-center justify-center gap-4 py-4">
+                    <p className="font-semibold text-lg">{eventName}</p>
+                    <div ref={qrCodeRef} className="p-4 bg-white rounded-lg">
+                       <QRCodeCanvas value={checkinUrl} size={256} />
+                    </div>
+                </div>
+                <DialogFooter className="sm:justify-center gap-2">
+                    <Button type="button" onClick={downloadQRCode}><Download className="mr-2 h-4 w-4" />Download</Button>
+                    <Button type="button" variant="secondary" onClick={onClose}>Done</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
     
