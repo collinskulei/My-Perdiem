@@ -36,13 +36,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { PerdiemRequest, Employee, AppEvent, Venue } from "@/lib/data";
+import { dutyStationCoordinates, OUT_OF_OFFICE_RATES, DAILY_ALLOWANCE, MILEAGE_RATE_KSH } from "@/lib/data";
 import * as firestore from '@/lib/firebase/firestore';
 import * as mock from '@/lib/mock-data';
 import { isTestMode as getIsTestMode } from '@/lib/test-mode';
 import app from "@/lib/firebase/config";
 import { useToast } from "@/hooks/use-toast";
 import { SuccessDialog } from "@/components/success-dialog";
-import { MapPin, Loader2, Check, LocateFixed } from "lucide-react";
+import { MapPin, Loader2, Check, LocateFixed, Wallet } from "lucide-react";
 import { cn, getHaversineDistance, formatCurrency } from "@/lib/utils";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { Switch } from "@/components/ui/switch";
@@ -320,6 +321,16 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                 </div>
             )}
         </div>
+        
+        {currentUser && (
+            <PerDiemBalanceCard 
+                employee={currentUser}
+                events={myEvents}
+                requests={userRequests}
+                venues={venues}
+            />
+        )}
+
         <ClientOnly>
         <Tabs value={activeTab} onValueChange={handleTabChange}>
             <div className="overflow-x-auto pb-2">
@@ -669,5 +680,75 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
   );
 }
 
+// Helper component for balance card
+export function PerDiemBalanceCard({ employee, events, requests, venues }: { employee: Employee, events: AppEvent[], requests: PerdiemRequest[], venues: Venue[] }) {
+    const balance = useMemo(() => {
+        const hasRequestedPerDiem = (eventId: string) => requests.some(req => req.eventId === eventId);
+        
+        const getAttendanceProgress = (event: AppEvent) => {
+            const totalDays = (event.eventDates || []).length;
+            const checkedInDays = event.checkedInEmployees?.[employee.id ?? ''] ? Object.keys(event.checkedInEmployees[employee.id ?? '']).length : 0;
+            return { checkedInDays, totalDays };
+        };
+
+        const hasCheckedInForAllDays = (event: AppEvent): boolean => {
+            const { checkedInDays, totalDays } = getAttendanceProgress(event);
+            return totalDays > 0 && checkedInDays === totalDays;
+        };
+
+        const calculatePotentialPerDiem = (event: AppEvent): number => {
+            const venue = venues.find(v => v.id === event.venueId);
+            if (!employee.dutyStation || !dutyStationCoordinates[employee.dutyStation] || !venue) {
+                return 0;
+            }
+            const { latitude: lat1, longitude: lon1 } = dutyStationCoordinates[employee.dutyStation];
+            const { latitude: lat2, longitude: lon2 } = venue;
+            const distance = getHaversineDistance(lat1, lon1, lat2, lon2) * 2; // Return trip
+            const mileageTotal = Math.round(distance * MILEAGE_RATE_KSH);
+
+            const nights = (event.eventDates || []).length;
+            const accommodationTotal = nights * DAILY_ALLOWANCE;
+
+            const outOfOfficeAllowance = (employee.jobGroup && OUT_OF_OFFICE_RATES[employee.jobGroup])
+                ? OUT_OF_OFFICE_RATES[employee.jobGroup] * nights
+                : 0;
+
+            return mileageTotal + accommodationTotal + outOfOfficeAllowance;
+        };
+        
+        const unrequested = events
+            .filter(event => hasCheckedInForAllDays(event) && !hasRequestedPerDiem(event.id))
+            .reduce((sum, event) => sum + calculatePotentialPerDiem(event), 0);
+
+        const requested = requests
+            .filter(req => req.status === 'Pending' || req.status === 'Approved')
+            .reduce((sum, req) => sum + req.totalPerdiem, 0);
+
+        return { unrequested, requested, total: unrequested + requested };
+    }, [employee, events, requests, venues]);
+
+    return (
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Per Diem Balance</CardTitle>
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(balance.total)}</div>
+                <p className="text-xs text-muted-foreground">Total outstanding balance</p>
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div className="flex flex-col">
+                        <span className="font-medium">Unrequested</span>
+                        <span className="text-muted-foreground">{formatCurrency(balance.unrequested)}</span>
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="font-medium">Requested (Pending Payment)</span>
+                        <span className="text-muted-foreground">{formatCurrency(balance.requested)}</span>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
 
     

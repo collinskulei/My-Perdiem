@@ -101,3 +101,16 @@ export const venues: Venue[] = [
   { id: "venue-nrb-003", name: "Nairobi Serena Hotel", city: "Nairobi", county: "Nairobi", latitude: -1.2882, longitude: 36.8166 },
   { id: "venue-nrb-004", name: "Sankara Nairobi, Autograph Collection", city: "Nairobi", county: "Nairobi", latitude: -1.2652, longitude: 36.8078 },
 ];
+
+
+// Constants for calculations
+export const MILEAGE_RATE_KSH = 45;
+export const DAILY_ALLOWANCE = 5000;
+export const OUT_OF_OFFICE_RATES: { [key: string]: number } = {
+  "A": 3000, "B1": 3500, "B2": 3500, "B3": 3500, "B4": 3500, "B5": 3500,
+  "C1": 4000, "C2": 4000, "C3": 4000, "C4": 4000, "C5": 4000,
+  "D1": 5000, "D2": 5000, "D3": 5000, "D4": 5000, "D5": 5000,
+  "E1": 6000, "E2": 6000, "E4": 6000,
+  "H": 7000, "J": 8000, "K": 9000, "L": 10000, "M": 11000, "N": 12000,
+  "P": 13000, "Q": 14000, "R": 15000, "S": 16000
+};

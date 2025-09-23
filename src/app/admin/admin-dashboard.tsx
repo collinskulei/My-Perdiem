@@ -79,6 +79,7 @@ import * as mock from '@/lib/mock-data';
 import { isTestMode } from '@/lib/test-mode';
 import { cn, formatCurrency } from "@/lib/utils";
 import { ClientOnly } from "@/components/client-only";
+import { PerDiemBalanceCard } from "@/app/dashboard/employee-dashboard";
 
 const dataProvider = mock;
 
@@ -151,6 +152,11 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [employeeFormData, setEmployeeFormData] = useState<Partial<Employee>>({});
   const [isSaving, setIsSaving] = useState(false);
+
+  // State for employee-specific data in the dialog
+  const [employeeEvents, setEmployeeEvents] = useState<AppEvent[]>([]);
+  const [employeeRequests, setEmployeeRequests] = useState<PerdiemRequest[]>([]);
+
 
   // QR Code Success Dialog
   const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
@@ -340,11 +346,20 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
     }
   };
 
-  const handleOpenEmployeeDialog = (employee: Employee) => {
-    setEditingEmployee(employee);
-    setEmployeeFormData(employee);
-    setIsEmployeeDialogOpen(true);
-  };
+    const handleOpenEmployeeDialog = async (employee: Employee) => {
+        setEditingEmployee(employee);
+        setEmployeeFormData(employee);
+        
+        // Fetch employee-specific data
+        const [empEvents, empRequests] = await Promise.all([
+            dataProvider.getEventsByEmployee(employee.id),
+            dataProvider.getPerDiemRequestsByEmployee(employee.id)
+        ]);
+        setEmployeeEvents(empEvents);
+        setEmployeeRequests(empRequests);
+        
+        setIsEmployeeDialogOpen(true);
+    };
 
   const handleSaveEmployee = async () => {
     if (!editingEmployee) return;
@@ -1107,7 +1122,15 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
             <DialogTitle>Edit Employee</DialogTitle>
             <DialogDescription>Update the details for {editingEmployee?.name}.</DialogDescription>
           </DialogHeader>
-           <div className="flex-1 overflow-y-auto pr-6 -mr-6">
+           <div className="flex-1 overflow-y-auto pr-6 -mr-6 space-y-6">
+                {editingEmployee && (
+                    <PerDiemBalanceCard 
+                        employee={editingEmployee}
+                        events={employeeEvents}
+                        requests={employeeRequests}
+                        venues={venues}
+                    />
+                )}
                 <div className="space-y-4 py-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
@@ -1456,4 +1479,5 @@ function SuccessDialog({ isOpen, onClose, event }: { isOpen: boolean; onClose: (
 }
 
     
+
 
