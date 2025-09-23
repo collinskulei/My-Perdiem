@@ -237,13 +237,13 @@ function RegistrationWizard() {
         <CardHeader>
           <CardTitle className="text-2xl">Create an Account</CardTitle>
           <CardDescription>
-            Fill out the form below to register.
+            Fill out the form below to register. Fields marked with <span className="text-destructive">*</span> are required.
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-6">
             <div className="space-y-2">
-                <Label>Register as:</Label>
+                <Label>Register as: <span className="text-destructive">*</span></Label>
                 <RadioGroup defaultValue="employee" onValueChange={setRole} className="flex gap-4">
                     <div className="flex items-center space-x-2">
                         <RadioGroupItem value="employee" id="role-employee" />
@@ -258,7 +258,7 @@ function RegistrationWizard() {
             
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div className="space-y-2">
-                <Label htmlFor="firstName">First Name</Label>
+                <Label htmlFor="firstName">First Name <span className="text-destructive">*</span></Label>
                 <Input id="firstName" placeholder="e.g., John" required onChange={handleInputChange} />
               </div>
               <div className="space-y-2">
@@ -266,14 +266,14 @@ function RegistrationWizard() {
                 <Input id="middleName" placeholder="e.g., Owuor" onChange={handleInputChange} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="sirName">Surname</Label>
+                <Label htmlFor="sirName">Surname <span className="text-destructive">*</span></Label>
                 <Input id="sirName" placeholder="e.g., Doe" required onChange={handleInputChange} />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <Label htmlFor="gender">Gender</Label>
+                    <Label htmlFor="gender">Gender <span className="text-destructive">*</span></Label>
                     <Select required onValueChange={(value) => handleSelectChange('gender', value)}>
                         <SelectTrigger id="gender">
                         <SelectValue placeholder="Select gender" />
@@ -285,7 +285,7 @@ function RegistrationWizard() {
                     </Select>
                 </div>
                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
+                    <Label htmlFor="phone">Phone Number <span className="text-destructive">*</span></Label>
                     <div className="flex items-center">
                         <span className="inline-flex h-10 items-center rounded-l-md border border-r-0 border-input bg-background px-3 text-muted-foreground">
                         +254
@@ -304,7 +304,7 @@ function RegistrationWizard() {
 
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <Label htmlFor="idNumber">ID Number</Label>
+                    <Label htmlFor="idNumber">ID Number <span className="text-destructive">*</span></Label>
                     <Input 
                         id="idNumber" 
                         placeholder="e.g., 12345678" 
@@ -314,7 +314,7 @@ function RegistrationWizard() {
                     />
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                    <Label htmlFor="dateOfBirth">Date of Birth <span className="text-destructive">*</span></Label>
                     <Input 
                         id="dateOfBirth" 
                         type="date" 
@@ -327,11 +327,11 @@ function RegistrationWizard() {
             {role === 'employee' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="employeeNumber">Employee Number</Label>
+                  <Label htmlFor="employeeNumber">Employee Number <span className="text-destructive">*</span></Label>
                   <Input id="employeeNumber" placeholder="e.g., EMP123" required onChange={handleInputChange} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="designation">Designation</Label>
+                  <Label htmlFor="designation">Designation <span className="text-destructive">*</span></Label>
                    <Select required onValueChange={(value) => handleSelectChange('designation', value)}>
                     <SelectTrigger id="designation">
                       <SelectValue placeholder="Select a designation" />
@@ -346,7 +346,7 @@ function RegistrationWizard() {
                   </Select>
                 </div>
                  <div className="space-y-2">
-                  <Label htmlFor="jobGroup">Job Group</Label>
+                  <Label htmlFor="jobGroup">Job Group <span className="text-destructive">*</span></Label>
                    <Select required onValueChange={(value) => handleSelectChange('jobGroup', value)}>
                     <SelectTrigger id="jobGroup">
                       <SelectValue placeholder="Select a job group" />
@@ -361,7 +361,7 @@ function RegistrationWizard() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="dutyStation">Duty Station</Label>
+                  <Label htmlFor="dutyStation">Duty Station <span className="text-destructive">*</span></Label>
                   <Input id="dutyStation" placeholder="e.g., Nairobi" required onChange={handleInputChange} />
                 </div>
               </div>
@@ -369,13 +369,13 @@ function RegistrationWizard() {
             
             {role === 'admin' && (
                 <div className="space-y-2">
-                    <Label htmlFor="organizationName">Organization Name</Label>
+                    <Label htmlFor="organizationName">Organization Name <span className="text-destructive">*</span></Label>
                     <Input id="organizationName" placeholder="e.g., Health Org Inc." required onChange={handleInputChange} />
                 </div>
             )}
             
             <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">Email <span className="text-destructive">*</span></Label>
                  <Select required onValueChange={(value) => handleSelectChange('email', value)}>
                     <SelectTrigger id="email">
                     <SelectValue placeholder="Select an email" />
@@ -392,11 +392,11 @@ function RegistrationWizard() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
+                    <Label htmlFor="password">Password <span className="text-destructive">*</span></Label>
                     <Input id="password" type="password" required onChange={handleInputChange} />
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm Password</Label>
+                    <Label htmlFor="confirmPassword">Confirm Password <span className="text-destructive">*</span></Label>
                     <Input id="confirmPassword" type="password" required onChange={handleInputChange} />
                 </div>
             </div>
@@ -415,7 +415,7 @@ function RegistrationWizard() {
                     <Link href="#" className="underline">
                         privacy policy
                     </Link>
-                    .
+                    . <span className="text-destructive">*</span>
                     </label>
                 </div>
             </div>
