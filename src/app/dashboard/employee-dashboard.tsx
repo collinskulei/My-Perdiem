@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -184,14 +185,25 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
         await dataProvider.checkInToEvent(eventId, userId, dateString);
         setSuccessMessage({ title: "Check-in Successful!", description: `Your check-in for ${dateString} has been recorded.` });
         setIsSuccess(true);
-        await fetchData();
+        // Optimistically update UI
+        setMyEvents(prevEvents => prevEvents.map(evt => {
+            if (evt.id === eventId) {
+                const newCheckedIn = { ...(evt.checkedInEmployees || {}) };
+                if (!newCheckedIn[userId]) {
+                    newCheckedIn[userId] = {};
+                }
+                newCheckedIn[userId][dateString] = Date.now();
+                return { ...evt, checkedInEmployees: newCheckedIn };
+            }
+            return evt;
+        }));
     } catch (error) {
         console.error("Error checking in:", error);
         toast({ title: "Check-in Failed", description: "Could not record your check-in.", variant: "destructive" });
     } finally {
         setIsSubmitting(null);
     }
-  }, [fetchData, toast]);
+  }, [toast]);
 
   useEffect(() => {
     const activeSubmission = isSubmitting;
@@ -428,6 +440,9 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                     const isInRange = isTestMode && bypassLocationCheck ? true : distance !== -1 && distance <= 1000;
                                     const canRequestPerDiem = hasCheckedInForAllDays(event) && !hasRequestedPerDiem(event.id);
                                     
+                                    const checkInToday = eventDays.find(day => isToday(day));
+                                    const isCheckedInForToday = checkInToday ? !!event.checkedInEmployees?.[authUser?.uid ?? '']?.[format(checkInToday, 'yyyy-MM-dd')] : false;
+
                                     return (
                                         <TableRow key={event.id}>
                                             <TableCell className="font-medium">{event.name}</TableCell>
@@ -445,22 +460,16 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                             </TableCell>
                                             <TableCell className="text-right">
                                                <div className="flex gap-2 justify-end">
-                                                   {canRequestPerDiem && <Button size="sm" onClick={() => handleRequestPerDiem(event)} className="whitespace-nowrap">Request Per Diem</Button> }
-                                                   {hasCheckedInForAllDays(event) && hasRequestedPerDiem(event.id) && <Badge variant="secondary">Requested</Badge>}
-                                                   
-                                                   {!hasCheckedInForAllDays(event) && eventDays.map(day => {
-                                                        const dateString = format(day, 'yyyy-MM-dd');
-                                                        const isCheckedInForDay = !!event.checkedInEmployees?.[authUser?.uid ?? '']?.[dateString];
-                                                        if (isCheckedInForDay || isFuture(startOfDay(day)) || startOfDay(day) < startOfDay(new Date())) return null;
-                                                        
-                                                        const canCheckIn = isToday(day) && isInRange;
-                                                        return (
-                                                             <Button key={dateString} size="sm" onClick={() => handleCheckIn(event, day)} disabled={!canCheckIn || !!isSubmitting} variant={!isToday(day) ? 'outline' : 'default'} className="whitespace-nowrap">
-                                                                {isSubmitting === `${event.id}-${dateString}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MapPin className="mr-2 h-4 w-4" />}
-                                                                Check-in Today
-                                                            </Button>
-                                                        )
-                                                   })}
+                                                   {canRequestPerDiem ? (
+                                                     <Button size="sm" onClick={() => handleRequestPerDiem(event)} className="whitespace-nowrap">Request Per Diem</Button>
+                                                   ) : hasCheckedInForAllDays(event) && hasRequestedPerDiem(event.id) ? (
+                                                     <Badge variant="secondary">Requested</Badge>
+                                                   ) : checkInToday && !isCheckedInForToday ? (
+                                                     <Button size="sm" onClick={() => handleCheckIn(event, checkInToday)} disabled={!isInRange || !!isSubmitting} className="whitespace-nowrap">
+                                                        {isSubmitting === `${event.id}-${format(checkInToday, 'yyyy-MM-dd')}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MapPin className="mr-2 h-4 w-4" />}
+                                                        Check-in Today
+                                                     </Button>
+                                                   ) : null }
                                                 </div>
                                             </TableCell>
                                         </TableRow>
@@ -484,6 +493,10 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                 }
                                 const isInRange = isTestMode && bypassLocationCheck ? true : distance !== -1 && distance <= 1000;
                                 const canRequestPerDiem = hasCheckedInForAllDays(event) && !hasRequestedPerDiem(event.id);
+                                
+                                const checkInToday = eventDays.find(day => isToday(day));
+                                const isCheckedInForToday = checkInToday ? !!event.checkedInEmployees?.[authUser?.uid ?? '']?.[format(checkInToday, 'yyyy-MM-dd')] : false;
+
                                 return (
                                 <Card key={event.id}>
                                     <CardHeader>
@@ -506,22 +519,16 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                         <p><strong className="text-muted-foreground">Dates:</strong> {(event.eventDates || []).join(', ')}</p>
                                     </CardContent>
                                     <CardFooter className="flex flex-col items-stretch gap-2">
-                                        {canRequestPerDiem && <Button size="sm" onClick={() => handleRequestPerDiem(event)} className="w-full">Request Per Diem</Button>}
-                                        {hasCheckedInForAllDays(event) && hasRequestedPerDiem(event.id) && <Badge variant="secondary" className="justify-center py-2 text-sm">Requested</Badge>}
-                                        
-                                        {!hasCheckedInForAllDays(event) && eventDays.map(day => {
-                                            const dateString = format(day, 'yyyy-MM-dd');
-                                            const isCheckedInForDay = !!event.checkedInEmployees?.[authUser?.uid ?? '']?.[dateString];
-                                            if (isCheckedInForDay || isFuture(startOfDay(day)) || startOfDay(day) < startOfDay(new Date())) return null;
-                                            
-                                            const canCheckIn = isToday(day) && isInRange;
-                                            return (
-                                                <Button key={dateString} size="sm" onClick={() => handleCheckIn(event, day)} disabled={!canCheckIn || !!isSubmitting} variant={!isToday(day) ? 'outline' : 'default'} className="w-full">
-                                                    {isSubmitting === `${event.id}-${dateString}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MapPin className="mr-2 h-4 w-4" />}
-                                                    Check-in Today
-                                                </Button>
-                                            )
-                                        })}
+                                        {canRequestPerDiem ? (
+                                            <Button size="sm" onClick={() => handleRequestPerDiem(event)} className="w-full">Request Per Diem</Button>
+                                        ) : hasCheckedInForAllDays(event) && hasRequestedPerDiem(event.id) ? (
+                                            <Badge variant="secondary" className="justify-center py-2 text-sm">Requested</Badge>
+                                        ) : checkInToday && !isCheckedInForToday ? (
+                                            <Button size="sm" onClick={() => handleCheckIn(event, checkInToday)} disabled={!isInRange || !!isSubmitting} className="w-full">
+                                                {isSubmitting === `${event.id}-${format(checkInToday, 'yyyy-MM-dd')}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MapPin className="mr-2 h-4 w-4" />}
+                                                Check-in Today
+                                            </Button>
+                                        ) : null}
                                     </CardFooter>
                                 </Card>
                                 )
@@ -841,4 +848,5 @@ export function PerDiemBalanceCard({ employee, events, requests, venues }: { emp
     );
 }
 
+    
     
