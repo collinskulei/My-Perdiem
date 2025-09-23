@@ -102,21 +102,33 @@ function RegistrationWizard() {
       return;
     }
 
-    if (!formData.email || !formData.password || !formData.idNumber) {
-        toast({ title: "Missing required fields", description: "Please fill out all fields.", variant: "destructive" });
-        return;
+    const requiredFields: (keyof typeof formData)[] = [
+        "firstName", "sirName", "gender", "phone", "idNumber", "dateOfBirth", "email", "password"
+    ];
+
+    if (role === 'employee') {
+        requiredFields.push("employeeNumber", "designation", "jobGroup", "dutyStation");
+    } else {
+        requiredFields.push("organizationName");
+    }
+
+    for (const field of requiredFields) {
+        if (!formData[field]) {
+            toast({ title: "Missing required fields", description: `Please fill out the '${field}' field.`, variant: "destructive" });
+            return;
+        }
     }
 
     const fullPhoneNumber = `+254${formData.phone}`;
 
     // --- Uniqueness Validation ---
-    const isEmailTaken = !(await dataProvider.isEmailUnique(formData.email));
+    const isEmailTaken = !(await dataProvider.isEmailUnique(formData.email!));
     if (isEmailTaken) {
       toast({ title: "Registration Failed", description: "This email address is already registered.", variant: "destructive" });
       return;
     }
 
-    const isIdNumberTaken = !(await dataProvider.isIdNumberUnique(formData.idNumber));
+    const isIdNumberTaken = !(await dataProvider.isIdNumberUnique(formData.idNumber!));
     if (isIdNumberTaken) {
       toast({ title: "Registration Failed", description: "This ID number is already registered.", variant: "destructive" });
       return;
@@ -130,7 +142,7 @@ function RegistrationWizard() {
     
     try {
       // 1. Create user in Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+      const userCredential = await createUserWithEmailAndPassword(auth, formData.email!, formData.password!);
       const user = userCredential.user;
 
       // 2. Save additional employee details to Firestore
@@ -429,4 +441,6 @@ export default function RegistrationPage() {
         </Suspense>
     );
 }
+    
+
     
