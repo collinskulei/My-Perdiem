@@ -49,7 +49,6 @@ const auth = getAuth(app);
  * @returns {JSX.Element} The rendered registration wizard.
  */
 function RegistrationWizard() {
-  const [role, setRole] = useState("employee");
   const [formData, setFormData] = useState<Partial<EmployeeData & { password?: string, confirmPassword?: string, organizationName?: string, dateOfBirth?: string, phone?: string }>>({});
   const [isAgreed, setIsAgreed] = useState(false);
   const router = useRouter();
@@ -103,14 +102,9 @@ function RegistrationWizard() {
     }
 
     const requiredFields: (keyof typeof formData)[] = [
-        "firstName", "sirName", "gender", "phone", "idNumber", "dateOfBirth", "email", "password"
+        "firstName", "sirName", "gender", "phone", "idNumber", "dateOfBirth", "email", "password", "employeeNumber", "designation", "jobGroup", "dutyStation"
     ];
 
-    if (role === 'employee') {
-        requiredFields.push("employeeNumber", "designation", "jobGroup", "dutyStation");
-    } else {
-        requiredFields.push("organizationName");
-    }
 
     for (const field of requiredFields) {
         if (!formData[field]) {
@@ -146,52 +140,34 @@ function RegistrationWizard() {
       const user = userCredential.user;
 
       // 2. Save additional employee details to Firestore
-      const commonData = {
+      const employeeData = {
           name: `${formData.firstName} ${formData.sirName}`,
           phoneNumber: fullPhoneNumber,
           idNumber: formData.idNumber,
           email: user.email!, // Use email from the created user
           gender: formData.gender,
           dateOfBirth: formData.dateOfBirth,
-      };
-
-      let registrationData: any;
-
-      if (role === 'employee') {
-        registrationData = {
-          ...commonData,
           role: formData.designation,
           employeeNumber: formData.employeeNumber,
           dutyStation: formData.dutyStation,
           jobGroup: formData.jobGroup,
-        };
-      } else { // Admin role
-        registrationData = {
-          ...commonData,
-          role: 'Admin',
-          organizationName: formData.organizationName,
-        };
-      }
+      };
 
-      await dataProvider.addEmployee(registrationData, user.uid);
+
+      await dataProvider.addEmployee(employeeData, user.uid);
       
       toast({
           title: "Registration Successful",
-          description: `Your ${role} account has been created.`,
+          description: `Your employee account has been created.`,
       });
 
-      if (role === 'employee') {
-        router.push("/dashboard");
-      } else {
-        router.push("/admin");
-      }
-
+      router.push("/dashboard");
 
     } catch (error: any) {
         console.error("Registration failed:", error);
         toast({
             title: "Registration Failed",
-            description: error.message || `Could not create your ${role} account. Please try again.`,
+            description: error.message || `Could not create your employee account. Please try again.`,
             variant: "destructive",
         });
     }
@@ -235,27 +211,13 @@ function RegistrationWizard() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-2xl mx-auto">
         <CardHeader>
-          <CardTitle className="text-2xl">Create an Account</CardTitle>
+          <CardTitle className="text-2xl">Create an Employee Account</CardTitle>
           <CardDescription>
             Fill out the form below to register. Fields marked with <span className="text-destructive">*</span> are required.
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-6">
-            <div className="space-y-2">
-                <Label>Register as: <span className="text-destructive">*</span></Label>
-                <RadioGroup defaultValue="employee" onValueChange={setRole} className="flex gap-4">
-                    <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="employee" id="role-employee" />
-                        <Label htmlFor="role-employee">Employee</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="admin" id="role-admin" />
-                        <Label htmlFor="role-admin">Admin</Label>
-                    </div>
-                </RadioGroup>
-            </div>
-            
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="firstName">First Name <span className="text-destructive">*</span></Label>
@@ -324,7 +286,6 @@ function RegistrationWizard() {
                 </div>
             </div>
             
-            {role === 'employee' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="employeeNumber">Employee Number <span className="text-destructive">*</span></Label>
@@ -365,14 +326,6 @@ function RegistrationWizard() {
                   <Input id="dutyStation" placeholder="e.g., Nairobi" required onChange={handleInputChange} />
                 </div>
               </div>
-            )}
-            
-            {role === 'admin' && (
-                <div className="space-y-2">
-                    <Label htmlFor="organizationName">Organization Name <span className="text-destructive">*</span></Label>
-                    <Input id="organizationName" placeholder="e.g., Health Org Inc." required onChange={handleInputChange} />
-                </div>
-            )}
             
             <div className="space-y-2">
                 <Label htmlFor="email">Email <span className="text-destructive">*</span></Label>
