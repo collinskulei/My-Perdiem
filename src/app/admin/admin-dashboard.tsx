@@ -997,9 +997,10 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                          <TabsContent value="paid">
                            <ReportTabContent 
                              title="Paid Perdiems" 
-                             data={filteredReportData.filter(r => r.status === 'Paid')}
+                             data={filteredReportData.filter(r => r.status === 'Paid' || r.status === 'Confirmed')}
                              loading={loading}
-                             onDownload={() => handleDownloadPerDiemReport(filteredReportData.filter(r => r.status === 'Paid'), 'paid_perdiems')}
+                             onDownload={() => handleDownloadPerDiemReport(filteredReportData.filter(r => r.status === 'Paid' || r.status === 'Confirmed'), 'paid_perdiems')}
+                             isPaidReport={true}
                            />
                         </TabsContent>
                     </Tabs>
@@ -1149,7 +1150,18 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
 }
 
 // Helper component for the report tabs to reduce repetition
-function ReportTabContent({ title, data, loading, onDownload }: { title: string, data: PerdiemRequest[], loading: boolean, onDownload: () => void }) {
+function ReportTabContent({ title, data, loading, onDownload, isPaidReport = false }: { title: string, data: PerdiemRequest[], loading: boolean, onDownload: () => void, isPaidReport?: boolean }) {
+    const getBadgeVariant = (status: PerdiemRequest['status']) => {
+        switch (status) {
+            case 'Pending': return 'outline';
+            case 'Approved': return 'secondary';
+            case 'Paid': return 'default';
+            case 'Confirmed': return 'success';
+            case 'Rejected': return 'destructive';
+            default: return 'outline';
+        }
+    };
+    
     return (
         <Card>
             <CardHeader className="flex-row items-center justify-between">
@@ -1162,17 +1174,39 @@ function ReportTabContent({ title, data, loading, onDownload }: { title: string,
             <CardContent>
                  <div className="overflow-x-auto">
                     <Table>
-                        <TableHeader><TableRow><TableHead>Employee</TableHead><TableHead>Event</TableHead><TableHead>Status</TableHead><TableHead>Date</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Employee</TableHead>
+                                <TableHead>Event</TableHead>
+                                {isPaidReport ? (
+                                    <>
+                                        <TableHead>Confirmation</TableHead>
+                                        <TableHead>M-Pesa Code</TableHead>
+                                    </>
+                                ) : (
+                                    <TableHead>Status</TableHead>
+                                )}
+                                <TableHead>Date</TableHead>
+                                <TableHead className="text-right">Amount</TableHead>
+                            </TableRow>
+                        </TableHeader>
                         <TableBody>
                         {loading ? (
-                            <TableRow><TableCell colSpan={5} className="h-24 text-center">Loading report data...</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={isPaidReport ? 6 : 5} className="h-24 text-center">Loading report data...</TableCell></TableRow>
                         ) : data.length === 0 ? (
-                             <TableRow><TableCell colSpan={5} className="h-24 text-center">No requests match the current filters.</TableCell></TableRow>
+                             <TableRow><TableCell colSpan={isPaidReport ? 6 : 5} className="h-24 text-center">No requests match the current filters.</TableCell></TableRow>
                         ) : data.map(request => (
                             <TableRow key={request.id}>
                             <TableCell>{request.employeeName}</TableCell>
                             <TableCell>{request.eventName}</TableCell>
-                            <TableCell><Badge variant={request.status === "Approved" ? "secondary" : "default"}>{request.status}</Badge></TableCell>
+                             {isPaidReport ? (
+                                <>
+                                    <TableCell><Badge variant={getBadgeVariant(request.status)}>{request.status}</Badge></TableCell>
+                                    <TableCell className="font-mono">{request.mpesaTransactionCode || '-'}</TableCell>
+                                </>
+                            ) : (
+                                <TableCell><Badge variant={getBadgeVariant(request.status)}>{request.status}</Badge></TableCell>
+                            )}
                             <TableCell className="whitespace-nowrap">{request.date}</TableCell>
                             <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.totalPerdiem)}</TableCell>
                             </TableRow>
@@ -1384,6 +1418,9 @@ function SuccessDialog({ isOpen, onClose, event }: { isOpen: boolean; onClose: (
 
 
 
+
+
+    
 
 
     
