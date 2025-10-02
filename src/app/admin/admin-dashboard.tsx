@@ -69,7 +69,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import type { PerdiemRequest, Venue, Employee, AppEvent } from "@/lib/data";
+import type { PerdiemRequest, Venue, Participant, AppEvent } from "@/lib/data";
 import { dutyStationCoordinates } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import * as firestore from '@/lib/firebase/firestore';
@@ -94,8 +94,8 @@ const kenyanCounties = [
 const dutyStations = Object.keys(dutyStationCoordinates);
 
 const defaultNewVenue = { name: "", city: "", county: "Nairobi", latitude: "0", longitude: "0" };
-const defaultNewEvent = { name: "", facilitator: "", venueId: "", allocatedEmployees: [] as string[] };
-const defaultFilters = { date: undefined, county: "all", dutyStation: "all", employee: "all" };
+const defaultNewEvent = { name: "", facilitator: "", venueId: "", allocatedParticipants: [] as string[] };
+const defaultFilters = { date: undefined, county: "all", dutyStation: "all", participant: "all" };
 
 const designations = [
     "Medical Director", "Chief Nursing Officer", "Resident Doctor", "Registered Nurse", "Clinical Officer",
@@ -133,7 +133,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
 
   const [activeTab, setActiveTab] = useState(currentTab);
   const [venues, setVenues] = useState<Venue[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [participants, setParticipants] = useState<Participant[]>([]);
   const [perdiemRequests, setPerdiemRequests] = useState<PerdiemRequest[]>([]);
   const [events, setEvents] = useState<AppEvent[]>([]);
   
@@ -142,18 +142,18 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   
   const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<AppEvent | null>(null);
-  const [eventFormData, setEventFormData] = useState<{name: string; facilitator: string; venueId: string; allocatedEmployees: string[] }>(defaultNewEvent);
+  const [eventFormData, setEventFormData] = useState<{name: string; facilitator: string; venueId: string; allocatedParticipants: string[] }>(defaultNewEvent);
   const [eventDates, setEventDates] = useState<Date[] | undefined>();
-  const [isEmployeeSelectOpen, setEmployeeSelectOpen] = useState(false);
+  const [isParticipantSelectOpen, setParticipantSelectOpen] = useState(false);
   
-  const [isEmployeeDialogOpen, setIsEmployeeDialogOpen] = useState(false);
-  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
-  const [employeeFormData, setEmployeeFormData] = useState<Partial<Employee>>({});
+  const [isParticipantDialogOpen, setIsParticipantDialogOpen] = useState(false);
+  const [editingParticipant, setEditingParticipant] = useState<Participant | null>(null);
+  const [participantFormData, setParticipantFormData] = useState<Partial<Participant>>({});
   const [isSaving, setIsSaving] = useState(false);
 
-  // State for employee-specific data in the dialog
-  const [employeeEvents, setEmployeeEvents] = useState<AppEvent[]>([]);
-  const [employeeRequests, setEmployeeRequests] = useState<PerdiemRequest[]>([]);
+  // State for participant-specific data in the dialog
+  const [participantEvents, setParticipantEvents] = useState<AppEvent[]>([]);
+  const [participantRequests, setParticipantRequests] = useState<PerdiemRequest[]>([]);
 
 
   // QR Code Success Dialog
@@ -171,7 +171,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
     date: DateRange | undefined;
     county: string;
     dutyStation: string;
-    employee: string;
+    participant: string;
   }>(defaultFilters);
   const [filteredReportData, setFilteredReportData] = useState<PerdiemRequest[]>([]);
   
@@ -190,14 +190,14 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   const fetchAllData = useCallback(async () => {
     setLoading(true);
     try {
-      const [venuesData, employeesData, requestsData, eventsData] = await Promise.all([
+      const [venuesData, participantsData, requestsData, eventsData] = await Promise.all([
         dataProvider.getVenues(),
-        dataProvider.getEmployees(),
+        dataProvider.getParticipants(),
         dataProvider.getPerDiemRequests(),
         dataProvider.getEvents()
       ]);
       setVenues(venuesData);
-      setEmployees(employeesData);
+      setParticipants(participantsData);
       setPerdiemRequests(requestsData);
       setEvents(eventsData.sort((a, b) => {
         const dateA = a.eventDates && a.eventDates.length > 0 ? new Date(a.eventDates[0]).getTime() : 0;
@@ -223,7 +223,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
 
   const applyFilters = useCallback(() => {
         let data = perdiemRequests;
-        const allEmployees = employees;
+        const allParticipants = participants;
 
         if (filters.date?.from && filters.date.to) {
             data = data.filter(item => {
@@ -239,16 +239,16 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         }
 
         if (filters.dutyStation !== 'all') {
-            const employeeIds = allEmployees.filter(e => e.dutyStation === filters.dutyStation).map(e => e.id);
-            data = data.filter(req => employeeIds.includes(req.employeeId));
+            const participantIds = allParticipants.filter(e => e.dutyStation === filters.dutyStation).map(e => e.id);
+            data = data.filter(req => participantIds.includes(req.participantId));
         }
 
-        if (filters.employee !== 'all') {
-            data = data.filter(req => req.employeeId === filters.employee);
+        if (filters.participant !== 'all') {
+            data = data.filter(req => req.participantId === filters.participant);
         }
 
         setFilteredReportData(data);
-    }, [perdiemRequests, events, venues, employees, filters]);
+    }, [perdiemRequests, events, venues, participants, filters]);
 
     useEffect(() => {
         applyFilters();
@@ -285,7 +285,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         name: eventToEdit.name,
         facilitator: eventToEdit.facilitator,
         venueId: eventToEdit.venueId,
-        allocatedEmployees: eventToEdit.allocatedEmployees,
+        allocatedParticipants: eventToEdit.allocatedParticipants,
       });
       setEventDates((eventToEdit.eventDates || []).map(dateStr => parseISO(dateStr)));
     } else {
@@ -317,7 +317,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         venueName: selectedVenue.name,
         venueCity: selectedVenue.city,
         facilitator: eventFormData.facilitator,
-        allocatedEmployees: eventFormData.allocatedEmployees,
+        allocatedParticipants: eventFormData.allocatedParticipants,
     };
     
     try {
@@ -349,32 +349,32 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
     }
   };
 
-    const handleOpenEmployeeDialog = async (employee: Employee) => {
-        setEditingEmployee(employee);
-        setEmployeeFormData(employee);
+    const handleOpenParticipantDialog = async (participant: Participant) => {
+        setEditingParticipant(participant);
+        setParticipantFormData(participant);
         
-        // Fetch employee-specific data
+        // Fetch participant-specific data
         const [empEvents, empRequests] = await Promise.all([
-            dataProvider.getEventsByEmployee(employee.id),
-            dataProvider.getPerDiemRequestsByEmployee(employee.id)
+            dataProvider.getEventsByParticipant(participant.id),
+            dataProvider.getPerDiemRequestsByParticipant(participant.id)
         ]);
-        setEmployeeEvents(empEvents);
-        setEmployeeRequests(empRequests);
+        setParticipantEvents(empEvents);
+        setParticipantRequests(empRequests);
         
-        setIsEmployeeDialogOpen(true);
+        setIsParticipantDialogOpen(true);
     };
 
-  const handleSaveEmployee = async () => {
-    if (!editingEmployee) return;
+  const handleSaveParticipant = async () => {
+    if (!editingParticipant) return;
     setIsSaving(true);
     try {
-      await dataProvider.updateEmployee(editingEmployee.id, employeeFormData);
-      toast({ title: "Success", description: "Employee details updated." });
-      setIsEmployeeDialogOpen(false);
+      await dataProvider.updateParticipant(editingParticipant.id, participantFormData);
+      toast({ title: "Success", description: "Participant details updated." });
+      setIsParticipantDialogOpen(false);
       await fetchAllData(); // Refresh data
     } catch (error) {
-      console.error("Error updating employee: ", error);
-      toast({ title: "Error", description: "Failed to update employee.", variant: "destructive" });
+      console.error("Error updating participant: ", error);
+      toast({ title: "Error", description: "Failed to update participant.", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -421,9 +421,9 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   const handleDownloadPerDiemReport = (dataToDownload: PerdiemRequest[], reportName: string) => {
     const detailedData = dataToDownload.map(req => {
         const event = events.find(e => e.id === req.eventId);
-        const employee = employees.find(emp => emp.id === req.employeeId);
+        const participant = participants.find(emp => emp.id === req.participantId);
         const eventDuration = event && event.eventDates ? event.eventDates.length : 0;
-        const daysAttended = employee && event?.checkedInEmployees?.[employee.id] ? Object.keys(event.checkedInEmployees[employee.id]).length : 0;
+        const daysAttended = participant && event?.checkedInParticipants?.[participant.id] ? Object.keys(event.checkedInParticipants[participant.id]).length : 0;
         const attendance = eventDuration > 0 ? `${daysAttended}/${eventDuration}` : 'N/A';
 
         return {
@@ -436,12 +436,12 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
     });
 
     const columns = [
-        "date", "employeeName", "eventName", "eventStartDate", "eventEndDate", "eventFacilitator",
+        "date", "participantName", "eventName", "eventStartDate", "eventEndDate", "eventFacilitator",
         "eventAttendance", "location", "mileageTotal", "accommodationTotal", "outOfOfficeAllowance", 
         "totalPerdiem", "status", "mpesaTransactionCode"
     ];
     const columnHeaders = [
-        "Request Date", "Employee Name", "Event", "Event Start", "Event End", "Facilitator",
+        "Request Date", "Participant Name", "Event", "Event Start", "Event End", "Facilitator",
         "Attendance (Days)", "Location", "Mileage (Ksh)", "Accommodation (Ksh)", "Allowance (Ksh)",
         "Total Amount (Ksh)", "Status", "M-Pesa Code"
     ];
@@ -454,17 +454,17 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
     const dateColumns = eventDays.map(day => format(day, 'yyyy-MM-dd'));
     const dateHeaders = eventDays.map(day => format(day, 'MMM d'));
 
-    const allocatedEmployees = employees.filter(emp => event.allocatedEmployees.includes(emp.id));
+    const allocatedParticipants = participants.filter(emp => event.allocatedParticipants.includes(emp.id));
 
-    const reportData = allocatedEmployees.map(employee => {
+    const reportData = allocatedParticipants.map(participant => {
         const row: {[key: string]: any} = {
-            employeeId: employee.id,
-            employeeName: employee.name,
+            participantId: participant.id,
+            participantName: participant.name,
         };
 
         let checkedInCount = 0;
         dateColumns.forEach(dateString => {
-            const isCheckedIn = !!event.checkedInEmployees?.[employee.id]?.[dateString];
+            const isCheckedIn = !!event.checkedInParticipants?.[participant.id]?.[dateString];
             row[dateString] = isCheckedIn ? 'Checked-In' : 'Absent';
             if (isCheckedIn) checkedInCount++;
         });
@@ -474,35 +474,35 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         return row;
     });
 
-    const columns = ['employeeName', 'employeeId', ...dateColumns, 'attendancePercentage'];
-    const headers = ['Employee Name', 'Employee ID', ...dateHeaders, 'Attendance %'];
+    const columns = ['participantName', 'participantId', ...dateColumns, 'attendancePercentage'];
+    const headers = ['Participant Name', 'Participant ID', ...dateHeaders, 'Attendance %'];
 
     const csvData = toCSV(reportData, columns, headers);
     downloadCSV(csvData, `check-in-report_${event.name.replace(/\s+/g, '-')}.csv`);
   };
 
-  const nonAdminEmployees = employees.filter(e => e.role !== 'Admin');
+  const nonAdminParticipants = participants.filter(e => e.role !== 'Admin');
 
-  const handleSelectEmployee = useCallback((employeeId: string) => {
+  const handleSelectParticipant = useCallback((participantId: string) => {
     setEventFormData(prev => {
-        const newSelection = prev.allocatedEmployees.includes(employeeId)
-            ? prev.allocatedEmployees.filter(id => id !== employeeId)
-            : [...prev.allocatedEmployees, employeeId];
-        return { ...prev, allocatedEmployees: newSelection };
+        const newSelection = prev.allocatedParticipants.includes(participantId)
+            ? prev.allocatedParticipants.filter(id => id !== participantId)
+            : [...prev.allocatedParticipants, participantId];
+        return { ...prev, allocatedParticipants: newSelection };
     });
   }, []);
 
-  const handleSelectAllEmployees = (check: boolean | string) => {
+  const handleSelectAllParticipants = (check: boolean | string) => {
      if (check) {
-        setEventFormData(prev => ({ ...prev, allocatedEmployees: nonAdminEmployees.map(e => e.id) }));
+        setEventFormData(prev => ({ ...prev, allocatedParticipants: nonAdminParticipants.map(e => e.id) }));
      } else {
-        setEventFormData(prev => ({ ...prev, allocatedEmployees: [] }));
+        setEventFormData(prev => ({ ...prev, allocatedParticipants: [] }));
      }
   };
   
   const getTotalCheckinsForEvent = (event: AppEvent) => {
-    if (!event.checkedInEmployees) return 0;
-    return Object.values(event.checkedInEmployees).reduce((total, dailyCheckins) => total + Object.keys(dailyCheckins).length, 0);
+    if (!event.checkedInParticipants) return 0;
+    return Object.values(event.checkedInParticipants).reduce((total, dailyCheckins) => total + Object.keys(dailyCheckins).length, 0);
   };
   
   const getEventDays = (event: AppEvent) => {
@@ -543,7 +543,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
             <TabsTrigger value="requests">Perdiem Requests</TabsTrigger>
             <TabsTrigger value="events">Events</TabsTrigger>
             <TabsTrigger value="checkins">Event Check-ins</TabsTrigger>
-            <TabsTrigger value="employees">Employees</TabsTrigger>
+            <TabsTrigger value="participants">Participants</TabsTrigger>
             <TabsTrigger value="venues">Venues</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
@@ -555,11 +555,11 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
             <CardContent>
               <div className="overflow-x-auto">
                 <Table>
-                    <TableHeader><TableRow><TableHead>Employee</TableHead><TableHead>Event</TableHead><TableHead>Status</TableHead><TableHead>Date</TableHead><TableHead className="text-right">Amount</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead>Participant</TableHead><TableHead>Event</TableHead><TableHead>Status</TableHead><TableHead>Date</TableHead><TableHead className="text-right">Amount</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
                     <TableBody>
                     {loading ? <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading requests...</TableCell></TableRow> : perdiemRequests.map(request => (
                         <TableRow key={request.id}>
-                        <TableCell><div className="font-medium">{request.employeeName}</div><div className="hidden text-sm text-muted-foreground md:inline">ID: {request.employeeId}</div></TableCell>
+                        <TableCell><div className="font-medium">{request.participantName}</div><div className="hidden text-sm text-muted-foreground md:inline">ID: {request.participantId}</div></TableCell>
                         <TableCell>{request.eventName}</TableCell>
                         <TableCell><Badge variant={getBadgeVariant(request.status)}>{request.status}</Badge></TableCell>
                         <TableCell>{request.date}</TableCell>
@@ -645,46 +645,46 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                     <Input id="event-facilitator" value={eventFormData.facilitator} onChange={(e) => setEventFormData({ ...eventFormData, facilitator: e.target.value })} className="col-span-3" />
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-4">
-                                    <Label className="text-left sm:text-right">Assign Employees</Label>
-                                    <Popover open={isEmployeeSelectOpen} onOpenChange={setEmployeeSelectOpen}>
+                                    <Label className="text-left sm:text-right">Assign Participants</Label>
+                                    <Popover open={isParticipantSelectOpen} onOpenChange={setParticipantSelectOpen}>
                                         <PopoverTrigger asChild>
                                             <Button variant="outline" className="col-span-3 justify-start text-left font-normal">
                                                 <ChevronsUpDown className="mr-2 h-4 w-4" />
-                                                {eventFormData.allocatedEmployees.length > 0 ? `${eventFormData.allocatedEmployees.length} selected` : "Select employees"}
+                                                {eventFormData.allocatedParticipants.length > 0 ? `${eventFormData.allocatedParticipants.length} selected` : "Select participants"}
                                             </Button>
                                         </PopoverTrigger>
                                         <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                                             <Command>
-                                                <CommandInput placeholder="Search employees..." />
+                                                <CommandInput placeholder="Search participants..." />
                                                 <CommandList>
-                                                    <CommandEmpty>No employees found.</CommandEmpty>
+                                                    <CommandEmpty>No participants found.</CommandEmpty>
                                                     <CommandGroup>
                                                         <CommandItem
-                                                            onSelect={() => handleSelectAllEmployees(!(eventFormData.allocatedEmployees.length === nonAdminEmployees.length))}
+                                                            onSelect={() => handleSelectAllParticipants(!(eventFormData.allocatedParticipants.length === nonAdminParticipants.length))}
                                                             className="cursor-pointer"
                                                         >
                                                             <Checkbox
                                                                 className="mr-2"
-                                                                checked={eventFormData.allocatedEmployees.length > 0 && eventFormData.allocatedEmployees.length === nonAdminEmployees.length}
-                                                                onCheckedChange={(checked) => handleSelectAllEmployees(checked)}
+                                                                checked={eventFormData.allocatedParticipants.length > 0 && eventFormData.allocatedParticipants.length === nonAdminParticipants.length}
+                                                                onCheckedChange={(checked) => handleSelectAllParticipants(checked)}
                                                             />
                                                             <span>Select All</span>
                                                         </CommandItem>
                                                     </CommandGroup>
                                                     <CommandSeparator />
                                                     <CommandGroup>
-                                                        {nonAdminEmployees.map((employee) => (
+                                                        {nonAdminParticipants.map((participant) => (
                                                             <CommandItem
-                                                                key={employee.id}
-                                                                onSelect={() => handleSelectEmployee(employee.id)}
+                                                                key={participant.id}
+                                                                onSelect={() => handleSelectParticipant(participant.id)}
                                                                 className="cursor-pointer"
                                                             >
                                                                 <Checkbox
                                                                     className="mr-2"
-                                                                    checked={eventFormData.allocatedEmployees.includes(employee.id)}
-                                                                    onCheckedChange={() => handleSelectEmployee(employee.id)}
+                                                                    checked={eventFormData.allocatedParticipants.includes(participant.id)}
+                                                                    onCheckedChange={() => handleSelectParticipant(participant.id)}
                                                                 />
-                                                                <span>{employee.name}</span>
+                                                                <span>{participant.name}</span>
                                                             </CommandItem>
                                                         ))}
                                                     </CommandGroup>
@@ -716,7 +716,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                         <TableCell className="font-medium">{event.name}</TableCell>
                                         <TableCell>{event.venueName}</TableCell>
                                         <TableCell className="whitespace-nowrap">{(event.eventDates || []).join(', ')}</TableCell>
-                                        <TableCell>{event.allocatedEmployees.length}</TableCell>
+                                        <TableCell>{event.allocatedParticipants.length}</TableCell>
                                         <TableCell>{getTotalCheckinsForEvent(event)}</TableCell>
                                         <TableCell>
                                             <DropdownMenu>
@@ -766,7 +766,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                              </div>
                             {activeEvents.map(event => {
                                 const eventDays = getEventDays(event);
-                                const allocatedEmployees = employees.filter(emp => event.allocatedEmployees.includes(emp.id));
+                                const allocatedParticipants = participants.filter(emp => event.allocatedParticipants.includes(emp.id));
 
                                 return (
                                     <TabsContent key={event.id} value={event.id}>
@@ -786,19 +786,19 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                                     <Table>
                                                         <TableHeader>
                                                             <TableRow>
-                                                                <TableHead>Employee</TableHead>
+                                                                <TableHead>Participant</TableHead>
                                                                 {eventDays.map(day => (
                                                                     <TableHead key={format(day, 'yyyy-MM-dd')} className="text-center whitespace-nowrap">{format(day, 'MMM d')}</TableHead>
                                                                 ))}
                                                             </TableRow>
                                                         </TableHeader>
                                                         <TableBody>
-                                                            {allocatedEmployees.map(employee => (
-                                                                <TableRow key={employee.id}>
-                                                                    <TableCell className="whitespace-nowrap">{employee.name}</TableCell>
+                                                            {allocatedParticipants.map(participant => (
+                                                                <TableRow key={participant.id}>
+                                                                    <TableCell className="whitespace-nowrap">{participant.name}</TableCell>
                                                                     {eventDays.map(day => {
                                                                         const dateString = format(day, 'yyyy-MM-dd');
-                                                                        const isCheckedIn = !!event.checkedInEmployees?.[employee.id]?.[dateString];
+                                                                        const isCheckedIn = !!event.checkedInParticipants?.[participant.id]?.[dateString];
                                                                         return (
                                                                             <TableCell key={dateString} className="text-center">
                                                                                 {isCheckedIn ? <Check className="h-5 w-5 text-green-500 mx-auto" /> : <span className="text-muted-foreground">-</span>}
@@ -823,21 +823,21 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
             </Card>
         </TabsContent>
 
-        <TabsContent value="employees">
+        <TabsContent value="participants">
           <Card>
-            <CardHeader><CardTitle>Employees</CardTitle><CardDescription>A list of all registered employees.</CardDescription></CardHeader>
+            <CardHeader><CardTitle>Participants</CardTitle><CardDescription>A list of all registered participants.</CardDescription></CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
                 <Table>
                     <TableHeader><TableRow><TableHead className="w-[64px]"><span className="sr-only">Image</span></TableHead><TableHead>Name</TableHead><TableHead>Role</TableHead><TableHead>Duty Station</TableHead><TableHead>Job Group</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
                     <TableBody>
-                    {loading ? <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading employees...</TableCell></TableRow> : employees.map(employee => (
-                        <TableRow key={employee.id}>
-                        <TableCell><Image alt="Employee avatar" className="aspect-square rounded-full object-cover" height="40" src={employee.avatarUrl} width="40" data-ai-hint="person portrait"/></TableCell>
-                        <TableCell className="font-medium whitespace-nowrap">{employee.name}<div className="text-sm text-muted-foreground">{employee.employeeNumber}</div></TableCell>
-                        <TableCell>{employee.role}</TableCell>
-                        <TableCell>{employee.dutyStation}</TableCell>
-                        <TableCell>{employee.jobGroup}</TableCell>
+                    {loading ? <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading participants...</TableCell></TableRow> : participants.map(participant => (
+                        <TableRow key={participant.id}>
+                        <TableCell><Image alt="Participant avatar" className="aspect-square rounded-full object-cover" height="40" src={participant.avatarUrl} width="40" data-ai-hint="person portrait"/></TableCell>
+                        <TableCell className="font-medium whitespace-nowrap">{participant.name}<div className="text-sm text-muted-foreground">{participant.participantNumber}</div></TableCell>
+                        <TableCell>{participant.role}</TableCell>
+                        <TableCell>{participant.dutyStation}</TableCell>
+                        <TableCell>{participant.jobGroup}</TableCell>
                         <TableCell>
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -848,7 +848,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                    <DropdownMenuItem onSelect={() => handleOpenEmployeeDialog(employee)}>Edit</DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => handleOpenParticipantDialog(participant)}>Edit</DropdownMenuItem>
                                     <DropdownMenuItem>View</DropdownMenuItem>
                                     <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
                                 </DropdownMenuContent>
@@ -964,12 +964,12 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                 </Select>
                             </div>
                             <div>
-                                <Label htmlFor="employee-filter">Employee</Label>
-                                <Select value={filters.employee} onValueChange={(v) => setFilters(f => ({ ...f, employee: v }))}>
-                                    <SelectTrigger><SelectValue placeholder="Select Employee" /></SelectTrigger>
+                                <Label htmlFor="participant-filter">Participant</Label>
+                                <Select value={filters.participant} onValueChange={(v) => setFilters(f => ({ ...f, participant: v }))}>
+                                    <SelectTrigger><SelectValue placeholder="Select Participant" /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="all">All Employees</SelectItem>
-                                        {nonAdminEmployees.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+                                        <SelectItem value="all">All Participants</SelectItem>
+                                        {nonAdminParticipants.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -1014,18 +1014,18 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
       </ClientOnly>
     </div>
     
-    <Dialog open={isEmployeeDialogOpen} onOpenChange={setIsEmployeeDialogOpen}>
+    <Dialog open={isParticipantDialogOpen} onOpenChange={setIsParticipantDialogOpen}>
         <DialogContent className="sm:max-w-2xl flex flex-col max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle>Edit Employee</DialogTitle>
-            <DialogDescription>Update the details for {editingEmployee?.name}.</DialogDescription>
+            <DialogTitle>Edit Participant</DialogTitle>
+            <DialogDescription>Update the details for {editingParticipant?.name}.</DialogDescription>
           </DialogHeader>
            <div className="flex-1 overflow-y-auto pr-6 -mr-6 space-y-6">
-                {editingEmployee && (
+                {editingParticipant && (
                     <PerDiemBalanceCard 
-                        employee={editingEmployee}
-                        events={employeeEvents}
-                        requests={employeeRequests}
+                        participant={editingParticipant}
+                        events={participantEvents}
+                        requests={participantRequests}
                         venues={venues}
                     />
                 )}
@@ -1033,21 +1033,21 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="name">Full Name</Label>
-                            <Input id="name" value={employeeFormData.name || ''} onChange={(e) => setEmployeeFormData(prev => ({ ...prev, name: e.target.value }))} />
+                            <Input id="name" value={participantFormData.name || ''} onChange={(e) => setParticipantFormData(prev => ({ ...prev, name: e.target.value }))} />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="phoneNumber">Phone Number</Label>
-                            <Input id="phoneNumber" value={employeeFormData.phoneNumber || ''} onChange={(e) => setEmployeeFormData(prev => ({ ...prev, phoneNumber: e.target.value }))} />
+                            <Input id="phoneNumber" value={participantFormData.phoneNumber || ''} onChange={(e) => setParticipantFormData(prev => ({ ...prev, phoneNumber: e.target.value }))} />
                         </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                          <div className="space-y-2">
                             <Label htmlFor="idNumber">ID Number</Label>
-                            <Input id="idNumber" value={employeeFormData.idNumber || ''} onChange={(e) => setEmployeeFormData(prev => ({ ...prev, idNumber: e.target.value }))} />
+                            <Input id="idNumber" value={participantFormData.idNumber || ''} onChange={(e) => setParticipantFormData(prev => ({ ...prev, idNumber: e.target.value }))} />
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="gender">Gender</Label>
-                            <Select value={employeeFormData.gender} onValueChange={(value) => setEmployeeFormData(prev => ({ ...prev, gender: value }))}>
+                            <Select value={participantFormData.gender} onValueChange={(value) => setParticipantFormData(prev => ({ ...prev, gender: value }))}>
                                 <SelectTrigger id="gender"><SelectValue placeholder="Select gender" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="male">Male</SelectItem>
@@ -1057,16 +1057,16 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                         </div>
                     </div>
 
-                    {editingEmployee?.role !== 'Admin' && (
+                    {editingParticipant?.role !== 'Admin' && (
                         <>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="employeeNumber">Employee Number</Label>
-                                    <Input id="employeeNumber" value={employeeFormData.employeeNumber || ''} onChange={(e) => setEmployeeFormData(prev => ({ ...prev, employeeNumber: e.target.value }))} />
+                                    <Label htmlFor="participantNumber">Participant Number</Label>
+                                    <Input id="participantNumber" value={participantFormData.participantNumber || ''} onChange={(e) => setParticipantFormData(prev => ({ ...prev, participantNumber: e.target.value }))} />
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="dutyStation">Duty Station</Label>
-                                    <Select value={employeeFormData.dutyStation} onValueChange={(value) => setEmployeeFormData(prev => ({ ...prev, dutyStation: value }))}>
+                                    <Select value={participantFormData.dutyStation} onValueChange={(value) => setParticipantFormData(prev => ({ ...prev, dutyStation: value }))}>
                                         <SelectTrigger><SelectValue placeholder="Select Station" /></SelectTrigger>
                                         <SelectContent>
                                             {dutyStations.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
@@ -1077,7 +1077,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="jobGroup">Job Group</Label>
-                                    <Select value={employeeFormData.jobGroup} onValueChange={(value) => setEmployeeFormData(prev => ({ ...prev, jobGroup: value }))}>
+                                    <Select value={participantFormData.jobGroup} onValueChange={(value) => setParticipantFormData(prev => ({ ...prev, jobGroup: value }))}>
                                         <SelectTrigger id="jobGroup"><SelectValue placeholder="Select a job group" /></SelectTrigger>
                                         <SelectContent>
                                             {jobGroups.map((group) => (<SelectItem key={group} value={group}>{group}</SelectItem>))}
@@ -1086,7 +1086,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="role">Role/Designation</Label>
-                                    <Select value={employeeFormData.role} onValueChange={(value) => setEmployeeFormData(prev => ({ ...prev, role: value }))}>
+                                    <Select value={participantFormData.role} onValueChange={(value) => setParticipantFormData(prev => ({ ...prev, role: value }))}>
                                         <SelectTrigger id="role"><SelectValue placeholder="Select a designation" /></SelectTrigger>
                                         <SelectContent>
                                             {designations.map((d) => (<SelectItem key={d} value={d}>{d}</SelectItem>))}
@@ -1096,17 +1096,17 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                             </div>
                         </>
                     )}
-                     {editingEmployee?.role === 'Admin' && (
+                     {editingParticipant?.role === 'Admin' && (
                         <div className="space-y-2">
                             <Label htmlFor="organizationName">Organization Name</Label>
-                            <Input id="organizationName" value={employeeFormData.organizationName || ''} onChange={(e) => setEmployeeFormData(prev => ({ ...prev, organizationName: e.target.value }))} />
+                            <Input id="organizationName" value={participantFormData.organizationName || ''} onChange={(e) => setParticipantFormData(prev => ({ ...prev, organizationName: e.target.value }))} />
                         </div>
                     )}
                 </div>
             </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEmployeeDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSaveEmployee} disabled={isSaving}>
+            <Button variant="outline" onClick={() => setIsParticipantDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveParticipant} disabled={isSaving}>
               {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Save Changes"}
             </Button>
           </DialogFooter>
@@ -1176,7 +1176,7 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Employee</TableHead>
+                                <TableHead>Participant</TableHead>
                                 <TableHead>Event</TableHead>
                                 {isPaidReport ? (
                                     <>
@@ -1197,7 +1197,7 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
                              <TableRow><TableCell colSpan={isPaidReport ? 6 : 5} className="h-24 text-center">No requests match the current filters.</TableCell></TableRow>
                         ) : data.map(request => (
                             <TableRow key={request.id}>
-                            <TableCell>{request.employeeName}</TableCell>
+                            <TableCell>{request.participantName}</TableCell>
                             <TableCell>{request.eventName}</TableCell>
                              {isPaidReport ? (
                                 <>
@@ -1394,7 +1394,7 @@ function SuccessDialog({ isOpen, onClose, event }: { isOpen: boolean; onClose: (
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle className="text-center">Event QR Code</DialogTitle>
-                    <DialogDescription className="text-center">Share this QR code with employees for easy check-in.</DialogDescription>
+                    <DialogDescription className="text-center">Share this QR code with participants for easy check-in.</DialogDescription>
                 </DialogHeader>
                 <div className="flex flex-col items-center justify-center gap-4 py-4">
                     <div ref={qrCodeRef} className="p-4 bg-white rounded-lg inline-block">

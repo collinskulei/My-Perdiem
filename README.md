@@ -1,12 +1,12 @@
 # Per Diem Pro Application
 
-Welcome to Per Diem Pro, a streamlined application designed to simplify how employees request and manage per diem allowances for work-related events. This document provides a comprehensive overview of the application's features and workflows for both Employee and Admin users.
+Welcome to Per Diem Pro, a streamlined application designed to simplify how participants request and manage per diem allowances for work-related events. This document provides a comprehensive overview of the application's features and workflows for both Participant and Admin users.
 npm run bu
 ## Table of Contents
 1.  [Core Features](#core-features)
 2.  [Test Mode](#test-mode)
 3.  [User Roles & Workflows](#user-roles--workflows)
-    *   [Employee Workflow](#employee-workflow)
+    *   [Participant Workflow](#participant-workflow)
     *   [Admin Workflow](#admin-workflow)
 4.  [Getting Started](#getting-started)
 
@@ -14,16 +14,16 @@ npm run bu
 
 ## Core Features
 
-*   **Role-Based Access Control**: Separate, secure login and dashboard experiences for Employees and Administrators.
-*   **Event Management (Admin)**: Admins can create, view, and manage events, including assigning specific employees to them.
+*   **Role-Based Access Control**: Separate, secure login and dashboard experiences for Participants and Administrators.
+*   **Event Management (Admin)**: Admins can create, view, and manage events, including assigning specific participants to them.
 *   **Venue Management (Admin)**: Admins can create and manage a list of venues where events are held.
-*   **Employee Management (Admin)**: Admins have a central view of all registered employees in the system.
-*   **Daily Event Check-in (Employee)**: Employees can check-in daily for multi-day events they are assigned to, verifying their attendance. This uses geolocation in the live app to ensure the employee is at the event venue.
+*   **Participant Management (Admin)**: Admins have a central view of all registered participants in the system.
+*   **Daily Event Check-in (Participant)**: Participants can check-in daily for multi-day events they are assigned to, verifying their attendance. This uses geolocation in the live app to ensure the participant is at the event venue.
 *   **Attendance Tracking (Both)**:
-    *   **Employees** see a color-coded progress bar for each event, showing their attendance percentage.
+    *   **Participants** see a color-coded progress bar for each event, showing their attendance percentage.
     *   **Admins** see a high-level count of total check-ins per event and a detailed daily check-in grid for active events.
-*   **Automated Per Diem Requests (Employee)**: After successfully checking in for all days of an event, employees can access a multi-step wizard to request their per diem, with many calculations automated based on their job group and travel distance.
-*   **Request Management (Admin)**: Admins can review, approve, mark as paid, or reject per diem requests submitted by employees.
+*   **Automated Per Diem Requests (Participant)**: After successfully checking in for all days of an event, participants can access a multi-step wizard to request their per diem, with many calculations automated based on their job group and travel distance.
+*   **Request Management (Admin)**: Admins can review, approve, mark as paid, or reject per diem requests submitted by participants.
 *   **Reporting (Admin)**: Admins can generate and download filtered reports of all per diem requests in both PDF and CSV formats.
 
 ---
@@ -37,18 +37,18 @@ On the login page, simply toggle the **"Test Mode"** switch. The page will reloa
 
 ### What Test Mode Does
 *   **Uses Mock Data**: The app uses pre-populated, in-memory data (via `localStorage`) instead of connecting to the live Firestore database.
-*   **Bypasses Authentication**: You can log in as a pre-configured test employee or admin with a single click.
+*   **Bypasses Authentication**: You can log in as a pre-configured test participant or admin with a single click.
 *   **Disables Geolocation**: The event check-in feature bypasses the real-world location check, allowing you to simulate check-ins from anywhere. A "Check-in Successful!" message provides positive feedback instantly.
 
 ---
 
 ## User Roles & Workflows
 
-### Employee Workflow
+### Participant Workflow
 
-1.  **Login**: On the login page, select the "Employee" tab.
+1.  **Login**: On the login page, select the "Participant" tab.
     *   In **Live Mode**, enter your registered email and password.
-    *   In **Test Mode**, simply click "Login as Employee".
+    *   In **Test Mode**, simply click "Login as Participant".
 2.  **View Dashboard**: The dashboard displays a welcome message and two main sections:
     *   **My Upcoming Events**: A list of events you are allocated to.
     *   **Recent Per Diem Requests**: A history of your submitted requests and their status (Pending, Approved, Paid, Rejected).
@@ -76,14 +76,14 @@ On the login page, simply toggle the **"Test Mode"** switch. The page will reloa
     *   Use the "Actions" menu on each request to **Approve**, **Mark as Paid**, or **Reject** a claim.
 4.  **Manage Events**:
     *   In the **"Events"** tab, you can view all created events.
-    *   Click the **"Add Event"** button to open a dialog where you can define a new event, set its date range, assign a venue, and allocate employees.
+    *   Click the **"Add Event"** button to open a dialog where you can define a new event, set its date range, assign a venue, and allocate participants.
     *   The **"Attendance"** column shows the total number of check-ins recorded for each event.
 5.  **Monitor Event Check-ins**:
     *   Navigate to the **"Event Check-ins"** tab.
     *   This section contains sub-tabs for each **currently active event**.
-    *   Within each sub-tab, you'll find a detailed grid showing which employees have checked in on which specific days.
-6.  **Manage Employees & Venues**:
-    *   Use the **"Employees"** and **"Venues"** tabs to view all registered employees and venues.
+    *   Within each sub-tab, you'll find a detailed grid showing which participants have checked in on which specific days.
+6.  **Manage Participants & Venues**:
+    *   Use the **"Participants"** and **"Venues"** tabs to view all registered participants and venues.
     *   In the "Venues" tab, you can add new venues, which become available for selection when creating events.
 7.  **Generate Reports**:
     *   Click the **"Download Report"** button.
@@ -95,6 +95,6 @@ On the login page, simply toggle the **"Test Mode"** switch. The page will reloa
 
 ## Getting Started
 
-1.  **Register an Account**: New users can navigate to the registration page from the login screen. The form dynamically adapts based on whether you are registering as an Employee or an Admin.
+1.  **Register an Account**: New users can navigate to the registration page from the login screen. The form dynamically adapts based on whether you are registering as a Participant or an Admin.
 2.  **Login**: Once registered, log in to your respective dashboard.
 3.  **Explore**: Use this guide and the in-app "Test Mode" to explore the features and workflows.

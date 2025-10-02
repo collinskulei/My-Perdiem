@@ -11,7 +11,7 @@ import { getAuth, onAuthStateChanged, User } from "firebase/auth";
 import { differenceInCalendarDays, parseISO } from "date-fns";
 import { useForm, FormProvider, useFormContext } from "react-hook-form";
 
-import type { Employee, AppEvent, PerdiemRequest, Venue } from "@/lib/data";
+import type { Participant, AppEvent, PerdiemRequest, Venue } from "@/lib/data";
 import { dutyStationCoordinates } from "@/lib/data";
 import * as firestore from '@/lib/firebase/firestore';
 import * as mock from '@/lib/mock-data';
@@ -64,7 +64,7 @@ function PerDiemWizard() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     const [authUser, setAuthUser] = useState<User | MockUser | null>(null);
-    const [employee, setEmployee] = useState<Employee | null>(null);
+    const [participant, setParticipant] = useState<Participant | null>(null);
     const [event, setEvent] = useState<AppEvent | null>(null);
     const [venue, setVenue] = useState<Venue | null>(null);
     
@@ -97,12 +97,12 @@ function PerDiemWizard() {
         const fetchData = async () => {
             setLoading(true);
             try {
-                const [employeeData, eventData] = await Promise.all([
-                    dataProvider.getEmployeeById(authUser.uid),
+                const [participantData, eventData] = await Promise.all([
+                    dataProvider.getParticipantById(authUser.uid),
                     dataProvider.getEventById(eventId),
                 ]);
 
-                if (!employeeData || !eventData) {
+                if (!participantData || !eventData) {
                     toast({ title: "Error", description: "Could not load required data.", variant: "destructive" });
                     router.push('/dashboard');
                     return;
@@ -110,7 +110,7 @@ function PerDiemWizard() {
                 
                 const venueData = await dataProvider.getVenueById(eventData.venueId);
 
-                setEmployee(employeeData);
+                setParticipant(participantData);
                 setEvent(eventData);
                 setVenue(venueData);
 
@@ -144,13 +144,13 @@ function PerDiemWizard() {
 
     // --- FORM SUBMISSION ---
     const processSubmit = async (data: PerDiemFormValues) => {
-        if (!authUser || !employee || !event) return;
+        if (!authUser || !participant || !event) return;
         
         setIsSubmitting(true);
         try {
             const requestData = {
-                employeeId: authUser.uid,
-                employeeName: employee.name,
+                participantId: authUser.uid,
+                participantName: participant.name,
                 eventId: event.id,
                 eventName: event.name,
                 location: event.venueCity,
@@ -178,7 +178,7 @@ function PerDiemWizard() {
         }
     };
 
-    if (loading || !event || !employee || !venue) {
+    if (loading || !event || !participant || !venue) {
         return (
           <div className="flex items-center justify-center h-screen">
             <Loader2 className="h-8 w-8 animate-spin" />
@@ -198,8 +198,8 @@ function PerDiemWizard() {
                 <FormProvider {...methods}>
                     <form>
                         <CardContent>
-                            {currentStep === 0 && <Step1 event={event} employee={employee} venue={venue} />}
-                            {currentStep === 1 && <Step2 event={event} employee={employee} />}
+                            {currentStep === 0 && <Step1 event={event} participant={participant} venue={venue} />}
+                            {currentStep === 1 && <Step2 event={event} participant={participant} />}
                             {currentStep === 2 && <Step3 />}
                         </CardContent>
                         <CardFooter className="flex justify-between border-t pt-6">
@@ -235,18 +235,18 @@ export default function RequestPerDiemPage() {
 
 // --- WIZARD STEPS ---
 
-const Step1 = ({ event, employee, venue }: { event: AppEvent, employee: Employee, venue: Venue }) => {
+const Step1 = ({ event, participant, venue }: { event: AppEvent, participant: Participant, venue: Venue }) => {
     const { register } = useFormContext<PerDiemFormValues>();
     
     const mileage = useMemo(() => {
-        if (!employee.dutyStation || !dutyStationCoordinates[employee.dutyStation] || !venue) {
+        if (!participant.dutyStation || !dutyStationCoordinates[participant.dutyStation] || !venue) {
             return { distance: 0, total: 0 };
         }
-        const { latitude: lat1, longitude: lon1 } = dutyStationCoordinates[employee.dutyStation];
+        const { latitude: lat1, longitude: lon1 } = dutyStationCoordinates[participant.dutyStation];
         const { latitude: lat2, longitude: lon2 } = venue;
         const distance = getHaversineDistance(lat1, lon1, lat2, lon2) * 2; // Return trip
         return { distance: Math.round(distance), total: Math.round(distance * MILEAGE_RATE_KSH) };
-    }, [employee.dutyStation, venue]);
+    }, [participant.dutyStation, venue]);
     
     // Set initial values for this step
     const { setValue } = useFormContext<PerDiemFormValues>();
@@ -321,7 +321,7 @@ const Step1 = ({ event, employee, venue }: { event: AppEvent, employee: Employee
     );
 };
 
-const Step2 = ({ event, employee }: { event: AppEvent, employee: Employee }) => {
+const Step2 = ({ event, participant }: { event: AppEvent, participant: Participant }) => {
     const { register, setValue } = useFormContext<PerDiemFormValues>();
 
     const accommodation = useMemo(() => {
@@ -330,11 +330,11 @@ const Step2 = ({ event, employee }: { event: AppEvent, employee: Employee }) => 
     }, [event]);
 
     const outOfOfficeAllowance = useMemo(() => {
-        if (!employee.jobGroup || !OUT_OF_OFFICE_RATES[employee.jobGroup]) {
+        if (!participant.jobGroup || !OUT_OF_OFFICE_RATES[participant.jobGroup]) {
             return 0;
         }
-        return OUT_OF_OFFICE_RATES[employee.jobGroup] * accommodation.nights;
-    }, [employee.jobGroup, accommodation.nights]);
+        return OUT_OF_OFFICE_RATES[participant.jobGroup] * accommodation.nights;
+    }, [participant.jobGroup, accommodation.nights]);
 
     useEffect(() => {
         setValue('accommodationNights', accommodation.nights);
@@ -365,7 +365,7 @@ const Step2 = ({ event, employee }: { event: AppEvent, employee: Employee }) => 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
                     <div className="space-y-2">
                         <Label>Job Group</Label>
-                        <Input readOnly value={employee.jobGroup || 'N/A'} />
+                        <Input readOnly value={participant.jobGroup || 'N/A'} />
                     </div>
                     <div className="space-y-2">
                         <Label>Out of Office Allowance Total</Label>

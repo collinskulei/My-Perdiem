@@ -1,7 +1,7 @@
 
 /**
  * @file This file defines the main login page for the application.
- * It presents a tabbed interface for users to log in as either an Employee or an Admin.
+ * It presents a tabbed interface for users to log in as either an Participant or an Admin.
  */
 "use client";
 
@@ -19,11 +19,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Logo } from "@/components/logo";
 import app from "@/lib/firebase/config";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, Suspense } from "react";
-import { getEmployeeById } from "@/lib/firebase/firestore";
 import * as mock from "@/lib/mock-data";
 import { Switch } from "@/components/ui/switch";
 import { isTestMode, setTestMode } from "@/lib/test-mode";
@@ -31,16 +29,17 @@ import { Loader2 } from "lucide-react";
 
 const auth = getAuth(app);
 const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
+const dataProvider = mock;
 
 /**
- * The main interactive component for the login page, featuring separate tabs for employee and admin login.
+ * The main interactive component for the login page, featuring separate tabs for participant and admin login.
  * @returns {JSX.Element} The rendered login card.
  */
 function LoginCard() {
   const router = useRouter();
   const { toast } = useToast();
-  const [employeeEmail, setEmployeeEmail] = useState("");
-  const [employeePassword, setEmployeePassword] = useState("");
+  const [participantEmail, setParticipantEmail] = useState("");
+  const [participantPassword, setParticipantPassword] = useState("");
   const [adminEmail, setAdminEmail] = useState("admin@example.com");
   const [adminPassword, setAdminPassword] = useState("password");
   const [testMode, setTestModeState] = useState(false);
@@ -64,14 +63,14 @@ function LoginCard() {
 
 
   /**
-   * Handles the employee login form submission.
-   * Prevents the default form submission and redirects the user to the employee dashboard.
+   * Handles the participant login form submission.
+   * Prevents the default form submission and redirects the user to the participant dashboard.
    * @param {React.FormEvent} e - The form submission event.
    */
-  const handleEmployeeLogin = async (e: React.FormEvent) => {
+  const handleParticipantLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isTestMode()) {
-        const mockUsers = await mock.getEmployees();
+        const mockUsers = await mock.getParticipants();
         // In test mode, log in as the first available non-admin user
         const user = mockUsers.find(u => u.role !== 'Admin');
         if (user) {
@@ -80,14 +79,14 @@ function LoginCard() {
         } else {
             toast({
                 title: "Login Failed",
-                description: "No mock employee found.",
+                description: "No mock participant found.",
                 variant: "destructive",
             });
         }
         return;
     }
     try {
-      await signInWithEmailAndPassword(auth, employeeEmail, employeePassword);
+      await signInWithEmailAndPassword(auth, participantEmail, participantPassword);
       router.push("/dashboard");
     } catch (error: any) {
       toast({
@@ -106,7 +105,7 @@ function LoginCard() {
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isTestMode()) {
-        const mockUsers = await mock.getEmployees();
+        const mockUsers = await mock.getParticipants();
         // In test mode, log in as the first available admin user
         const user = mockUsers.find(u => u.role === 'Admin');
         if (user) {
@@ -126,8 +125,8 @@ function LoginCard() {
       const user = userCredential.user;
 
       // Check if the user has an 'Admin' role
-      const employee = await getEmployeeById(user.uid);
-      if (employee && employee.role === 'Admin') {
+      const participant = await dataProvider.getParticipantById(user.uid);
+      if (participant && participant.role === 'Admin') {
         router.push("/admin");
       } else {
         await auth.signOut(); // Sign out the user if they are not an admin
@@ -178,25 +177,25 @@ function LoginCard() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="employee" className="w-full">
+          <Tabs defaultValue="participant" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="employee">Employee</TabsTrigger>
+              <TabsTrigger value="participant">Participant</TabsTrigger>
               <TabsTrigger value="admin">Admin</TabsTrigger>
             </TabsList>
-            <TabsContent value="employee">
-              <form onSubmit={handleEmployeeLogin}>
+            <TabsContent value="participant">
+              <form onSubmit={handleParticipantLogin}>
                 <div className="space-y-4 py-4">
                   {!testMode ? (
                     <>
                       <div className="space-y-2">
-                        <Label htmlFor="employee-email">Email</Label>
+                        <Label htmlFor="participant-email">Email</Label>
                         <Input
-                          id="employee-email"
+                          id="participant-email"
                           type="email"
                           placeholder="your-email@health.org"
                           required
-                          value={employeeEmail}
-                          onChange={(e) => setEmployeeEmail(e.target.value)}
+                          value={participantEmail}
+                          onChange={(e) => setParticipantEmail(e.target.value)}
                         />
                       </div>
                       <div className="space-y-2">
@@ -205,19 +204,19 @@ function LoginCard() {
                           id="password"
                           type="password"
                           required
-                          value={employeePassword}
-                          onChange={(e) => setEmployeePassword(e.target.value)}
+                          value={participantPassword}
+                          onChange={(e) => setParticipantPassword(e.target.value)}
                         />
                       </div>
                     </>
                   ) : (
                     <div className="text-center text-sm text-muted-foreground py-8">
-                      Click below to log in as a test employee.
+                      Click below to log in as a test participant.
                     </div>
                   )}
                 </div>
                 <Button type="submit" className="w-full">
-                  Login as Employee
+                  Login as Participant
                 </Button>
               </form>
             </TabsContent>

@@ -69,9 +69,9 @@ export function AdminSidebarNavigation() {
         </SidebarMenuButton>
       </SidebarMenuItem>
         <SidebarMenuItem>
-        <SidebarMenuButton href="/admin?tab=employees" isActive={isLinkActive('/admin', 'employees')}>
+        <SidebarMenuButton href="/admin?tab=participants" isActive={isLinkActive('/admin', 'participants')}>
           <Users />
-          Employees
+          Participants
         </SidebarMenuButton>
       </SidebarMenuItem>
         <SidebarMenuItem>

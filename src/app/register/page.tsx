@@ -1,7 +1,7 @@
 
 /**
  * @file This file defines the new user registration page.
- * It features a dynamic form that adapts based on whether the user is registering as an Employee or an Admin.
+ * It features a dynamic form that adapts based on whether the user is registering as an Participant or an Admin.
  */
 "use client";
 
@@ -35,7 +35,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import * as firestore from '@/lib/firebase/firestore';
 import * as mock from '@/lib/mock-data';
 import { isTestMode } from '@/lib/test-mode';
-import type { EmployeeData } from "@/lib/firebase/firestore";
+import type { ParticipantData } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import app from "@/lib/firebase/config";
 
@@ -49,7 +49,7 @@ const auth = getAuth(app);
  * @returns {JSX.Element} The rendered registration wizard.
  */
 function RegistrationWizard() {
-  const [formData, setFormData] = useState<Partial<EmployeeData & { password?: string, confirmPassword?: string, organizationName?: string, dateOfBirth?: string, phone?: string }>>({});
+  const [formData, setFormData] = useState<Partial<ParticipantData & { password?: string, confirmPassword?: string, organizationName?: string, dateOfBirth?: string, phone?: string }>>({});
   const [isAgreed, setIsAgreed] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
@@ -102,7 +102,7 @@ function RegistrationWizard() {
     }
 
     const requiredFields: (keyof typeof formData)[] = [
-        "firstName", "sirName", "gender", "phone", "idNumber", "dateOfBirth", "email", "password", "employeeNumber", "designation", "jobGroup", "dutyStation"
+        "firstName", "sirName", "gender", "phone", "idNumber", "dateOfBirth", "email", "password", "participantNumber", "designation", "jobGroup", "dutyStation"
     ];
 
 
@@ -139,8 +139,8 @@ function RegistrationWizard() {
       const userCredential = await createUserWithEmailAndPassword(auth, formData.email!, formData.password!);
       const user = userCredential.user;
 
-      // 2. Save additional employee details to Firestore
-      const employeeData = {
+      // 2. Save additional participant details to Firestore
+      const participantData = {
           name: `${formData.firstName} ${formData.sirName}`,
           phoneNumber: fullPhoneNumber,
           idNumber: formData.idNumber,
@@ -148,17 +148,17 @@ function RegistrationWizard() {
           gender: formData.gender,
           dateOfBirth: formData.dateOfBirth,
           role: formData.designation,
-          employeeNumber: formData.employeeNumber,
+          participantNumber: formData.participantNumber,
           dutyStation: formData.dutyStation,
           jobGroup: formData.jobGroup,
       };
 
 
-      await dataProvider.addEmployee(employeeData, user.uid);
+      await dataProvider.addParticipant(participantData, user.uid);
       
       toast({
           title: "Registration Successful",
-          description: `Your employee account has been created.`,
+          description: `Your participant account has been created.`,
       });
 
       router.push("/dashboard");
@@ -167,7 +167,7 @@ function RegistrationWizard() {
         console.error("Registration failed:", error);
         toast({
             title: "Registration Failed",
-            description: error.message || `Could not create your employee account. Please try again.`,
+            description: error.message || `Could not create your participant account. Please try again.`,
             variant: "destructive",
         });
     }
@@ -189,10 +189,10 @@ function RegistrationWizard() {
   const jobGroups = ["A", "B1", "B2", "B3", "B4", "B5", "C1", "C2", "C3", "C4", "C5", "D1", "D2", "D3", "D4", "D5", "E1", "E2", "E4", "H", "J", "K", "L", "M", "N", "P", "Q", "R", "S"];
 
   const emailOptions = [
-    "employee1@example.com",
-    "employee2@example.com",
-    "employee3@example.com",
-    "employee4@example.com",
+    "participant1@example.com",
+    "participant2@example.com",
+    "participant3@example.com",
+    "participant4@example.com",
     "admin@example.com",
     "admin2@example.com",
     "outreach@health.org",
@@ -211,7 +211,7 @@ function RegistrationWizard() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-2xl mx-auto">
         <CardHeader>
-          <CardTitle className="text-2xl">Create an Employee Account</CardTitle>
+          <CardTitle className="text-2xl">Create a Participant Account</CardTitle>
           <CardDescription>
             Fill out the form below to register. Fields marked with <span className="text-destructive">*</span> are required.
           </CardDescription>
@@ -288,8 +288,8 @@ function RegistrationWizard() {
             
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="employeeNumber">Employee Number <span className="text-destructive">*</span></Label>
-                  <Input id="employeeNumber" placeholder="e.g., EMP123" required onChange={handleInputChange} />
+                  <Label htmlFor="participantNumber">Participant Number <span className="text-destructive">*</span></Label>
+                  <Input id="participantNumber" placeholder="e.g., EMP123" required onChange={handleInputChange} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="designation">Designation <span className="text-destructive">*</span></Label>

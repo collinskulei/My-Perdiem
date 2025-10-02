@@ -1,7 +1,7 @@
 
 /**
  * @file This file defines the user profile page.
- * It allows both employees and admins to view and edit their personal information.
+ * It allows both participants and admins to view and edit their personal information.
  */
 "use client";
 
@@ -25,7 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import * as firestore from '@/lib/firebase/firestore';
 import * as mock from '@/lib/mock-data';
 import { isTestMode } from '@/lib/test-mode';
-import type { Employee } from "@/lib/data";
+import type { Participant } from "@/lib/data";
 import app from "@/lib/firebase/config";
 import { Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -40,7 +40,7 @@ type MockUser = {
 }
 
 // Form values type, making some fields optional for the form state
-type ProfileFormValues = Omit<Employee, "id" | "avatarUrl" | "email">;
+type ProfileFormValues = Omit<Participant, "id" | "avatarUrl" | "email">;
 
 /**
  * The main component for the user profile page.
@@ -49,7 +49,7 @@ type ProfileFormValues = Omit<Employee, "id" | "avatarUrl" | "email">;
  */
 function Profile() {
   const [authUser, setAuthUser] = useState<User | MockUser | null>(null);
-  const [employee, setEmployee] = useState<Employee | null>(null);
+  const [participant, setParticipant] = useState<Participant | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const router = useRouter();
@@ -83,21 +83,21 @@ function Profile() {
     }
   }, [router]);
 
-  // Fetch employee data once authenticated
+  // Fetch participant data once authenticated
   useEffect(() => {
-    async function fetchEmployeeData() {
+    async function fetchParticipantData() {
       if (authUser) {
         setLoading(true);
-        const employeeData = await dataProvider.getEmployeeById(authUser.uid);
-        setEmployee(employeeData);
-        if (employeeData) {
-          // Once data is fetched, reset the form with the employee's details
-          reset(employeeData);
+        const participantData = await dataProvider.getParticipantById(authUser.uid);
+        setParticipant(participantData);
+        if (participantData) {
+          // Once data is fetched, reset the form with the participant's details
+          reset(participantData);
         }
         setLoading(false);
       }
     }
-    fetchEmployeeData();
+    fetchParticipantData();
   }, [authUser, reset]);
 
   /**
@@ -109,8 +109,8 @@ function Profile() {
 
     setIsSaving(true);
     try {
-      await dataProvider.updateEmployee(authUser.uid, data);
-      setEmployee(prev => prev ? { ...prev, ...data } : null);
+      await dataProvider.updateParticipant(authUser.uid, data);
+      setParticipant(prev => prev ? { ...prev, ...data } : null);
       reset(data); // Resets the form's dirty state
       toast({
         title: "Profile Updated",
@@ -136,7 +136,7 @@ function Profile() {
     );
   }
 
-  if (!employee) {
+  if (!participant) {
     return (
         <div className="flex items-center justify-center h-screen">
             <p>Could not load user profile.</p>
@@ -157,12 +157,12 @@ function Profile() {
         <CardContent className="space-y-6">
             <div className="flex items-center gap-4">
                  <Avatar className="h-16 w-16">
-                    <AvatarImage src={employee.avatarUrl} data-ai-hint="person avatar" />
-                    <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
+                    <AvatarImage src={participant.avatarUrl} data-ai-hint="person avatar" />
+                    <AvatarFallback>{participant.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div className="space-y-1 overflow-hidden">
-                    <h2 className="text-2xl font-semibold truncate">{employee.name}</h2>
-                    <p className="text-muted-foreground truncate">{employee.email}</p>
+                    <h2 className="text-2xl font-semibold truncate">{participant.name}</h2>
+                    <p className="text-muted-foreground truncate">{participant.email}</p>
                 </div>
             </div>
 
@@ -199,14 +199,14 @@ function Profile() {
                         render={({ field }) => <Input id="gender" {...field} />}
                     />
                 </div>
-                {employee.role !== 'Admin' && (
+                {participant.role !== 'Admin' && (
                     <>
                         <div className="space-y-2">
-                            <Label htmlFor="employeeNumber">Employee Number</Label>
+                            <Label htmlFor="participantNumber">Participant Number</Label>
                             <Controller
-                                name="employeeNumber"
+                                name="participantNumber"
                                 control={control}
-                                render={({ field }) => <Input id="employeeNumber" {...field} />}
+                                render={({ field }) => <Input id="participantNumber" {...field} />}
                             />
                         </div>
                         <div className="space-y-2">
@@ -235,7 +235,7 @@ function Profile() {
                         </div>
                     </>
                 )}
-                 {employee.role === 'Admin' && (
+                 {participant.role === 'Admin' && (
                     <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="organizationName">Organization Name</Label>
                         <Controller
