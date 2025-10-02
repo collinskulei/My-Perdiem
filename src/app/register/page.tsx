@@ -247,7 +247,7 @@ function RegistrationWizard() {
                     </Select>
                 </div>
                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number <span className="text-destructive">*</span></Label>
+                    <Label htmlFor="phone">M-Pesa Phone Number <span className="text-destructive">*</span></Label>
                     <div className="flex items-center">
                         <span className="inline-flex h-10 items-center rounded-l-md border border-r-0 border-input bg-background px-3 text-muted-foreground">
                         +254
@@ -261,6 +261,7 @@ function RegistrationWizard() {
                         onChange={handleInputChange}
                         />
                     </div>
+                    <p className="text-xs text-muted-foreground">This number will be used to send per diem payments.</p>
                 </div>
             </div>
 
