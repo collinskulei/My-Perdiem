@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2, QrCode } from "lucide-react";
+import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2, QrCode, Upload, File as FileIcon, X } from "lucide-react";
 import Image from "next/image";
 import { DateRange } from "react-day-picker";
 import { format, isWithinInterval, parseISO, isPast, endOfDay, subDays } from "date-fns";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { QRCodeCanvas } from 'qrcode.react';
+import * as XLSX from 'xlsx';
+
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -77,7 +79,8 @@ import * as mock from '@/lib/mock-data';
 import { isTestMode } from '@/lib/test-mode';
 import { cn, formatCurrency } from "@/lib/utils";
 import { ClientOnly } from "@/components/client-only";
-import { PerDiemBalanceCard } from "@/app/dashboard/employee-dashboard";
+import { PerDiemBalanceCard } from "@/app/dashboard/participant-dashboard";
+import { Separator } from "@/components/ui/separator";
 
 const dataProvider = mock;
 
@@ -102,6 +105,8 @@ const designations = [
     "Pharmacist", "Laboratory Technologist", "Radiographer", "Physiotherapist", "Hospital Administrator",
 ];
 const jobGroups = ["A", "B1", "B2", "B3", "B4", "B5", "C1", "C2", "C3", "C4", "C5", "D1", "D2", "D3", "D4", "D5", "E1", "E2", "E4", "H", "J", "K", "L", "M", "N", "P", "Q", "R", "S"];
+
+type UnregisteredParticipant = { name: string; phoneNumber: string };
 
 const toCSV = (data: any[], columns: string[], columnHeaders: string[]): string => {
   const header = columnHeaders.join(',') + '\n';
@@ -145,6 +150,8 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   const [eventFormData, setEventFormData] = useState<{name: string; facilitator: string; venueId: string; allocatedParticipants: string[] }>(defaultNewEvent);
   const [eventDates, setEventDates] = useState<Date[] | undefined>();
   const [isParticipantSelectOpen, setParticipantSelectOpen] = useState(false);
+  const [uploadedParticipants, setUploadedParticipants] = useState<UnregisteredParticipant[]>([]);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   
   const [isParticipantDialogOpen, setIsParticipantDialogOpen] = useState(false);
   const [editingParticipant, setEditingParticipant] = useState<Participant | null>(null);
@@ -239,7 +246,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         }
 
         if (filters.dutyStation !== 'all') {
-            const participantIds = allParticipants.filter(e => e.dutyStation === filters.dutyStation).map(e => e.id);
+            const participantIds = allParticipants.filter(p => p.dutyStation === filters.dutyStation).map(p => p.id);
             data = data.filter(req => participantIds.includes(req.participantId));
         }
 
@@ -288,10 +295,13 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         allocatedParticipants: eventToEdit.allocatedParticipants,
       });
       setEventDates((eventToEdit.eventDates || []).map(dateStr => parseISO(dateStr)));
+      setUploadedParticipants(eventToEdit.unregisteredParticipants || []);
     } else {
       setEditingEvent(null);
       setEventFormData(defaultNewEvent);
       setEventDates(undefined);
+      setUploadedParticipants([]);
+      setUploadedFile(null);
     }
     setIsEventDialogOpen(true);
   };
@@ -310,6 +320,18 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
 
     const formattedDates = eventDates.map(date => format(date, 'yyyy-MM-dd')).sort();
 
+    const allDbParticipants = await dataProvider.getParticipants();
+    const phoneToIdMap = new Map(allDbParticipants.map(p => [p.phoneNumber, p.id]));
+
+    const manuallySelectedIds = eventFormData.allocatedParticipants;
+    const uploadedRegisteredIds = uploadedParticipants
+        .map(up => phoneToIdMap.get(up.phoneNumber))
+        .filter((id): id is string => !!id);
+
+    const finalAllocatedIds = [...new Set([...manuallySelectedIds, ...uploadedRegisteredIds])];
+
+    const finalUnregistered = uploadedParticipants.filter(up => !phoneToIdMap.has(up.phoneNumber));
+
     const eventData = {
         name: eventFormData.name,
         eventDates: formattedDates,
@@ -317,7 +339,8 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         venueName: selectedVenue.name,
         venueCity: selectedVenue.city,
         facilitator: eventFormData.facilitator,
-        allocatedParticipants: eventFormData.allocatedParticipants,
+        allocatedParticipants: finalAllocatedIds,
+        unregisteredParticipants: finalUnregistered,
     };
     
     try {
@@ -326,12 +349,12 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
       if (editingEvent) {
         // Update existing event
         await dataProvider.updateEvent(editingEvent.id, eventData);
-        finalEvent = { ...editingEvent, ...eventData };
+        finalEvent = { ...editingEvent, ...eventData, checkedInParticipants: editingEvent.checkedInParticipants || {} };
         toast({ title: "Success", description: "Event updated successfully." });
       } else {
         // Add new event
         eventId = await dataProvider.addEvent(eventData);
-        finalEvent = { id: eventId, ...eventData };
+        finalEvent = { id: eventId, ...eventData, checkedInParticipants: {} };
         toast({ title: "Success", description: "Event created successfully." });
       }
       setIsEventDialogOpen(false);
@@ -421,7 +444,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   const handleDownloadPerDiemReport = (dataToDownload: PerdiemRequest[], reportName: string) => {
     const detailedData = dataToDownload.map(req => {
         const event = events.find(e => e.id === req.eventId);
-        const participant = participants.find(emp => emp.id === req.participantId);
+        const participant = participants.find(p => p.id === req.participantId);
         const eventDuration = event && event.eventDates ? event.eventDates.length : 0;
         const daysAttended = participant && event?.checkedInParticipants?.[participant.id] ? Object.keys(event.checkedInParticipants[participant.id]).length : 0;
         const attendance = eventDuration > 0 ? `${daysAttended}/${eventDuration}` : 'N/A';
@@ -454,7 +477,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
     const dateColumns = eventDays.map(day => format(day, 'yyyy-MM-dd'));
     const dateHeaders = eventDays.map(day => format(day, 'MMM d'));
 
-    const allocatedParticipants = participants.filter(emp => event.allocatedParticipants.includes(emp.id));
+    const allocatedParticipants = participants.filter(p => event.allocatedParticipants.includes(p.id));
 
     const reportData = allocatedParticipants.map(participant => {
         const row: {[key: string]: any} = {
@@ -481,7 +504,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
     downloadCSV(csvData, `check-in-report_${event.name.replace(/\s+/g, '-')}.csv`);
   };
 
-  const nonAdminParticipants = participants.filter(e => e.role !== 'Admin');
+  const nonAdminParticipants = participants.filter(p => p.role !== 'Admin');
 
   const handleSelectParticipant = useCallback((participantId: string) => {
     setEventFormData(prev => {
@@ -494,7 +517,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
 
   const handleSelectAllParticipants = (check: boolean | string) => {
      if (check) {
-        setEventFormData(prev => ({ ...prev, allocatedParticipants: nonAdminParticipants.map(e => e.id) }));
+        setEventFormData(prev => ({ ...prev, allocatedParticipants: nonAdminParticipants.map(p => p.id) }));
      } else {
         setEventFormData(prev => ({ ...prev, allocatedParticipants: [] }));
      }
@@ -528,6 +551,60 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         default: return 'outline';
     }
    };
+  
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploadedFile(file);
+
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            const bstr = evt.target?.result;
+            const wb = XLSX.read(bstr, { type: 'binary' });
+            const wsname = wb.SheetNames[0];
+            const ws = wb.Sheets[wsname];
+            const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+            
+            const [headers, ...rows] = data as string[][];
+            const nameIndex = headers.findIndex(h => h.toLowerCase().includes('name'));
+            const phoneIndex = headers.findIndex(h => h.toLowerCase().includes('phone'));
+
+            if (nameIndex === -1 || phoneIndex === -1) {
+                toast({
+                    title: "Invalid File Format",
+                    description: "Excel file must contain 'Name' and 'Phone' columns.",
+                    variant: "destructive"
+                });
+                setUploadedFile(null);
+                return;
+            }
+
+            const parsedParticipants: UnregisteredParticipant[] = rows.map(row => ({
+                name: row[nameIndex] || '',
+                phoneNumber: String(row[phoneIndex] || '').replace(/\D/g, '').slice(-9), // Extract last 9 digits
+            })).filter(p => p.name && p.phoneNumber && p.phoneNumber.length === 9);
+
+            setUploadedParticipants(parsedParticipants);
+            toast({
+                title: "File Processed",
+                description: `${parsedParticipants.length} participants parsed from the file.`
+            });
+        };
+        reader.readAsBinaryString(file);
+    };
+
+    const totalAssignedCount = useMemo(() => {
+        const manualIds = new Set(eventFormData.allocatedParticipants);
+        uploadedParticipants.forEach(up => {
+            const existingParticipant = participants.find(p => p.phoneNumber.slice(-9) === up.phoneNumber);
+            if (existingParticipant) {
+                manualIds.add(existingParticipant.id);
+            }
+        });
+        const uploadedNewCount = uploadedParticipants.filter(up => !participants.some(p => p.phoneNumber.slice(-9) === up.phoneNumber)).length;
+        return manualIds.size + uploadedNewCount;
+    }, [eventFormData.allocatedParticipants, uploadedParticipants, participants]);
 
   return (
     <>
@@ -606,7 +683,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                             <PlusCircle className="mr-2 h-4 w-4" />Add Event
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-2xl flex flex-col max-h-[90vh]">
+                    <DialogContent className="sm:max-w-3xl flex flex-col max-h-[90vh]">
                         <DialogHeader>
                             <DialogTitle>{editingEvent ? 'Edit Event' : 'Add New Event'}</DialogTitle>
                             <DialogDescription>
@@ -644,54 +721,97 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                     <Label htmlFor="event-facilitator" className="text-left sm:text-right">Facilitator</Label>
                                     <Input id="event-facilitator" value={eventFormData.facilitator} onChange={(e) => setEventFormData({ ...eventFormData, facilitator: e.target.value })} className="col-span-3" />
                                 </div>
+
+                                <Separator />
+
                                 <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-4">
-                                    <Label className="text-left sm:text-right">Assign Participants</Label>
-                                    <Popover open={isParticipantSelectOpen} onOpenChange={setParticipantSelectOpen}>
-                                        <PopoverTrigger asChild>
-                                            <Button variant="outline" className="col-span-3 justify-start text-left font-normal">
-                                                <ChevronsUpDown className="mr-2 h-4 w-4" />
-                                                {eventFormData.allocatedParticipants.length > 0 ? `${eventFormData.allocatedParticipants.length} selected` : "Select participants"}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                                            <Command>
-                                                <CommandInput placeholder="Search participants..." />
-                                                <CommandList>
-                                                    <CommandEmpty>No participants found.</CommandEmpty>
-                                                    <CommandGroup>
-                                                        <CommandItem
-                                                            onSelect={() => handleSelectAllParticipants(!(eventFormData.allocatedParticipants.length === nonAdminParticipants.length))}
-                                                            className="cursor-pointer"
-                                                        >
-                                                            <Checkbox
-                                                                className="mr-2"
-                                                                checked={eventFormData.allocatedParticipants.length > 0 && eventFormData.allocatedParticipants.length === nonAdminParticipants.length}
-                                                                onCheckedChange={(checked) => handleSelectAllParticipants(checked)}
-                                                            />
-                                                            <span>Select All</span>
-                                                        </CommandItem>
-                                                    </CommandGroup>
-                                                    <CommandSeparator />
-                                                    <CommandGroup>
-                                                        {nonAdminParticipants.map((participant) => (
-                                                            <CommandItem
-                                                                key={participant.id}
-                                                                onSelect={() => handleSelectParticipant(participant.id)}
-                                                                className="cursor-pointer"
-                                                            >
-                                                                <Checkbox
-                                                                    className="mr-2"
-                                                                    checked={eventFormData.allocatedParticipants.includes(participant.id)}
-                                                                    onCheckedChange={() => handleSelectParticipant(participant.id)}
-                                                                />
-                                                                <span>{participant.name}</span>
-                                                            </CommandItem>
-                                                        ))}
-                                                    </CommandGroup>
-                                                </CommandList>
-                                            </Command>
-                                        </PopoverContent>
-                                    </Popover>
+                                    <div className="text-left sm:text-right">
+                                        <Label>Assign Participants</Label>
+                                        <p className="text-xs text-muted-foreground">Total assigned: {totalAssignedCount}</p>
+                                    </div>
+                                    <div className="col-span-3 space-y-4">
+                                        <div>
+                                            <h4 className="font-medium text-sm mb-2">Option 1: Bulk Upload</h4>
+                                            {!uploadedFile ? (
+                                                <Label htmlFor="bulk-upload" className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 dark:bg-muted/20 dark:hover:bg-muted/40">
+                                                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                                        <Upload className="w-8 h-8 mb-2 text-gray-500" />
+                                                        <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Upload Excel/CSV</span></p>
+                                                    </div>
+                                                    <Input id="bulk-upload" type="file" className="hidden" onChange={handleFileUpload} accept=".xlsx, .xls, .csv" />
+                                                </Label>
+                                            ) : (
+                                                <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50 dark:bg-muted/20">
+                                                    <div className="flex items-center gap-3 overflow-hidden">
+                                                        <FileIcon className="h-6 w-6 text-gray-600 flex-shrink-0"/>
+                                                        <div className="truncate">
+                                                           <span className="text-sm font-medium">{uploadedFile.name}</span>
+                                                           <p className="text-xs text-muted-foreground">{uploadedParticipants.length} participants parsed.</p>
+                                                        </div>
+                                                    </div>
+                                                    <Button type="button" variant="ghost" size="icon" onClick={() => { setUploadedFile(null); setUploadedParticipants([]); }}>
+                                                        <X className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="relative">
+                                          <Separator />
+                                          <span className="absolute left-1/2 -translate-x-1/2 -top-2.5 bg-background px-2 text-xs text-muted-foreground">OR</span>
+                                        </div>
+
+                                        <div>
+                                             <h4 className="font-medium text-sm mb-2">Option 2: Manually Select</h4>
+                                             <Popover open={isParticipantSelectOpen} onOpenChange={setParticipantSelectOpen}>
+                                                <PopoverTrigger asChild>
+                                                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                                                        <ChevronsUpDown className="mr-2 h-4 w-4" />
+                                                        {eventFormData.allocatedParticipants.length > 0 ? `${eventFormData.allocatedParticipants.length} selected` : "Select registered participants"}
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                                                    <Command>
+                                                        <CommandInput placeholder="Search participants..." />
+                                                        <CommandList>
+                                                            <CommandEmpty>No participants found.</CommandEmpty>
+                                                            <CommandGroup>
+                                                                <CommandItem
+                                                                    onSelect={() => handleSelectAllParticipants(!(eventFormData.allocatedParticipants.length === nonAdminParticipants.length))}
+                                                                    className="cursor-pointer"
+                                                                >
+                                                                    <Checkbox
+                                                                        className="mr-2"
+                                                                        checked={eventFormData.allocatedParticipants.length > 0 && eventFormData.allocatedParticipants.length === nonAdminParticipants.length}
+                                                                        onCheckedChange={(checked) => handleSelectAllParticipants(checked)}
+                                                                    />
+                                                                    <span>Select All</span>
+                                                                </CommandItem>
+                                                            </CommandGroup>
+                                                            <CommandSeparator />
+                                                            <CommandGroup>
+                                                                {nonAdminParticipants.map((participant) => (
+                                                                    <CommandItem
+                                                                        key={participant.id}
+                                                                        onSelect={() => handleSelectParticipant(participant.id)}
+                                                                        className="cursor-pointer"
+                                                                    >
+                                                                        <Checkbox
+                                                                            className="mr-2"
+                                                                            checked={eventFormData.allocatedParticipants.includes(participant.id)}
+                                                                            onCheckedChange={() => handleSelectParticipant(participant.id)}
+                                                                        />
+                                                                        <span>{participant.name}</span>
+                                                                    </CommandItem>
+                                                                ))}
+                                                            </CommandGroup>
+                                                        </CommandList>
+                                                    </Command>
+                                                </PopoverContent>
+                                            </Popover>
+                                        </div>
+
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -711,12 +831,13 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                             : events.map((event) => {
                                 const lastEventDate = event.eventDates?.length ? parseISO(event.eventDates[event.eventDates.length - 1]) : new Date(0);
                                 const isEventPast = isPast(endOfDay(lastEventDate));
+                                const totalAssigned = event.allocatedParticipants.length + (event.unregisteredParticipants?.length || 0);
                                 return (
                                     <TableRow key={event.id}>
                                         <TableCell className="font-medium">{event.name}</TableCell>
                                         <TableCell>{event.venueName}</TableCell>
                                         <TableCell className="whitespace-nowrap">{(event.eventDates || []).join(', ')}</TableCell>
-                                        <TableCell>{event.allocatedParticipants.length}</TableCell>
+                                        <TableCell>{totalAssigned}</TableCell>
                                         <TableCell>{getTotalCheckinsForEvent(event)}</TableCell>
                                         <TableCell>
                                             <DropdownMenu>
@@ -766,7 +887,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                              </div>
                             {activeEvents.map(event => {
                                 const eventDays = getEventDays(event);
-                                const allocatedParticipants = participants.filter(emp => event.allocatedParticipants.includes(emp.id));
+                                const allocatedParticipants = participants.filter(p => event.allocatedParticipants.includes(p.id));
 
                                 return (
                                     <TabsContent key={event.id} value={event.id}>
@@ -969,7 +1090,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                     <SelectTrigger><SelectValue placeholder="Select Participant" /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">All Participants</SelectItem>
-                                        {nonAdminParticipants.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+                                        {nonAdminParticipants.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -1424,3 +1545,4 @@ function SuccessDialog({ isOpen, onClose, event }: { isOpen: boolean; onClose: (
 
 
     
+

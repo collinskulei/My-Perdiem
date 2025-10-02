@@ -20,6 +20,7 @@ export type Participant = {
   dateOfBirth?: string;
   jobGroup?: string;
   organizationName?: string;
+  gender?: 'male' | 'female';
 };
 
 /**
