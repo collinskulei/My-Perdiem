@@ -237,8 +237,8 @@ const getDb = (): MockDatabase => {
     if (storedData && storedTimestamp && (now - parseInt(storedTimestamp, 10) < ONE_WEEK_MS)) {
         try {
             const parsedData = JSON.parse(storedData);
-             // Basic validation
-            if (parsedData.venues && parsedData.participants) {
+             // Basic validation to ensure all expected keys are present
+            if (parsedData.venues && parsedData.participants && parsedData.events && parsedData.perdiemRequests) {
                  db = parsedData;
             } else {
                 throw new Error("Invalid mock data structure");
