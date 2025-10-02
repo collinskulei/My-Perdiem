@@ -102,7 +102,7 @@ function RegistrationWizard() {
     }
 
     const requiredFields: (keyof typeof formData)[] = [
-        "firstName", "sirName", "gender", "phone", "idNumber", "dateOfBirth", "email", "password", "participantNumber", "designation", "jobGroup", "dutyStation"
+        "firstName", "sirName", "phone", "idNumber", "dateOfBirth", "email", "password", "participantNumber", "designation", "jobGroup", "dutyStation"
     ];
 
 
@@ -145,7 +145,6 @@ function RegistrationWizard() {
           phoneNumber: fullPhoneNumber,
           idNumber: formData.idNumber,
           email: user.email!, // Use email from the created user
-          gender: formData.gender,
           dateOfBirth: formData.dateOfBirth,
           role: formData.designation,
           participantNumber: formData.participantNumber,
@@ -234,18 +233,6 @@ function RegistrationWizard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <Label htmlFor="gender">Gender <span className="text-destructive">*</span></Label>
-                    <Select required onValueChange={(value) => handleSelectChange('gender', value)}>
-                        <SelectTrigger id="gender">
-                        <SelectValue placeholder="Select gender" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="male">Male</SelectItem>
-                            <SelectItem value="female">Female</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
                  <div className="space-y-2">
                     <Label htmlFor="phone">M-Pesa Phone Number <span className="text-destructive">*</span></Label>
                     <div className="flex items-center">
@@ -263,10 +250,7 @@ function RegistrationWizard() {
                     </div>
                     <p className="text-xs text-muted-foreground">This number will be used to send per diem payments.</p>
                 </div>
-            </div>
-
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
+                 <div className="space-y-2">
                     <Label htmlFor="idNumber">ID Number <span className="text-destructive">*</span></Label>
                     <Input 
                         id="idNumber" 
@@ -276,6 +260,9 @@ function RegistrationWizard() {
                         maxLength={8}
                     />
                 </div>
+            </div>
+
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <Label htmlFor="dateOfBirth">Date of Birth <span className="text-destructive">*</span></Label>
                     <Input 
@@ -285,13 +272,13 @@ function RegistrationWizard() {
                         onChange={handleInputChange} 
                     />
                 </div>
+                <div className="space-y-2">
+                    <Label htmlFor="participantNumber">Participant Number <span className="text-destructive">*</span></Label>
+                    <Input id="participantNumber" placeholder="e.g., EMP123" required onChange={handleInputChange} />
+                </div>
             </div>
             
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="participantNumber">Participant Number <span className="text-destructive">*</span></Label>
-                  <Input id="participantNumber" placeholder="e.g., EMP123" required onChange={handleInputChange} />
-                </div>
                 <div className="space-y-2">
                   <Label htmlFor="designation">Designation <span className="text-destructive">*</span></Label>
                    <Select required onValueChange={(value) => handleSelectChange('designation', value)}>
@@ -322,7 +309,7 @@ function RegistrationWizard() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="dutyStation">Duty Station <span className="text-destructive">*</span></Label>
                   <Input id="dutyStation" placeholder="e.g., Nairobi" required onChange={handleInputChange} />
                 </div>

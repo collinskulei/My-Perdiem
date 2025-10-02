@@ -191,14 +191,6 @@ function Profile() {
                         render={({ field }) => <Input id="idNumber" {...field} />}
                     />
                 </div>
-                 <div className="space-y-2">
-                    <Label htmlFor="gender">Gender</Label>
-                    <Controller
-                        name="gender"
-                        control={control}
-                        render={({ field }) => <Input id="gender" {...field} />}
-                    />
-                </div>
                 {participant.role !== 'Admin' && (
                     <>
                         <div className="space-y-2">

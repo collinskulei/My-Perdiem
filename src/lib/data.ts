@@ -1,25 +1,26 @@
+
 /**
  * @file This file contains mock data and type definitions for the application.
- * It serves as a temporary in-memory database for employees, venues, and per diem requests.
+ * It serves as a temporary in-memory database for participants, venues, and per diem requests.
  */
 
 /**
- * Represents an employee in the system.
+ * Represents an participant in the system.
  */
-export type Employee = {
+export type Participant = {
   id: string;
   name: string;
   phoneNumber: string;
   idNumber: string;
-  employeeNumber?: string;
+  participantNumber?: string;
   role: string; // This corresponds to 'designation' in the registration form
   dutyStation?: string;
   avatarUrl: string;
   email: string;
-  gender: string;
   dateOfBirth?: string;
   jobGroup?: string;
   organizationName?: string;
+  gender?: string;
 };
 
 /**
@@ -45,18 +46,18 @@ export type AppEvent = {
   venueName: string;
   venueCity: string;
   facilitator: string;
-  allocatedEmployees: string[]; // Array of employee IDs
-  checkedInEmployees?: { [employeeId: string]: { [date: string]: number } }; // employeeId: { date: checkInTimestamp }
+  allocatedParticipants: string[]; // Array of participant IDs
+  checkedInParticipants?: { [participantId: string]: { [date: string]: number } }; // participantId: { date: checkInTimestamp }
 };
 
 
 /**
- * Represents a single per diem request submitted by an employee.
+ * Represents a single per diem request submitted by an participant.
  */
 export type PerdiemRequest = {
   id: string;
-  employeeId: string;
-  employeeName: string;
+  participantId: string;
+  participantName: string;
   eventId: string;
   eventName: string;
   location: string;

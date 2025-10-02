@@ -1,11 +1,12 @@
+
 /**
  * @file This file provides a mock data implementation that uses localStorage
  * to simulate a database. It's used when the application is in "Test Mode".
  * It includes logic to initialize and expire the mock data.
  */
 
-import type { Venue, PerdiemRequest, Employee, AppEvent } from './data';
-import type { VenueData, EmployeeData, EventData, PerDiemRequestData } from './firebase/firestore';
+import type { Venue, PerdiemRequest, Participant, AppEvent } from './data';
+import type { VenueData, ParticipantData, EventData, PerDiemRequestData } from './firebase/firestore';
 
 const MOCK_DATA_KEY = 'perdiem-pro-mock-data';
 const TIMESTAMP_KEY = 'perdiem-pro-mock-timestamp';
@@ -15,7 +16,7 @@ const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 type MockDatabase = {
   venues: Venue[];
-  employees: Employee[];
+  participants: Participant[];
   events: AppEvent[];
   perdiemRequests: PerdiemRequest[];
 };
@@ -30,7 +31,7 @@ const initialVenues: Venue[] = [
   { id: "venue-ksm-001", name: "Acacia Premier Hotel", city: "Kisumu", county: "Kisumu", latitude: -0.1022, longitude: 34.7575 },
 ];
 
-const initialEmployees: Employee[] = [
+const initialParticipants: Participant[] = [
     {
         id: "auth-uid-admin",
         name: "Test Mode Admin",
@@ -39,7 +40,6 @@ const initialEmployees: Employee[] = [
         avatarUrl: `https://picsum.photos/seed/auth-uid-admin/100/100`,
         phoneNumber: "+254700000000",
         idNumber: "00000000",
-        gender: "male",
         dateOfBirth: "1980-01-01",
         organizationName: "PerdiemPro Inc."
     },
@@ -51,63 +51,58 @@ const initialEmployees: Employee[] = [
         avatarUrl: `https://picsum.photos/seed/auth-uid-admin2/100/100`,
         phoneNumber: "+254700000002",
         idNumber: "00000002",
-        gender: "female",
         dateOfBirth: "1985-05-10",
         organizationName: "HealthOrg LLC"
     },
     {
-        id: "auth-uid-employee-1",
-        name: "Test Mode Employee",
-        email: "employee1@example.com",
+        id: "auth-uid-participant-1",
+        name: "Test Mode Participant",
+        email: "participant1@example.com",
         role: "Registered Nurse",
-        avatarUrl: `https://picsum.photos/seed/auth-uid-employee-1/100/100`,
+        avatarUrl: `https://picsum.photos/seed/auth-uid-participant-1/100/100`,
         phoneNumber: "+254711111111",
         idNumber: "11111111",
-        gender: "male",
         dateOfBirth: "1990-03-15",
-        employeeNumber: "EMP001",
+        participantNumber: "EMP001",
         dutyStation: "Nairobi",
         jobGroup: "C3"
     },
     {
-        id: "auth-uid-employee-2",
+        id: "auth-uid-participant-2",
         name: "Jane Smith",
-        email: "employee2@example.com",
+        email: "participant2@example.com",
         role: "Clinical Officer",
-        avatarUrl: `https://picsum.photos/seed/auth-uid-employee-2/100/100`,
+        avatarUrl: `https://picsum.photos/seed/auth-uid-participant-2/100/100`,
         phoneNumber: "+254722222222",
         idNumber: "22222222",
-        gender: "female",
         dateOfBirth: "1992-07-20",
-        employeeNumber: "EMP002",
+        participantNumber: "EMP002",
         dutyStation: "Mombasa",
         jobGroup: "D1"
     },
     {
-        id: "auth-uid-employee-3",
+        id: "auth-uid-participant-3",
         name: "Peter Jones",
-        email: "employee3@example.com",
+        email: "participant3@example.com",
         role: "Laboratory Technologist",
-        avatarUrl: `https://picsum.photos/seed/auth-uid-employee-3/100/100`,
+        avatarUrl: `https://picsum.photos/seed/auth-uid-participant-3/100/100`,
         phoneNumber: "+254733333333",
         idNumber: "33333333",
-        gender: "male",
         dateOfBirth: "1988-11-30",
-        employeeNumber: "EMP003",
+        participantNumber: "EMP003",
         dutyStation: "Kisumu",
         jobGroup: "B5"
     },
      {
-        id: "auth-uid-employee-4",
+        id: "auth-uid-participant-4",
         name: "Maryanne Wangari",
-        email: "employee4@example.com",
+        email: "participant4@example.com",
         role: "Pharmacist",
-        avatarUrl: `https://picsum.photos/seed/auth-uid-employee-4/100/100`,
+        avatarUrl: `https://picsum.photos/seed/auth-uid-participant-4/100/100`,
         phoneNumber: "+254744444444",
         idNumber: "44444444",
-        gender: "female",
         dateOfBirth: "1995-02-25",
-        employeeNumber: "EMP004",
+        participantNumber: "EMP004",
         dutyStation: "Nairobi",
         jobGroup: "K"
     },
@@ -129,9 +124,9 @@ const initialEvents: AppEvent[] = [
         venueName: 'Sarova Stanley',
         venueCity: 'Nairobi',
         facilitator: 'Dr. Emily Carter',
-        allocatedEmployees: ['auth-uid-employee-1', 'auth-uid-employee-4'],
-        checkedInEmployees: { 
-            'auth-uid-employee-1': { 
+        allocatedParticipants: ['auth-uid-participant-1', 'auth-uid-participant-4'],
+        checkedInParticipants: { 
+            'auth-uid-participant-1': { 
                 [formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 10))]: Date.now(),
                 [formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 9))]: Date.now(),
             } 
@@ -148,9 +143,9 @@ const initialEvents: AppEvent[] = [
         venueName: 'Serena Beach Resort & Spa',
         venueCity: 'Mombasa',
         facilitator: 'Prof. David Chen',
-        allocatedEmployees: ['auth-uid-employee-2', 'auth-uid-employee-1'],
-        checkedInEmployees: {
-             'auth-uid-employee-2': { 
+        allocatedParticipants: ['auth-uid-participant-2', 'auth-uid-participant-1'],
+        checkedInParticipants: {
+             'auth-uid-participant-2': { 
                 [formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1))]: Date.now(),
             } 
         },
@@ -166,8 +161,8 @@ const initialEvents: AppEvent[] = [
         venueName: 'Acacia Premier Hotel',
         venueCity: 'Kisumu',
         facilitator: 'Aisha Khan',
-        allocatedEmployees: ['auth-uid-employee-3'],
-        checkedInEmployees: {},
+        allocatedParticipants: ['auth-uid-participant-3'],
+        checkedInParticipants: {},
     },
     {
         id: 'event-004',
@@ -180,15 +175,15 @@ const initialEvents: AppEvent[] = [
         venueName: 'Villa Rosa Kempinski',
         venueCity: 'Nairobi',
         facilitator: 'Dr. Benard Omondi',
-        allocatedEmployees: ['auth-uid-employee-4', 'auth-uid-employee-1'],
-        checkedInEmployees: {},
+        allocatedParticipants: ['auth-uid-participant-4', 'auth-uid-participant-1'],
+        checkedInParticipants: {},
     },
 ];
 const initialPerDiemRequests: PerdiemRequest[] = [
     {
         id: 'req-001',
-        employeeId: 'auth-uid-employee-1',
-        employeeName: 'Test Mode Employee',
+        participantId: 'auth-uid-participant-1',
+        participantName: 'Test Mode Participant',
         eventId: 'event-001',
         eventName: 'Annual Health Conference (Past Event)',
         location: 'Nairobi',
@@ -204,8 +199,8 @@ const initialPerDiemRequests: PerdiemRequest[] = [
     },
     {
         id: 'req-002',
-        employeeId: 'auth-uid-employee-2',
-        employeeName: 'Jane Smith',
+        participantId: 'auth-uid-participant-2',
+        participantName: 'Jane Smith',
         eventId: 'event-002',
         eventName: 'Maternal Health Workshop (Active Event)',
         location: 'Mombasa',
@@ -228,7 +223,7 @@ let db: MockDatabase | null = null;
 const getDb = (): MockDatabase => {
     if (typeof window === 'undefined') {
         // Return a temporary, empty structure on the server
-        return { venues: [], employees: [], events: [], perdiemRequests: [] };
+        return { venues: [], participants: [], events: [], perdiemRequests: [] };
     }
 
     if (db) {
@@ -243,7 +238,7 @@ const getDb = (): MockDatabase => {
         try {
             const parsedData = JSON.parse(storedData);
              // Basic validation
-            if (parsedData.venues && parsedData.employees) {
+            if (parsedData.venues && parsedData.participants) {
                  db = parsedData;
             } else {
                 throw new Error("Invalid mock data structure");
@@ -260,11 +255,11 @@ const getDb = (): MockDatabase => {
 
 const initializeDb = (): MockDatabase => {
     if (typeof window === 'undefined') {
-        return { venues: [], employees: [], events: [], perdiemRequests: [] };
+        return { venues: [], participants: [], events: [], perdiemRequests: [] };
     }
     const initialDb: MockDatabase = {
         venues: initialVenues,
-        employees: initialEmployees,
+        participants: initialParticipants,
         events: initialEvents,
         perdiemRequests: initialPerDiemRequests,
     };
@@ -300,46 +295,46 @@ export const addVenue = async (venue: VenueData): Promise<string> => {
   return newVenue.id;
 };
 
-export const getEmployees = async (): Promise<Employee[]> => {
-  return [...getDb().employees];
+export const getParticipants = async (): Promise<Participant[]> => {
+  return [...getDb().participants];
 };
 
-export const getEmployeeById = async (uid: string): Promise<Employee | null> => {
-    const employee = getDb().employees.find(emp => emp.id === uid) || null;
-    return employee ? {...employee} : null;
+export const getParticipantById = async (uid: string): Promise<Participant | null> => {
+    const participant = getDb().participants.find(p => p.id === uid) || null;
+    return participant ? {...participant} : null;
 };
 
-export const addEmployee = async (userData: any, uid: string): Promise<void> => {
-  const newEmployee: Employee = {
+export const addParticipant = async (userData: any, uid: string): Promise<void> => {
+  const newParticipant: Participant = {
     id: uid,
     avatarUrl: `https://picsum.photos/seed/${uid}/100/100`,
     ...userData,
   };
-  getDb().employees.push(newEmployee);
+  getDb().participants.push(newParticipant);
   saveDb();
 };
 
-export const updateEmployee = async (uid: string, dataToUpdate: Partial<Employee>): Promise<void> => {
+export const updateParticipant = async (uid: string, dataToUpdate: Partial<Participant>): Promise<void> => {
   const dbInstance = getDb();
-  const index = dbInstance.employees.findIndex(emp => emp.id === uid);
+  const index = dbInstance.participants.findIndex(p => p.id === uid);
   if (index !== -1) {
-    dbInstance.employees[index] = { ...dbInstance.employees[index], ...dataToUpdate };
+    dbInstance.participants[index] = { ...dbInstance.participants[index], ...dataToUpdate };
     saveDb();
   } else {
-    throw new Error("Employee not found");
+    throw new Error("Participant not found");
   }
 };
 
 export const isEmailUnique = async (email: string): Promise<boolean> => {
-    return !getDb().employees.some(emp => emp.email === email);
+    return !getDb().participants.some(p => p.email === email);
 };
 
 export const isIdNumberUnique = async (idNumber: string): Promise<boolean> => {
-    return !getDb().employees.some(emp => emp.idNumber === idNumber);
+    return !getDb().participants.some(p => p.idNumber === idNumber);
 };
 
 export const isPhoneNumberUnique = async (phoneNumber: string): Promise<boolean> => {
-    return !getDb().employees.some(emp => emp.phoneNumber === phoneNumber);
+    return !getDb().participants.some(p => p.phoneNumber === phoneNumber);
 };
 
 
@@ -354,9 +349,9 @@ export const getEvents = async (): Promise<AppEvent[]> => {
     return [...getDb().events];
 };
 
-export const getEventsByEmployee = async (employeeId: string): Promise<AppEvent[]> => {
-    const employeeEvents = getDb().events.filter(event => event.allocatedEmployees.includes(employeeId));
-    return JSON.parse(JSON.stringify(employeeEvents)); // Deep copy
+export const getEventsByParticipant = async (participantId: string): Promise<AppEvent[]> => {
+    const participantEvents = getDb().events.filter(event => event.allocatedParticipants.includes(participantId));
+    return JSON.parse(JSON.stringify(participantEvents)); // Deep copy
 };
 
 export const getEventById = async (eventId: string): Promise<AppEvent | null> => {
@@ -376,24 +371,24 @@ export const updateEvent = async (eventId: string, dataToUpdate: Partial<AppEven
 };
 
 
-export const checkInToEvent = async (eventId: string, employeeId: string, dateString: string): Promise<void> => {
+export const checkInToEvent = async (eventId: string, participantId: string, dateString: string): Promise<void> => {
     const dbInstance = getDb();
     const eventIndex = dbInstance.events.findIndex(e => e.id === eventId);
     if (eventIndex !== -1) {
         const event = dbInstance.events[eventIndex];
         
-        // Ensure checkedInEmployees is an object
-        if (!event.checkedInEmployees) {
-            event.checkedInEmployees = {};
+        // Ensure checkedInParticipants is an object
+        if (!event.checkedInParticipants) {
+            event.checkedInParticipants = {};
         }
 
-        // Ensure the record for the employeeId is an object
-        if (typeof event.checkedInEmployees[employeeId] !== 'object' || event.checkedInEmployees[employeeId] === null) {
-            event.checkedInEmployees[employeeId] = {};
+        // Ensure the record for the participantId is an object
+        if (typeof event.checkedInParticipants[participantId] !== 'object' || event.checkedInParticipants[participantId] === null) {
+            event.checkedInParticipants[participantId] = {};
         }
 
         // Now it's safe to set the property
-        event.checkedInEmployees[employeeId][dateString] = Date.now();
+        event.checkedInParticipants[participantId][dateString] = Date.now();
         
         saveDb();
     } else {
@@ -406,8 +401,8 @@ export const getPerDiemRequests = async (): Promise<PerdiemRequest[]> => {
     return [...getDb().perdiemRequests];
 };
 
-export const getPerDiemRequestsByEmployee = async (employeeId: string): Promise<PerdiemRequest[]> => {
-    const requests = getDb().perdiemRequests.filter(req => req.employeeId === employeeId);
+export const getPerDiemRequestsByParticipant = async (participantId: string): Promise<PerdiemRequest[]> => {
+    const requests = getDb().perdiemRequests.filter(req => req.participantId === participantId);
     return JSON.parse(JSON.stringify(requests));
 };
 
