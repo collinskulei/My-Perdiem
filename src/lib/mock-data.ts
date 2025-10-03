@@ -1,4 +1,5 @@
 
+
 /**
  * @file This file provides a mock data implementation that uses localStorage
  * to simulate a database. It's used when the application is in "Test Mode".
@@ -129,6 +130,7 @@ const initialEvents: AppEvent[] = [
             'auth-uid-participant-1': { 
                 [formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 10))]: Date.now(),
                 [formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 9))]: Date.now(),
+                [formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 8))]: Date.now(),
             } 
         },
     },
@@ -187,15 +189,14 @@ const initialPerDiemRequests: PerdiemRequest[] = [
         eventId: 'event-001',
         eventName: 'Annual Health Conference (Past Event)',
         location: 'Nairobi',
-        date: formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 9)),
-        status: 'Paid',
-        mpesaTransactionCode: 'ABC123XYZ',
-        accommodationNights: 2,
-        accommodationTotal: 10000,
-        outOfOfficeAllowance: 8000,
+        date: formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7)),
+        status: 'Approved',
+        accommodationNights: 3,
+        accommodationTotal: 15000,
+        outOfOfficeAllowance: 12000,
         mileageKm: 50,
         mileageTotal: 2250,
-        totalPerdiem: 20250,
+        totalPerdiem: 29250,
     },
     {
         id: 'req-002',
@@ -423,3 +424,21 @@ export const updatePerDiemRequest = async (requestId: string, dataToUpdate: Part
         throw new Error("Request not found");
     }
 };
+
+export const markEventAsPaid = async (eventId: string, mpesaCode: string): Promise<void> => {
+    const dbInstance = getDb();
+    let updated = false;
+    dbInstance.perdiemRequests.forEach(req => {
+        if (req.eventId === eventId && req.status === 'Approved') {
+            req.status = 'Paid';
+            req.mpesaTransactionCode = mpesaCode;
+            updated = true;
+        }
+    });
+
+    if (updated) {
+        saveDb();
+    }
+};
+
+    

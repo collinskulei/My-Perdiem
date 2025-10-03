@@ -1,9 +1,10 @@
 
+
 /**
  * @file This file contains helper functions for interacting with Cloud Firestore.
  * It abstracts the logic for common database operations like getting and adding documents.
  */
-import { getFirestore, collection, getDocs, addDoc, query, where, doc, setDoc, getDoc, updateDoc, arrayUnion, limit } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, addDoc, query, where, doc, setDoc, getDoc, updateDoc, writeBatch, limit } from 'firebase/firestore';
 import app from './config';
 import type { Venue, PerdiemRequest, Participant, AppEvent } from '../data';
 
@@ -336,3 +337,32 @@ export const updatePerDiemRequest = async (requestId: string, dataToUpdate: Part
     const requestDocRef = doc(db, 'perdiemRequests', requestId);
     await updateDoc(requestDocRef, dataToUpdate);
 };
+
+/**
+ * Marks all "Approved" per diem requests for a specific event as "Paid" in a single batch.
+ * @param {string} eventId - The ID of the event to process.
+ * @param {string} mpesaCode - The M-Pesa transaction code for the bulk payment.
+ * @returns {Promise<void>}
+ */
+export const markEventAsPaid = async (eventId: string, mpesaCode: string): Promise<void> => {
+    const requestsRef = collection(db, 'perdiemRequests');
+    const q = query(requestsRef, where('eventId', '==', eventId), where('status', '==', 'Approved'));
+
+    const querySnapshot = await getDocs(q);
+    
+    if (querySnapshot.empty) {
+        console.log("No approved requests to update for this event.");
+        return;
+    }
+
+    const batch = writeBatch(db);
+
+    querySnapshot.forEach(document => {
+        const docRef = doc(db, 'perdiemRequests', document.id);
+        batch.update(docRef, { status: 'Paid', mpesaTransactionCode: mpesaCode });
+    });
+
+    await batch.commit();
+};
+
+    

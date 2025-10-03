@@ -1,9 +1,10 @@
 
+
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2, QrCode, Upload, File as FileIcon, X } from "lucide-react";
+import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2, QrCode, Upload, File as FileIcon, X, Wallet } from "lucide-react";
 import Image from "next/image";
 import { DateRange } from "react-day-picker";
 import { format, isWithinInterval, parseISO, isPast, endOfDay, subDays } from "date-fns";
@@ -168,11 +169,16 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
   const [successDialogData, setSuccessDialogData] = useState<{ event: AppEvent; } | null>(null);
 
-  // Mark as Paid Dialog
-  const [isPaidDialogOpen, setIsPaidDialogOpen] = useState(false);
-  const [paidRequest, setPaidRequest] = useState<PerdiemRequest | null>(null);
-  const [mpesaCode, setMpesaCode] = useState("");
-
+  // Bulk Paid Dialog
+  const [isBulkPaidDialogOpen, setIsBulkPaidDialogOpen] = useState(false);
+  const [bulkPaidEvent, setBulkPaidEvent] = useState<AppEvent | null>(null);
+  const [bulkMpesaCode, setBulkMpesaCode] = useState("");
+  const approvedRequestsForBulkPay = useMemo(() => {
+    if (!bulkPaidEvent) return [];
+    return perdiemRequests.filter(
+        (req) => req.eventId === bulkPaidEvent.id && req.status === 'Approved'
+    );
+  }, [bulkPaidEvent, perdiemRequests]);
 
   // Filters for reports
   const [filters, setFilters] = useState<{
@@ -416,28 +422,25 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
     }
   }, [toast]);
 
-  const handleOpenPaidDialog = (request: PerdiemRequest) => {
-    setPaidRequest(request);
-    setMpesaCode("");
-    setIsPaidDialogOpen(true);
+  const handleOpenBulkPaidDialog = (event: AppEvent) => {
+    setBulkPaidEvent(event);
+    setBulkMpesaCode("");
+    setIsBulkPaidDialogOpen(true);
   };
 
-  const handleConfirmPaid = async () => {
-    if (!paidRequest || !mpesaCode) {
+  const handleConfirmBulkPaid = async () => {
+    if (!bulkPaidEvent || !bulkMpesaCode) {
       toast({ title: "Missing Code", description: "Please enter the M-Pesa transaction code.", variant: "destructive" });
       return;
     }
     try {
-      await dataProvider.updatePerDiemRequest(paidRequest.id, { 
-        status: 'Paid', 
-        mpesaTransactionCode: mpesaCode 
-      });
-      setPerdiemRequests(prev => prev.map(req => req.id === paidRequest.id ? { ...req, status: 'Paid', mpesaTransactionCode: mpesaCode } : req));
-      toast({ title: "Success", description: `Request marked as Paid.` });
-      setIsPaidDialogOpen(false);
+      await dataProvider.markEventAsPaid(bulkPaidEvent.id, bulkMpesaCode);
+      toast({ title: "Success", description: `All approved per diems for ${bulkPaidEvent.name} marked as Paid.` });
+      setIsBulkPaidDialogOpen(false);
+      fetchAllData(); // Refresh data to show updated statuses
     } catch (error) {
-      console.error(`Error marking request as paid ${paidRequest.id}:`, error);
-      toast({ title: "Error", description: "Failed to update request status.", variant: "destructive" });
+      console.error(`Error marking event as paid ${bulkPaidEvent.id}:`, error);
+      toast({ title: "Error", description: "Failed to perform bulk payment.", variant: "destructive" });
     }
   };
 
@@ -655,9 +658,6 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                         <DropdownMenuItem onSelect={() => updateRequestStatus(request.id, 'Approved')} disabled={request.status !== 'Pending'}>
                                             Approve
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onSelect={() => handleOpenPaidDialog(request)} disabled={request.status !== 'Approved'}>
-                                            Mark as Paid
-                                        </DropdownMenuItem>
                                         <DropdownMenuItem onSelect={() => updateRequestStatus(request.id, 'Rejected')} disabled={request.status === 'Rejected' || request.status === 'Paid' || request.status === 'Confirmed'}>
                                             Reject
                                         </DropdownMenuItem>
@@ -833,6 +833,8 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                 const lastEventDate = event.eventDates?.length ? parseISO(event.eventDates[event.eventDates.length - 1]) : new Date(0);
                                 const isEventPast = isPast(endOfDay(lastEventDate));
                                 const totalAssigned = event.allocatedParticipants.length + (event.unregisteredParticipants?.length || 0);
+                                const hasApprovedRequests = perdiemRequests.some(r => r.eventId === event.id && r.status === 'Approved');
+
                                 return (
                                     <TableRow key={event.id}>
                                         <TableCell className="font-medium">{event.name}</TableCell>
@@ -855,6 +857,9 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem onSelect={() => handleOpenQrDialog(event)}>
                                                         Generate QR Code
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => handleOpenBulkPaidDialog(event)} disabled={!hasApprovedRequests}>
+                                                        Mark Event Paid
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
                                                 </DropdownMenuContent>
@@ -1239,31 +1244,47 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         onClose={() => setIsSuccessDialogOpen(false)}
         event={successDialogData?.event}
     />
-    <Dialog open={isPaidDialogOpen} onOpenChange={setIsPaidDialogOpen}>
+    <Dialog open={isBulkPaidDialogOpen} onOpenChange={setIsBulkPaidDialogOpen}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Mark as Paid</DialogTitle>
+          <DialogTitle>Bulk Payment for {bulkPaidEvent?.name}</DialogTitle>
           <DialogDescription>
-            Enter the M-Pesa transaction code to confirm payment for this per diem request.
+            Enter a single M-Pesa code to mark all approved per diems for this event as paid.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="mpesa-code" className="text-right">
-              M-Pesa Code
-            </Label>
-            <Input
-              id="mpesa-code"
-              value={mpesaCode}
-              onChange={(e) => setMpesaCode(e.target.value.toUpperCase())}
-              className="col-span-3"
-              placeholder="e.g., SDE8A4D2F1"
-            />
-          </div>
+         <div className="space-y-4 py-4">
+            {approvedRequestsForBulkPay.length > 0 ? (
+                <>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="mpesa-code" className="text-right">
+                        M-Pesa Code
+                        </Label>
+                        <Input
+                        id="mpesa-code"
+                        value={bulkMpesaCode}
+                        onChange={(e) => setBulkMpesaCode(e.target.value.toUpperCase())}
+                        className="col-span-3"
+                        placeholder="e.g., SDE8A4D2F1"
+                        />
+                    </div>
+                     <div className="max-h-60 overflow-y-auto space-y-2 rounded-md border p-4">
+                        <h4 className="font-medium text-sm">Approved Requests ({approvedRequestsForBulkPay.length})</h4>
+                        <p className="text-sm text-muted-foreground">Total: {formatCurrency(approvedRequestsForBulkPay.reduce((sum, r) => sum + r.totalPerdiem, 0))}</p>
+                        {approvedRequestsForBulkPay.map(req => (
+                             <div key={req.id} className="flex justify-between items-center text-sm">
+                                <span>{req.participantName}</span>
+                                <span>{formatCurrency(req.totalPerdiem)}</span>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            ) : (
+                <p className="text-center text-muted-foreground">There are no approved per diem requests for this event.</p>
+            )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setIsPaidDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleConfirmPaid}>Confirm Payment</Button>
+          <Button variant="outline" onClick={() => setIsBulkPaidDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleConfirmBulkPaid} disabled={approvedRequestsForBulkPay.length === 0}>Confirm Bulk Payment</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -1548,5 +1569,7 @@ function SuccessDialog({ isOpen, onClose, event }: { isOpen: boolean; onClose: (
     
 
 
+
+    
 
     
