@@ -1,4 +1,5 @@
 
+
 /**
  * @file This file defines the new user registration page.
  * It features a dynamic form that adapts based on whether the user is registering as an Participant or an Admin.
@@ -39,7 +40,7 @@ import type { ParticipantData } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import app from "@/lib/firebase/config";
 
-const dataProvider = mock;
+const dataProvider = isTestMode() ? mock : firestore;
 const auth = getAuth(app);
 
 
@@ -102,7 +103,7 @@ function RegistrationWizard() {
     }
 
     const requiredFields: (keyof typeof formData)[] = [
-        "firstName", "sirName", "phone", "idNumber", "dateOfBirth", "email", "password", "participantNumber", "designation", "jobGroup", "dutyStation"
+        "name", "phone", "idNumber", "dateOfBirth", "email", "password", "participantNumber", "role", "jobGroup", "dutyStation"
     ];
 
 
@@ -141,12 +142,12 @@ function RegistrationWizard() {
 
       // 2. Save additional participant details to Firestore
       const participantData = {
-          name: `${formData.firstName} ${formData.sirName}`,
+          name: formData.name,
           phoneNumber: fullPhoneNumber,
           idNumber: formData.idNumber,
           email: user.email!, // Use email from the created user
           dateOfBirth: formData.dateOfBirth,
-          role: formData.designation,
+          role: formData.role,
           participantNumber: formData.participantNumber,
           dutyStation: formData.dutyStation,
           jobGroup: formData.jobGroup,
@@ -217,18 +218,10 @@ function RegistrationWizard() {
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="firstName">First Name <span className="text-destructive">*</span></Label>
-                <Input id="firstName" placeholder="e.g., John" required onChange={handleInputChange} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="middleName">Middle Name</Label>
-                <Input id="middleName" placeholder="e.g., Owuor" onChange={handleInputChange} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="sirName">Surname <span className="text-destructive">*</span></Label>
-                <Input id="sirName" placeholder="e.g., Doe" required onChange={handleInputChange} />
+                <Label htmlFor="name">Full Name <span className="text-destructive">*</span></Label>
+                <Input id="name" placeholder="e.g., John Doe" required onChange={handleInputChange} />
               </div>
             </div>
 
@@ -280,9 +273,9 @@ function RegistrationWizard() {
             
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="designation">Designation <span className="text-destructive">*</span></Label>
-                   <Select required onValueChange={(value) => handleSelectChange('designation', value)}>
-                    <SelectTrigger id="designation">
+                  <Label htmlFor="role">Designation <span className="text-destructive">*</span></Label>
+                   <Select required onValueChange={(value) => handleSelectChange('role', value)}>
+                    <SelectTrigger id="role">
                       <SelectValue placeholder="Select a designation" />
                     </SelectTrigger>
                     <SelectContent>
@@ -385,3 +378,4 @@ export default function RegistrationPage() {
     
 
     
+

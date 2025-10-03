@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2, QrCode, Upload, File as FileIcon, X, Wallet } from "lucide-react";
+import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2, QrCode, Upload, File as FileIcon, X, Wallet, Paperclip } from "lucide-react";
 import Image from "next/image";
 import { DateRange } from "react-day-picker";
 import { format, isWithinInterval, parseISO, isPast, endOfDay, subDays } from "date-fns";
@@ -153,7 +153,9 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   const [eventDates, setEventDates] = useState<Date[] | undefined>();
   const [isParticipantSelectOpen, setParticipantSelectOpen] = useState(false);
   const [uploadedParticipants, setUploadedParticipants] = useState<UnregisteredParticipant[]>([]);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [participantFile, setParticipantFile] = useState<File | null>(null);
+  const [programFile, setProgramFile] = useState<File | null>(null);
+  const [letterFile, setLetterFile] = useState<File | null>(null);
   
   const [isParticipantDialogOpen, setIsParticipantDialogOpen] = useState(false);
   const [editingParticipant, setEditingParticipant] = useState<Participant | null>(null);
@@ -303,12 +305,18 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
       });
       setEventDates((eventToEdit.eventDates || []).map(dateStr => parseISO(dateStr)));
       setUploadedParticipants(eventToEdit.unregisteredParticipants || []);
+      // Note: We don't re-populate file inputs for security reasons, but show existing file names.
+      if (eventToEdit.programFilename) setProgramFile({ name: eventToEdit.programFilename } as File);
+      if (eventToEdit.letterFilename) setLetterFile({ name: eventToEdit.letterFilename } as File);
+
     } else {
       setEditingEvent(null);
       setEventFormData(defaultNewEvent);
       setEventDates(undefined);
       setUploadedParticipants([]);
-      setUploadedFile(null);
+      setParticipantFile(null);
+      setProgramFile(null);
+      setLetterFile(null);
     }
     setIsEventDialogOpen(true);
   };
@@ -322,6 +330,11 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
     const selectedVenue = venues.find(v => v.id === eventFormData.venueId);
     if (!eventFormData.name || !eventDates || eventDates.length === 0 || !eventFormData.venueId || !selectedVenue || !eventFormData.facilitator ) {
         toast({ title: "Missing fields", description: "Please fill all event details, including at least one date.", variant: "destructive" });
+        return;
+    }
+
+    if (!letterFile && !editingEvent?.letterFilename) {
+        toast({ title: "Missing Document", description: "The Event Letter is required to create or update an event.", variant: "destructive" });
         return;
     }
 
@@ -339,7 +352,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
 
     const finalUnregistered = uploadedParticipants.filter(up => !phoneToIdMap.has(up.phoneNumber));
 
-    const eventData = {
+    const eventData: Partial<AppEvent> = {
         name: eventFormData.name,
         eventDates: formattedDates,
         venueId: eventFormData.venueId,
@@ -348,6 +361,8 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         facilitator: eventFormData.facilitator,
         allocatedParticipants: finalAllocatedIds,
         unregisteredParticipants: finalUnregistered,
+        programFilename: programFile?.name,
+        letterFilename: letterFile?.name,
     };
     
     try {
@@ -361,7 +376,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
       } else {
         // Add new event
         eventId = await dataProvider.addEvent(eventData);
-        finalEvent = { id: eventId, ...eventData, checkedInParticipants: {} };
+        finalEvent = { id: eventId, ...eventData, checkedInParticipants: {} } as AppEvent;
         toast({ title: "Success", description: "Event created successfully." });
       }
       setIsEventDialogOpen(false);
@@ -556,11 +571,11 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
     }
    };
   
-    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleParticipantFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        setUploadedFile(file);
+        setParticipantFile(file);
 
         const reader = new FileReader();
         reader.onload = (evt) => {
@@ -580,7 +595,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                     description: "Excel file must contain 'Name' and 'Phone' columns.",
                     variant: "destructive"
                 });
-                setUploadedFile(null);
+                setParticipantFile(null);
                 return;
             }
 
@@ -609,6 +624,26 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         const uploadedNewCount = uploadedParticipants.filter(up => !participants.some(p => p.phoneNumber.slice(-9) === up.phoneNumber)).length;
         return manualIds.size + uploadedNewCount;
     }, [eventFormData.allocatedParticipants, uploadedParticipants, participants]);
+    
+    const FileUploadDisplay = ({ file, onClear, label }: { file: File | null; onClear: () => void; label: string; }) => {
+        return (
+            <div>
+                <Label>{label}</Label>
+                <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50 dark:bg-muted/20 mt-2">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                        <FileIcon className="h-6 w-6 text-gray-600 flex-shrink-0"/>
+                        <div className="truncate">
+                           <span className="text-sm font-medium">{file?.name}</span>
+                        </div>
+                    </div>
+                    <Button type="button" variant="ghost" size="icon" onClick={onClear}>
+                        <X className="h-4 w-4" />
+                    </Button>
+                </div>
+            </div>
+        );
+    }
+
 
   return (
     <>
@@ -726,6 +761,31 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                 <Separator />
 
                                 <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-4">
+                                    <Label className="text-left sm:text-right">Event Documents</Label>
+                                     <div className="col-span-3 space-y-4">
+                                        {!programFile ? (
+                                            <div>
+                                                <Label htmlFor="program-upload" className="text-sm font-normal">Event Program (PDF)</Label>
+                                                <Input id="program-upload" type="file" className="mt-1" onChange={(e) => setProgramFile(e.target.files?.[0] || null)} accept=".pdf" />
+                                            </div>
+                                        ) : (
+                                            <FileUploadDisplay file={programFile} onClear={() => setProgramFile(null)} label="Event Program (PDF)" />
+                                        )}
+                                         {!letterFile ? (
+                                            <div>
+                                                <Label htmlFor="letter-upload" className="text-sm font-normal">Event Letter (PDF) <span className="text-destructive">*</span></Label>
+                                                <Input id="letter-upload" type="file" className="mt-1" onChange={(e) => setLetterFile(e.target.files?.[0] || null)} accept=".pdf" />
+                                            </div>
+                                        ) : (
+                                            <FileUploadDisplay file={letterFile} onClear={() => setLetterFile(null)} label="Event Letter (PDF)" />
+                                        )}
+                                    </div>
+                                </div>
+
+
+                                <Separator />
+
+                                <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-4">
                                     <div className="text-left sm:text-right">
                                         <Label>Assign Participants</Label>
                                         <p className="text-xs text-muted-foreground">Total assigned: {totalAssignedCount}</p>
@@ -733,27 +793,16 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                     <div className="col-span-3 space-y-4">
                                         <div>
                                             <h4 className="font-medium text-sm mb-2">Option 1: Bulk Upload</h4>
-                                            {!uploadedFile ? (
+                                            {!participantFile ? (
                                                 <Label htmlFor="bulk-upload" className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 dark:bg-muted/20 dark:hover:bg-muted/40">
                                                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
                                                         <Upload className="w-8 h-8 mb-2 text-gray-500" />
                                                         <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Upload Excel/CSV</span></p>
                                                     </div>
-                                                    <Input id="bulk-upload" type="file" className="hidden" onChange={handleFileUpload} accept=".xlsx, .xls, .csv" />
+                                                    <Input id="bulk-upload" type="file" className="hidden" onChange={handleParticipantFileUpload} accept=".xlsx, .xls, .csv" />
                                                 </Label>
                                             ) : (
-                                                <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50 dark:bg-muted/20">
-                                                    <div className="flex items-center gap-3 overflow-hidden">
-                                                        <FileIcon className="h-6 w-6 text-gray-600 flex-shrink-0"/>
-                                                        <div className="truncate">
-                                                           <span className="text-sm font-medium">{uploadedFile.name}</span>
-                                                           <p className="text-xs text-muted-foreground">{uploadedParticipants.length} participants parsed.</p>
-                                                        </div>
-                                                    </div>
-                                                    <Button type="button" variant="ghost" size="icon" onClick={() => { setUploadedFile(null); setUploadedParticipants([]); }}>
-                                                        <X className="h-4 w-4" />
-                                                    </Button>
-                                                </div>
+                                               <FileUploadDisplay file={participantFile} onClear={() => { setParticipantFile(null); setUploadedParticipants([]); }} label="Bulk Participants" />
                                             )}
                                         </div>
 
@@ -826,9 +875,9 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
             <CardContent>
                 <div className="overflow-x-auto">
                     <Table>
-                        <TableHeader><TableRow><TableHead>Event Name</TableHead><TableHead>Venue</TableHead><TableHead>Dates</TableHead><TableHead>Assigned</TableHead><TableHead>Attendance</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
+                        <TableHeader><TableRow><TableHead>Event Name</TableHead><TableHead>Venue</TableHead><TableHead>Dates</TableHead><TableHead>Attachments</TableHead><TableHead>Assigned</TableHead><TableHead>Attendance</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
                         <TableBody>
-                            {loading ? <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading events...</TableCell></TableRow> 
+                            {loading ? <TableRow><TableCell colSpan={7} className="h-24 text-center">Loading events...</TableCell></TableRow> 
                             : events.map((event) => {
                                 const lastEventDate = event.eventDates?.length ? parseISO(event.eventDates[event.eventDates.length - 1]) : new Date(0);
                                 const isEventPast = isPast(endOfDay(lastEventDate));
@@ -840,6 +889,12 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                         <TableCell className="font-medium">{event.name}</TableCell>
                                         <TableCell>{event.venueName}</TableCell>
                                         <TableCell className="whitespace-nowrap">{(event.eventDates || []).join(', ')}</TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center gap-2">
+                                                {event.programFilename && <Paperclip className="h-4 w-4 text-muted-foreground" title="Program attached" />}
+                                                {event.letterFilename && <FileIcon className="h-4 w-4 text-muted-foreground" title="Letter attached" />}
+                                            </div>
+                                        </TableCell>
                                         <TableCell>{totalAssigned}</TableCell>
                                         <TableCell>{getTotalCheckinsForEvent(event)}</TableCell>
                                         <TableCell>

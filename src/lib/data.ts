@@ -1,4 +1,5 @@
 
+
 /**
  * @file This file contains mock data and type definitions for the application.
  * It serves as a temporary in-memory database for participants, venues, and per diem requests.
@@ -20,7 +21,6 @@ export type Participant = {
   dateOfBirth?: string;
   jobGroup?: string;
   organizationName?: string;
-  gender?: 'male' | 'female';
 };
 
 /**
@@ -49,6 +49,8 @@ export type AppEvent = {
   allocatedParticipants: string[]; // Array of participant IDs for registered users
   unregisteredParticipants?: { name: string, phoneNumber: string }[]; // For bulk uploads
   checkedInParticipants?: { [participantId: string]: { [date: string]: number } }; // participantId: { date: checkInTimestamp }
+  programFilename?: string;
+  letterFilename?: string;
 };
 
 

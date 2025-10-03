@@ -185,10 +185,10 @@ export type EventData = Omit<AppEvent, 'id'>;
 
 /**
  * Adds a new event document to the 'events' collection.
- * @param {EventData} event - The event data to add.
+ * @param {Partial<AppEvent>} event - The event data to add.
  * @returns {Promise<string>} A promise that resolves to the new document's ID.
  */
-export const addEvent = async (event: EventData): Promise<string> => {
+export const addEvent = async (event: Partial<AppEvent>): Promise<string> => {
     const eventsCol = collection(db, 'events');
     const docRef = await addDoc(eventsCol, event);
     return docRef.id;

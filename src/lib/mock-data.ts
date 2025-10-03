@@ -133,6 +133,8 @@ const initialEvents: AppEvent[] = [
                 [formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 8))]: Date.now(),
             } 
         },
+        letterFilename: 'event-001-letter.pdf',
+        programFilename: 'event-001-program.pdf'
     },
     {
         id: 'event-002',
@@ -151,6 +153,7 @@ const initialEvents: AppEvent[] = [
                 [formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1))]: Date.now(),
             } 
         },
+        letterFilename: 'event-002-letter.pdf'
     },
     {
         id: 'event-003',
@@ -165,6 +168,8 @@ const initialEvents: AppEvent[] = [
         facilitator: 'Aisha Khan',
         allocatedParticipants: ['auth-uid-participant-3'],
         checkedInParticipants: {},
+        letterFilename: 'event-003-letter.pdf',
+        programFilename: 'event-003-program.pdf'
     },
     {
         id: 'event-004',
@@ -178,7 +183,9 @@ const initialEvents: AppEvent[] = [
         venueCity: 'Nairobi',
         facilitator: 'Dr. Benard Omondi',
         allocatedParticipants: ['auth-uid-participant-4', 'auth-uid-participant-1'],
+        unregisteredParticipants: [{ name: 'Future User', phoneNumber: '799999999'}],
         checkedInParticipants: {},
+        letterFilename: 'event-004-letter.pdf'
     },
 ];
 const initialPerDiemRequests: PerdiemRequest[] = [
@@ -312,6 +319,23 @@ export const addParticipant = async (userData: any, uid: string): Promise<void> 
     ...userData,
   };
   getDb().participants.push(newParticipant);
+  
+  // After adding, check for event allocations for this new participant
+  const dbInstance = getDb();
+  dbInstance.events.forEach(event => {
+    if (event.unregisteredParticipants && event.unregisteredParticipants.length > 0) {
+      const matchIndex = event.unregisteredParticipants.findIndex(up => up.phoneNumber === newParticipant.phoneNumber.slice(-9));
+      if (matchIndex > -1) {
+        // Add to allocated
+        if (!event.allocatedParticipants.includes(uid)) {
+          event.allocatedParticipants.push(uid);
+        }
+        // Remove from unregistered
+        event.unregisteredParticipants.splice(matchIndex, 1);
+      }
+    }
+  });
+
   saveDb();
 };
 
@@ -339,8 +363,8 @@ export const isPhoneNumberUnique = async (phoneNumber: string): Promise<boolean>
 };
 
 
-export const addEvent = async (event: EventData): Promise<string> => {
-    const newEvent: AppEvent = { id: generateId(), ...event };
+export const addEvent = async (event: Partial<AppEvent>): Promise<string> => {
+    const newEvent: AppEvent = { id: generateId(), ...event } as AppEvent;
     getDb().events.push(newEvent);
     saveDb();
     return newEvent.id;
