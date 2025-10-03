@@ -42,7 +42,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { PerdiemRequest, Employee, AppEvent, Venue } from "@/lib/data";
+import type { PerdiemRequest, Participant, AppEvent, Venue } from "@/lib/data";
 import { dutyStationCoordinates, OUT_OF_OFFICE_RATES, DAILY_ALLOWANCE, MILEAGE_RATE_KSH } from "@/lib/data";
 import * as firestore from '@/lib/firebase/firestore';
 import * as mock from '@/lib/mock-data';
@@ -81,7 +81,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
   const [myEvents, setMyEvents] = useState<AppEvent[]>([]);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<Employee | null>(null);
+  const [currentUser, setCurrentUser] = useState<Participant | null>(null);
   const [authUser, setAuthUser] = useState<User | MockUser | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<string | null>(null); // Tracks eventId-date string
   const [isSuccess, setIsSuccess] = useState(false);
@@ -123,12 +123,12 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
       setLoading(true);
       try {
         const eventsPromise = isTestMode
-            ? dataProvider.getEventsByEmployee(authUser.uid)
-            : dataProvider.getEventsByEmployee(authUser.uid);
+            ? dataProvider.getEventsByParticipant(authUser.uid)
+            : dataProvider.getEventsByParticipant(authUser.uid);
 
         const [userData, requests, eventsData, venuesData] = await Promise.all([
-          dataProvider.getEmployeeById(authUser.uid),
-          dataProvider.getPerDiemRequestsByEmployee(authUser.uid),
+          dataProvider.getParticipantById(authUser.uid),
+          dataProvider.getPerDiemRequestsByParticipant(authUser.uid),
           eventsPromise,
           dataProvider.getVenues()
         ]);
@@ -188,12 +188,12 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
         // Optimistically update UI
         setMyEvents(prevEvents => prevEvents.map(evt => {
             if (evt.id === eventId) {
-                const newCheckedIn = { ...(evt.checkedInEmployees || {}) };
+                const newCheckedIn = { ...(evt.checkedInParticipants || {}) };
                 if (!newCheckedIn[userId]) {
                     newCheckedIn[userId] = {};
                 }
                 newCheckedIn[userId][dateString] = Date.now();
-                return { ...evt, checkedInEmployees: newCheckedIn };
+                return { ...evt, checkedInParticipants: newCheckedIn };
             }
             return evt;
         }));
@@ -283,8 +283,8 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
       const totalDays = getEventDays(event).length;
       if (totalDays === 0) return { percent: 0, color: 'bg-red-500', checkedInDays: 0, totalDays: 0 };
 
-      const checkedInDays = event.checkedInEmployees?.[authUser?.uid ?? ''] 
-          ? Object.keys(event.checkedInEmployees[authUser?.uid ?? '']).length
+      const checkedInDays = event.checkedInParticipants?.[authUser?.uid ?? ''] 
+          ? Object.keys(event.checkedInParticipants[authUser?.uid ?? '']).length
           : 0;
       
       const percent = (checkedInDays / totalDays) * 100;
@@ -386,7 +386,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
         
         {currentUser && (
             <PerDiemBalanceCard 
-                employee={currentUser}
+                participant={currentUser}
                 events={myEvents}
                 requests={userRequests}
                 venues={venues}
@@ -441,7 +441,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                     const canRequestPerDiem = hasCheckedInForAllDays(event) && !hasRequestedPerDiem(event.id);
                                     
                                     const checkInToday = eventDays.find(day => isToday(day));
-                                    const isCheckedInForToday = checkInToday ? !!event.checkedInEmployees?.[authUser?.uid ?? '']?.[format(checkInToday, 'yyyy-MM-dd')] : false;
+                                    const isCheckedInForToday = checkInToday ? !!event.checkedInParticipants?.[authUser?.uid ?? '']?.[format(checkInToday, 'yyyy-MM-dd')] : false;
 
                                     return (
                                         <TableRow key={event.id}>
@@ -502,7 +502,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                     {loading ? (
                                         <TableRow><TableCell colSpan={3} className="h-24 text-center">Loading check-in data...</TableCell></TableRow>
                                     ) : myEvents.flatMap(event => 
-                                        Object.entries(event.checkedInEmployees?.[authUser?.uid ?? ''] || {})
+                                        Object.entries(event.checkedInParticipants?.[authUser?.uid ?? ''] || {})
                                         .map(([date, timestamp]) => (
                                             <TableRow key={`${event.id}-${date}`}>
                                                 <TableCell>{event.name}</TableCell>
@@ -515,7 +515,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                         <TableRow><TableCell colSpan={3} className="h-24 text-center">You have no check-ins yet.</TableCell></TableRow>
                                     ) : (
                                         myEvents.flatMap(event => 
-                                            Object.entries(event.checkedInEmployees?.[authUser?.uid ?? ''] || {})
+                                            Object.entries(event.checkedInParticipants?.[authUser?.uid ?? ''] || {})
                                                 .sort(([dateA], [dateB]) => parseISO(dateB).getTime() - parseISO(dateA).getTime())
                                                 .map(([date, timestamp]) => (
                                                     <TableRow key={`${event.id}-${date}`}>
@@ -673,13 +673,13 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
 }
 
 // Helper component for balance card
-export function PerDiemBalanceCard({ employee, events, requests, venues }: { employee: Employee, events: AppEvent[], requests: PerdiemRequest[], venues: Venue[] }) {
+export function PerDiemBalanceCard({ participant, events, requests, venues }: { participant: Participant, events: AppEvent[], requests: PerdiemRequest[], venues: Venue[] }) {
     const balance = useMemo(() => {
         const hasRequestedPerDiem = (eventId: string) => requests.some(req => req.eventId === eventId);
         
         const getAttendanceProgress = (event: AppEvent) => {
             const totalDays = (event.eventDates || []).length;
-            const checkedInDays = event.checkedInEmployees?.[employee.id ?? ''] ? Object.keys(event.checkedInEmployees[employee.id ?? '']).length : 0;
+            const checkedInDays = event.checkedInParticipants?.[participant.id ?? ''] ? Object.keys(event.checkedInParticipants[participant.id ?? '']).length : 0;
             return { checkedInDays, totalDays };
         };
 
@@ -690,10 +690,10 @@ export function PerDiemBalanceCard({ employee, events, requests, venues }: { emp
 
         const calculatePotentialPerDiem = (event: AppEvent): number => {
             const venue = venues.find(v => v.id === event.venueId);
-            if (!employee.dutyStation || !dutyStationCoordinates[employee.dutyStation] || !venue) {
+            if (!participant.dutyStation || !dutyStationCoordinates[participant.dutyStation] || !venue) {
                 return 0;
             }
-            const { latitude: lat1, longitude: lon1 } = dutyStationCoordinates[employee.dutyStation];
+            const { latitude: lat1, longitude: lon1 } = dutyStationCoordinates[participant.dutyStation];
             const { latitude: lat2, longitude: lon2 } = venue;
             const distance = getHaversineDistance(lat1, lon1, lat2, lon2) * 2; // Return trip
             const mileageTotal = Math.round(distance * MILEAGE_RATE_KSH);
@@ -701,8 +701,8 @@ export function PerDiemBalanceCard({ employee, events, requests, venues }: { emp
             const nights = (event.eventDates || []).length;
             const accommodationTotal = nights * DAILY_ALLOWANCE;
 
-            const outOfOfficeAllowance = (employee.jobGroup && OUT_OF_OFFICE_RATES[employee.jobGroup])
-                ? OUT_OF_OFFICE_RATES[employee.jobGroup] * nights
+            const outOfOfficeAllowance = (participant.jobGroup && OUT_OF_OFFICE_RATES[participant.jobGroup])
+                ? OUT_OF_OFFICE_RATES[participant.jobGroup] * nights
                 : 0;
 
             return mileageTotal + accommodationTotal + outOfOfficeAllowance;
@@ -717,7 +717,7 @@ export function PerDiemBalanceCard({ employee, events, requests, venues }: { emp
             .reduce((sum, req) => sum + req.totalPerdiem, 0);
 
         return { unrequested, requested, total: unrequested + requested };
-    }, [employee, events, requests, venues]);
+    }, [participant, events, requests, venues]);
 
     return (
         <Card>
