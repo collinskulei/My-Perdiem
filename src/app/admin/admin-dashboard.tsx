@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
@@ -79,7 +80,7 @@ import * as mock from '@/lib/mock-data';
 import { isTestMode } from '@/lib/test-mode';
 import { cn, formatCurrency } from "@/lib/utils";
 import { ClientOnly } from "@/components/client-only";
-import { PerDiemBalanceCard } from "@/app/dashboard/participant-dashboard";
+import { PerDiemBalanceCard } from "@/app/dashboard/employee-dashboard";
 import { Separator } from "@/components/ui/separator";
 
 const dataProvider = mock;
@@ -1546,3 +1547,6 @@ function SuccessDialog({ isOpen, onClose, event }: { isOpen: boolean; onClose: (
 
     
 
+
+
+    
