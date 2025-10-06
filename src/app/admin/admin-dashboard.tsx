@@ -499,35 +499,58 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
 
   const handleDownloadCheckinReport = (event: AppEvent) => {
     const eventDays = getEventDays(event);
-    const dateColumns = eventDays.map(day => format(day, 'yyyy-MM-dd'));
     const dateHeaders = eventDays.map(day => format(day, 'MMM d'));
 
     const allocatedParticipants = participants.filter(p => event.allocatedParticipants.includes(p.id));
 
-    const reportData = allocatedParticipants.map(participant => {
-        const row: {[key: string]: any} = {
-            participantId: participant.id,
-            participantName: participant.name,
-        };
+    // Create a new workbook and worksheet
+    const wb = XLSX.utils.book_new();
+    const ws_name = "Check-in Report";
+    
+    // --- Create Header ---
+    const headerData = [
+        ["Event Check-in Report"],
+        [], // Blank row
+        ["Event Name:", event.name],
+        ["Venue:", `${event.venueName}, ${event.venueCity}`],
+        ["Facilitator:", event.facilitator],
+        ["Dates:", (event.eventDates || []).join(', ')],
+        [] // Blank row
+    ];
+    
+    // Convert header to worksheet
+    const ws = XLSX.utils.aoa_to_sheet(headerData);
+
+    // --- Create Data Grid ---
+    const gridHeader = ['Participant Name', 'Employee ID', ...dateHeaders, 'Attendance %'];
+    const gridData = allocatedParticipants.map(participant => {
+        const row: (string | number)[] = [
+            participant.name,
+            participant.employeeNumber || 'N/A',
+        ];
 
         let checkedInCount = 0;
-        dateColumns.forEach(dateString => {
+        eventDays.forEach(day => {
+            const dateString = format(day, 'yyyy-MM-dd');
             const isCheckedIn = !!event.checkedInParticipants?.[participant.id]?.[dateString];
-            row[dateString] = isCheckedIn ? 'Checked-In' : 'Absent';
+            row.push(isCheckedIn ? 'Checked-In' : 'Absent');
             if (isCheckedIn) checkedInCount++;
         });
         
-        row.attendancePercentage = eventDays.length > 0 ? `${Math.round((checkedInCount / eventDays.length) * 100)}%` : '0%';
+        const attendancePercentage = eventDays.length > 0 ? `${Math.round((checkedInCount / eventDays.length) * 100)}%` : '0%';
+        row.push(attendancePercentage);
 
         return row;
     });
 
-    const columns = ['participantName', 'participantId', ...dateColumns, 'attendancePercentage'];
-    const headers = ['Participant Name', 'Participant ID', ...dateHeaders, 'Attendance %'];
+    // Append grid data to the worksheet, starting after the header
+    XLSX.utils.sheet_add_aoa(ws, [gridHeader, ...gridData], { origin: -1 }); // -1 means append after last row
 
-    const csvData = toCSV(reportData, columns, headers);
-    downloadCSV(csvData, `check-in-report_${event.name.replace(/\s+/g, '-')}.csv`);
+    // --- Finalize and Download ---
+    XLSX.utils.book_append_sheet(wb, ws, ws_name);
+    XLSX.writeFile(wb, `check-in-report_${event.name.replace(/\s+/g, '-')}.xlsx`);
   };
+
 
   const nonAdminParticipants = participants.filter(p => p.role !== 'Admin');
 
@@ -966,7 +989,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                                 </div>
                                                 <Button onClick={() => handleDownloadCheckinReport(event)} size="sm" className="w-full md:w-auto">
                                                     <Download className="mr-2 h-4 w-4" />
-                                                    Download CSV
+                                                    Download Report
                                                 </Button>
                                             </CardHeader>
                                             <CardContent>
