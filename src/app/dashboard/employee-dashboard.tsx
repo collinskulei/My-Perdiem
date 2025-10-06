@@ -51,7 +51,7 @@ import { isTestMode as getIsTestMode } from '@/lib/test-mode';
 import app from "@/lib/firebase/config";
 import { useToast } from "@/hooks/use-toast";
 import { SuccessDialog } from "@/components/success-dialog";
-import { MapPin, Loader2, Check, LocateFixed, Wallet } from "lucide-react";
+import { MapPin, Loader2, Check, LocateFixed, Wallet, Clock } from "lucide-react";
 import { cn, formatCurrency, getHaversineDistance } from "@/lib/utils";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { Switch } from "@/components/ui/switch";
@@ -92,6 +92,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
   const [activeTab, setActiveTab] = useState(currentTab);
   const [isTestMode, setIsTestMode] = useState(false);
   const [bypassLocationCheck, setBypassLocationCheck] = useState(true);
+  const [isWithinCheckinTime, setIsWithinCheckinTime] = useState(false);
 
   // State for Confirm Payment dialog
   const [isConfirmingPayment, setIsConfirmingPayment] = useState(false);
@@ -164,6 +165,19 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
     setActiveTab(currentTab);
   }, [currentTab]);
   
+  // Check the time every second to enable/disable check-in
+  useEffect(() => {
+    const checkTime = () => {
+        const now = new Date();
+        const hours = now.getHours();
+        // Check if current time is between 10 AM (10) and 5 PM (17)
+        setIsWithinCheckinTime(hours >= 10 && hours < 17);
+    };
+    checkTime(); // Check immediately on mount
+    const timer = setInterval(checkTime, 1000); // Check every second
+    return () => clearInterval(timer);
+  }, []);
+
 
  const handleCheckIn = (event: AppEvent, date: Date) => {
     if (!authUser) return;
@@ -408,7 +422,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                  <Card>
                     <CardHeader>
                         <CardTitle>My Events</CardTitle>
-                        <CardDescription>Events you are allocated to. Check-in daily to record your attendance.</CardDescription>
+                        <CardDescription>Events you are allocated to. Check-in daily between 10 AM and 5 PM to record your attendance.</CardDescription>
                     </CardHeader>
                     <CardContent>
                      <TooltipProvider>
@@ -443,6 +457,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                     
                                     const checkInToday = eventDays.find(day => isToday(day));
                                     const isCheckedInForToday = checkInToday ? !!event.checkedInParticipants?.[authUser?.uid ?? '']?.[format(checkInToday, 'yyyy-MM-dd')] : false;
+                                    const canCheckInToday = checkInToday && !isCheckedInForToday;
 
                                     return (
                                         <TableRow key={event.id}>
@@ -465,11 +480,18 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                                      <Button size="sm" onClick={() => handleRequestPerDiem(event)} className="whitespace-nowrap">Request Per Diem</Button>
                                                    ) : hasCheckedInForAllDays(event) && hasRequestedPerDiem(event.id) ? (
                                                      <Badge variant="secondary">Requested</Badge>
-                                                   ) : checkInToday && !isCheckedInForToday ? (
-                                                     <Button size="sm" onClick={() => handleCheckIn(event, checkInToday)} disabled={!isInRange || !!isSubmitting} className="whitespace-nowrap">
-                                                        {isSubmitting === `${event.id}-${format(checkInToday, 'yyyy-MM-dd')}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MapPin className="mr-2 h-4 w-4" />}
-                                                        Check-in Today
-                                                     </Button>
+                                                   ) : canCheckInToday ? (
+                                                        isWithinCheckinTime ? (
+                                                            <Button size="sm" onClick={() => handleCheckIn(event, checkInToday)} disabled={!isInRange || !!isSubmitting} className="whitespace-nowrap">
+                                                                {isSubmitting === `${event.id}-${format(checkInToday, 'yyyy-MM-dd')}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MapPin className="mr-2 h-4 w-4" />}
+                                                                Check-in Today
+                                                            </Button>
+                                                        ) : (
+                                                            <Button size="sm" disabled className="whitespace-nowrap bg-gray-400">
+                                                                <Clock className="mr-2 h-4 w-4" />
+                                                                Check-in Closed
+                                                            </Button>
+                                                        )
                                                    ) : null }
                                                 </div>
                                             </TableCell>
@@ -743,9 +765,3 @@ export function PerDiemBalanceCard({ participant, events, requests, venues }: { 
         </Card>
     );
 }
-
-    
-    
-
-    
-
