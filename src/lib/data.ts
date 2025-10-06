@@ -65,7 +65,7 @@ export type PerdiemRequest = {
   location: string;
   date: string;
   status: 'Approved' | 'Pending' | 'Rejected' | 'Paid' | 'Confirmed';
-  mpesaTransactionCode?: string;
+  transactionCode?: string;
 
   // Detailed financial breakdown from the wizard
   mileageKm?: number;

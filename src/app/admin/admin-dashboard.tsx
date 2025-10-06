@@ -174,7 +174,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   // Bulk Paid Dialog
   const [isBulkPaidDialogOpen, setIsBulkPaidDialogOpen] = useState(false);
   const [bulkPaidEvent, setBulkPaidEvent] = useState<AppEvent | null>(null);
-  const [bulkMpesaCode, setBulkMpesaCode] = useState("");
+  const [bulkTransactionCode, setBulkTransactionCode] = useState("");
   const approvedRequestsForBulkPay = useMemo(() => {
     if (!bulkPaidEvent) return [];
     return perdiemRequests.filter(
@@ -439,17 +439,17 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
 
   const handleOpenBulkPaidDialog = (event: AppEvent) => {
     setBulkPaidEvent(event);
-    setBulkMpesaCode("");
+    setBulkTransactionCode("");
     setIsBulkPaidDialogOpen(true);
   };
 
   const handleConfirmBulkPaid = async () => {
-    if (!bulkPaidEvent || !bulkMpesaCode) {
-      toast({ title: "Missing Code", description: "Please enter the M-Pesa transaction code.", variant: "destructive" });
+    if (!bulkPaidEvent || !bulkTransactionCode) {
+      toast({ title: "Missing Code", description: "Please enter the transaction code.", variant: "destructive" });
       return;
     }
     try {
-      await dataProvider.markEventAsPaid(bulkPaidEvent.id, bulkMpesaCode);
+      await dataProvider.markEventAsPaid(bulkPaidEvent.id, bulkTransactionCode);
       toast({ title: "Success", description: `All approved per diems for ${bulkPaidEvent.name} marked as Paid.` });
       setIsBulkPaidDialogOpen(false);
       fetchAllData(); // Refresh data to show updated statuses
@@ -480,12 +480,12 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
     const columns = [
         "date", "participantName", "eventName", "eventStartDate", "eventEndDate", "eventFacilitator",
         "eventAttendance", "location", "mileageTotal", "accommodationTotal", "outOfOfficeAllowance", 
-        "totalPerdiem", "status", "mpesaTransactionCode"
+        "totalPerdiem", "status", "transactionCode"
     ];
     const columnHeaders = [
         "Request Date", "Participant Name", "Event", "Event Start", "Event End", "Facilitator",
         "Attendance (Days)", "Location", "Mileage (Ksh)", "Accommodation (Ksh)", "Allowance (Ksh)",
-        "Total Amount (Ksh)", "Status", "M-Pesa Code"
+        "Total Amount (Ksh)", "Status", "Transaction Code"
     ];
     const csvData = toCSV(detailedData, columns, columnHeaders);
     downloadCSV(csvData, `${reportName}_report.csv`);
@@ -1227,16 +1227,6 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                             <Label htmlFor="idNumber">ID Number</Label>
                             <Input id="idNumber" value={participantFormData.idNumber || ''} onChange={(e) => setParticipantFormData(prev => ({ ...prev, idNumber: e.target.value }))} />
                         </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="gender">Gender</Label>
-                            <Select value={participantFormData.gender} onValueChange={(value) => setParticipantFormData(prev => ({ ...prev, gender: value }))}>
-                                <SelectTrigger id="gender"><SelectValue placeholder="Select gender" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="male">Male</SelectItem>
-                                    <SelectItem value="female">Female</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
                     </div>
 
                     {editingParticipant?.role !== 'Admin' && (
@@ -1304,20 +1294,20 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         <DialogHeader>
           <DialogTitle>Bulk Payment for {bulkPaidEvent?.name}</DialogTitle>
           <DialogDescription>
-            Enter a single M-Pesa code to mark all approved per diems for this event as paid.
+            Enter a single transaction code to mark all approved per diems for this event as paid.
           </DialogDescription>
         </DialogHeader>
          <div className="space-y-4 py-4">
             {approvedRequestsForBulkPay.length > 0 ? (
                 <>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="mpesa-code" className="text-right">
-                        M-Pesa Code
+                        <Label htmlFor="transaction-code" className="text-right">
+                        Transaction Code
                         </Label>
                         <Input
-                        id="mpesa-code"
-                        value={bulkMpesaCode}
-                        onChange={(e) => setBulkMpesaCode(e.target.value.toUpperCase())}
+                        id="transaction-code"
+                        value={bulkTransactionCode}
+                        onChange={(e) => setBulkTransactionCode(e.target.value.toUpperCase())}
                         className="col-span-3"
                         placeholder="e.g., SDE8A4D2F1"
                         />
@@ -1379,7 +1369,7 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
                                 {isPaidReport ? (
                                     <>
                                         <TableHead>Confirmation</TableHead>
-                                        <TableHead>M-Pesa Code</TableHead>
+                                        <TableHead>Transaction Code</TableHead>
                                     </>
                                 ) : (
                                     <TableHead>Status</TableHead>
@@ -1400,7 +1390,7 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
                              {isPaidReport ? (
                                 <>
                                     <TableCell><Badge variant={getBadgeVariant(request.status)}>{request.status}</Badge></TableCell>
-                                    <TableCell className="font-mono">{request.mpesaTransactionCode || '-'}</TableCell>
+                                    <TableCell className="font-mono">{request.transactionCode || '-'}</TableCell>
                                 </>
                             ) : (
                                 <TableCell><Badge variant={getBadgeVariant(request.status)}>{request.status}</Badge></TableCell>

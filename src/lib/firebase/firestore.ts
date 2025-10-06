@@ -341,10 +341,10 @@ export const updatePerDiemRequest = async (requestId: string, dataToUpdate: Part
 /**
  * Marks all "Approved" per diem requests for a specific event as "Paid" in a single batch.
  * @param {string} eventId - The ID of the event to process.
- * @param {string} mpesaCode - The M-Pesa transaction code for the bulk payment.
+ * @param {string} transactionCode - The transaction code for the bulk payment.
  * @returns {Promise<void>}
  */
-export const markEventAsPaid = async (eventId: string, mpesaCode: string): Promise<void> => {
+export const markEventAsPaid = async (eventId: string, transactionCode: string): Promise<void> => {
     const requestsRef = collection(db, 'perdiemRequests');
     const q = query(requestsRef, where('eventId', '==', eventId), where('status', '==', 'Approved'));
 
@@ -359,7 +359,7 @@ export const markEventAsPaid = async (eventId: string, mpesaCode: string): Promi
 
     querySnapshot.forEach(document => {
         const docRef = doc(db, 'perdiemRequests', document.id);
-        batch.update(docRef, { status: 'Paid', mpesaTransactionCode: mpesaCode });
+        batch.update(docRef, { status: 'Paid', transactionCode: transactionCode });
     });
 
     await batch.commit();

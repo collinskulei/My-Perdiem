@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -51,7 +52,7 @@ import app from "@/lib/firebase/config";
 import { useToast } from "@/hooks/use-toast";
 import { SuccessDialog } from "@/components/success-dialog";
 import { MapPin, Loader2, Check, LocateFixed, Wallet } from "lucide-react";
-import { cn, getHaversineDistance, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -95,7 +96,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
   // State for Confirm Payment dialog
   const [isConfirmingPayment, setIsConfirmingPayment] = useState(false);
   const [confirmingRequest, setConfirmingRequest] = useState<PerdiemRequest | null>(null);
-  const [confirmMpesaCode, setConfirmMpesaCode] = useState("");
+  const [confirmTransactionCode, setConfirmTransactionCode] = useState("");
 
   const { latitude, longitude, error: geoError, getPosition, loading: geoLoading } = useGeolocation();
 
@@ -321,16 +322,16 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
 
   const handleOpenConfirmDialog = (request: PerdiemRequest) => {
     setConfirmingRequest(request);
-    setConfirmMpesaCode("");
+    setConfirmTransactionCode("");
     setIsConfirmingPayment(true);
   };
 
   const handleConfirmPayment = async () => {
-    if (!confirmingRequest || !confirmMpesaCode) {
-      toast({ title: "Missing Code", description: "Please enter the M-Pesa transaction code.", variant: "destructive" });
+    if (!confirmingRequest || !confirmTransactionCode) {
+      toast({ title: "Missing Code", description: "Please enter the transaction code.", variant: "destructive" });
       return;
     }
-    if (confirmingRequest.mpesaTransactionCode !== confirmMpesaCode) {
+    if (confirmingRequest.transactionCode !== confirmTransactionCode) {
         toast({ title: "Incorrect Code", description: "The transaction code does not match.", variant: "destructive" });
         return;
     }
@@ -645,18 +646,18 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
             <DialogHeader>
                 <DialogTitle>Confirm Payment Received</DialogTitle>
                 <DialogDescription>
-                    Please enter the M-Pesa transaction code to confirm you have received this payment.
+                    Please enter the transaction code to confirm you have received this payment.
                 </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="confirm-mpesa-code" className="text-right">
-                    M-Pesa Code
+                    <Label htmlFor="confirm-transaction-code" className="text-right">
+                    Transaction Code
                     </Label>
                     <Input
-                    id="confirm-mpesa-code"
-                    value={confirmMpesaCode}
-                    onChange={(e) => setConfirmMpesaCode(e.target.value.toUpperCase())}
+                    id="confirm-transaction-code"
+                    value={confirmTransactionCode}
+                    onChange={(e) => setConfirmTransactionCode(e.target.value.toUpperCase())}
                     className="col-span-3"
                     placeholder="e.g., SDE8A4D2F1"
                     />

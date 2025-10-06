@@ -443,13 +443,13 @@ export const updatePerDiemRequest = async (requestId: string, dataToUpdate: Part
     }
 };
 
-export const markEventAsPaid = async (eventId: string, mpesaCode: string): Promise<void> => {
+export const markEventAsPaid = async (eventId: string, transactionCode: string): Promise<void> => {
     const dbInstance = getDb();
     let updated = false;
     dbInstance.perdiemRequests.forEach(req => {
         if (req.eventId === eventId && req.status === 'Approved') {
             req.status = 'Paid';
-            req.mpesaTransactionCode = mpesaCode;
+            req.transactionCode = transactionCode;
             updated = true;
         }
     });
