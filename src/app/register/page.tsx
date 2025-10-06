@@ -266,7 +266,7 @@ function RegistrationWizard() {
                     />
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor="participantNumber">Participant Number <span className="text-destructive">*</span></Label>
+                    <Label htmlFor="participantNumber">Employee Number <span className="text-destructive">*</span></Label>
                     <Input id="participantNumber" placeholder="e.g., EMP123" required onChange={handleInputChange} />
                 </div>
             </div>
@@ -378,4 +378,5 @@ export default function RegistrationPage() {
     
 
     
+
 

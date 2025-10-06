@@ -1243,7 +1243,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                         <>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="participantNumber">Participant Number</Label>
+                                    <Label htmlFor="participantNumber">Employee Number</Label>
                                     <Input id="participantNumber" value={participantFormData.participantNumber || ''} onChange={(e) => setParticipantFormData(prev => ({ ...prev, participantNumber: e.target.value }))} />
                                 </div>
                                 <div className="space-y-2">

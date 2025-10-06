@@ -194,7 +194,7 @@ function Profile() {
                 {participant.role !== 'Admin' && (
                     <>
                         <div className="space-y-2">
-                            <Label htmlFor="participantNumber">Participant Number</Label>
+                            <Label htmlFor="participantNumber">Employee Number</Label>
                             <Controller
                                 name="participantNumber"
                                 control={control}
