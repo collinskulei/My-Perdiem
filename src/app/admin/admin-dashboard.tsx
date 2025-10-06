@@ -619,6 +619,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
             const nameIndex = headers.findIndex(h => typeof h === 'string' && h.toLowerCase().includes('name'));
             const phoneIndex = headers.findIndex(h => typeof h === 'string' && h.toLowerCase().includes('phone'));
 
+
             if (nameIndex === -1 || phoneIndex === -1) {
                 toast({
                     title: "Invalid File Format",
@@ -1097,7 +1098,10 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="venue-name" className="text-right">Name</Label>
                          <div className="col-span-3">
-                            <PlacesAutocomplete onPlaceSelect={handlePlaceSelect} />
+                           <PlacesAutocomplete
+                                onPlaceSelect={handlePlaceSelect}
+                                initialValue={newVenue.name}
+                            />
                          </div>
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="venue-county" className="text-right">County</Label><Select value={newVenue.county} onValueChange={(value) => setNewVenue({ ...newVenue, county: value })}><SelectTrigger className="col-span-3"><SelectValue placeholder="Select a county" /></SelectTrigger><SelectContent>{kenyanCounties.map(county => (<SelectItem key={county} value={county}>{county}</SelectItem>))}</SelectContent></Select></div>
@@ -1658,7 +1662,3 @@ function SuccessDialog({ isOpen, onClose, event }: { isOpen: boolean; onClose: (
         </Dialog>
     );
 }
-
-    
-
-    

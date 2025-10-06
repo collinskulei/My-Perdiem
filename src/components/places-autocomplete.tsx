@@ -21,11 +21,18 @@ export type Place = {
 
 interface PlacesAutocompleteProps {
   onPlaceSelect: (place: Place | null) => void;
+  initialValue?: string;
 }
 
-export function PlacesAutocomplete({ onPlaceSelect }: PlacesAutocompleteProps) {
+export function PlacesAutocomplete({ onPlaceSelect, initialValue }: PlacesAutocompleteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
+  useEffect(() => {
+    if (inputRef.current && initialValue) {
+        inputRef.current.value = initialValue;
+    }
+  }, [initialValue]);
 
   useEffect(() => {
     if (!apiKey) {
@@ -115,6 +122,7 @@ export function PlacesAutocomplete({ onPlaceSelect }: PlacesAutocompleteProps) {
       ref={inputRef}
       type="text"
       placeholder="Start typing a venue name..."
+      defaultValue={initialValue}
     />
   );
 }
