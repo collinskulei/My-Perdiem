@@ -92,6 +92,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
   const [activeTab, setActiveTab] = useState(currentTab);
   const [isTestMode, setIsTestMode] = useState(false);
   const [bypassLocationCheck, setBypassLocationCheck] = useState(true);
+  const [bypassTimeCheck, setBypassTimeCheck] = useState(true);
   const [isWithinCheckinTime, setIsWithinCheckinTime] = useState(false);
 
   // State for Confirm Payment dialog
@@ -387,14 +388,25 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                 <p className="text-muted-foreground">Here's an overview of your events and requests.</p>
             </div>
              {isTestMode && (
-                <div className="flex items-center space-x-2 rounded-lg border p-3 bg-card self-start sm:self-center">
-                    <LocateFixed className="h-5 w-5 text-muted-foreground" />
-                    <Label htmlFor="location-bypass" className="text-sm font-medium">Bypass Location Check</Label>
-                    <Switch
-                        id="location-bypass"
-                        checked={bypassLocationCheck}
-                        onCheckedChange={setBypassLocationCheck}
-                    />
+                <div className="flex items-center space-x-4 rounded-lg border p-3 bg-card self-start sm:self-center">
+                    <div className="flex items-center space-x-2">
+                        <Clock className="h-5 w-5 text-muted-foreground" />
+                        <Label htmlFor="time-bypass" className="text-sm font-medium">Bypass Time</Label>
+                        <Switch
+                            id="time-bypass"
+                            checked={bypassTimeCheck}
+                            onCheckedChange={setBypassTimeCheck}
+                        />
+                    </div>
+                     <div className="flex items-center space-x-2">
+                        <LocateFixed className="h-5 w-5 text-muted-foreground" />
+                        <Label htmlFor="location-bypass" className="text-sm font-medium">Bypass Location</Label>
+                        <Switch
+                            id="location-bypass"
+                            checked={bypassLocationCheck}
+                            onCheckedChange={setBypassLocationCheck}
+                        />
+                    </div>
                 </div>
             )}
         </div>
@@ -459,6 +471,8 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                     const isCheckedInForToday = checkInToday ? !!event.checkedInParticipants?.[authUser?.uid ?? '']?.[format(checkInToday, 'yyyy-MM-dd')] : false;
                                     const canCheckInToday = checkInToday && !isCheckedInForToday;
 
+                                    const isCheckinOpen = isWithinCheckinTime || (isTestMode && bypassTimeCheck);
+
                                     return (
                                         <TableRow key={event.id}>
                                             <TableCell className="font-medium">{event.name}</TableCell>
@@ -481,7 +495,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                                    ) : hasCheckedInForAllDays(event) && hasRequestedPerDiem(event.id) ? (
                                                      <Badge variant="secondary">Requested</Badge>
                                                    ) : canCheckInToday ? (
-                                                        isWithinCheckinTime ? (
+                                                        isCheckinOpen ? (
                                                             <Button size="sm" onClick={() => handleCheckIn(event, checkInToday)} disabled={!isInRange || !!isSubmitting} className="whitespace-nowrap">
                                                                 {isSubmitting === `${event.id}-${format(checkInToday, 'yyyy-MM-dd')}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MapPin className="mr-2 h-4 w-4" />}
                                                                 Check-in Today
