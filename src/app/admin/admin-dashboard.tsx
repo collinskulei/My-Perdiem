@@ -497,7 +497,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
     downloadCSV(csvData, `${reportName}_report.csv`);
   };
 
-  const handleDownloadCheckinReport = (event: AppEvent) => {
+ const handleDownloadCheckinReport = (event: AppEvent) => {
     const eventDays = getEventDays(event);
     const dateHeaders = eventDays.map(day => format(day, 'MMM d'));
 
