@@ -11,6 +11,7 @@ import { format, isWithinInterval, parseISO, isPast, endOfDay, subDays } from "d
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { QRCodeCanvas } from 'qrcode.react';
 import * as XLSX from 'xlsx';
+import { toJpeg } from 'html-to-image';
 
 
 import { Badge } from "@/components/ui/badge";
@@ -1469,6 +1470,31 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
 }
 
 function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[], loading: boolean }) {
+  const pieChartRef = useRef<HTMLDivElement>(null);
+  const barChartRef = useRef<HTMLDivElement>(null);
+  
+  const handleDownloadChart = (ref: React.RefObject<HTMLDivElement>, filename: string) => {
+    if (ref.current === null) {
+      return;
+    }
+
+    toJpeg(ref.current, { cacheBust: true, backgroundColor: 'white' })
+      .then((dataUrl) => {
+        const link = document.createElement('a');
+        link.download = `${filename}.jpeg`;
+        link.href = dataUrl;
+        link.click();
+      })
+      .catch((err) => {
+        console.error('Failed to download chart', err);
+         toast({
+          title: 'Download Failed',
+          description: 'Could not generate image for the chart.',
+          variant: 'destructive',
+        });
+      });
+  };
+
   const chartData = useMemo(() => {
     if (!requests || requests.length === 0) {
       return null;
@@ -1510,6 +1536,8 @@ function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[]
     return { pieChartData, last30Days, totalPaid, requestsCount: requests.length, COLORS };
   }, [requests]);
 
+  const { toast } = useToast();
+
   if (loading) {
     return <div className="text-center p-10">Loading analytics...</div>;
   }
@@ -1547,9 +1575,17 @@ function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[]
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
+        <Card ref={pieChartRef}>
+          <CardHeader className="flex-row items-center justify-between">
             <CardTitle>Requests by Status</CardTitle>
+             <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleDownloadChart(pieChartRef, 'requests-by-status')}
+            >
+                <Download className="mr-2 h-4 w-4" />
+                Download JPEG
+            </Button>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -1565,9 +1601,17 @@ function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[]
             </ResponsiveContainer>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader>
+        <Card ref={barChartRef}>
+          <CardHeader className="flex-row items-center justify-between">
             <CardTitle>Requests in Last 30 Days</CardTitle>
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleDownloadChart(barChartRef, 'requests-last-30-days')}
+            >
+                <Download className="mr-2 h-4 w-4" />
+                Download JPEG
+            </Button>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
