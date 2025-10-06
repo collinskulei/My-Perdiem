@@ -1164,6 +1164,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                             <TabsList>
                                 <TabsTrigger value="approved">Approved</TabsTrigger>
                                 <TabsTrigger value="paid">Paid</TabsTrigger>
+                                <TabsTrigger value="rejected">Rejected</TabsTrigger>
                             </TabsList>
                         </div>
                         
@@ -1183,6 +1184,14 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                              loading={loading}
                              onDownload={() => handleDownloadPerDiemReport(filteredReportData.filter(r => r.status === 'Paid' || r.status === 'Confirmed'), 'paid_perdiems')}
                              isPaidReport={true}
+                           />
+                        </TabsContent>
+                         <TabsContent value="rejected">
+                           <ReportTabContent 
+                             title="Rejected Perdiems" 
+                             data={filteredReportData.filter(r => r.status === 'Rejected')}
+                             loading={loading}
+                             onDownload={() => handleDownloadPerDiemReport(filteredReportData.filter(r => r.status === 'Rejected'), 'rejected_perdiems')}
                            />
                         </TabsContent>
                     </Tabs>
@@ -1614,6 +1623,8 @@ function SuccessDialog({ isOpen, onClose, event }: { isOpen: boolean; onClose: (
     
 
 
+
+    
 
     
 
