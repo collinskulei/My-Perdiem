@@ -50,7 +50,7 @@ const auth = getAuth(app);
  * @returns {JSX.Element} The rendered registration wizard.
  */
 function RegistrationWizard() {
-  const [formData, setFormData] = useState<Partial<ParticipantData & { password?: string, confirmPassword?: string, organizationName?: string, dateOfBirth?: string, phone?: string }>>({});
+  const [formData, setFormData] = useState<Partial<ParticipantData & { password?: string, confirmPassword?: string, organizationName?: string, phone?: string }>>({});
   const [isAgreed, setIsAgreed] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
@@ -103,7 +103,7 @@ function RegistrationWizard() {
     }
 
     const requiredFields: (keyof typeof formData)[] = [
-        "name", "phone", "idNumber", "dateOfBirth", "email", "password", "participantNumber", "role", "jobGroup", "dutyStation"
+        "name", "phone", "idNumber", "email", "password", "participantNumber", "role", "jobGroup", "dutyStation"
     ];
 
 
@@ -146,7 +146,6 @@ function RegistrationWizard() {
           phoneNumber: fullPhoneNumber,
           idNumber: formData.idNumber,
           email: user.email!, // Use email from the created user
-          dateOfBirth: formData.dateOfBirth,
           role: formData.role,
           participantNumber: formData.participantNumber,
           dutyStation: formData.dutyStation,
@@ -257,17 +256,12 @@ function RegistrationWizard() {
 
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <Label htmlFor="dateOfBirth">Date of Birth <span className="text-destructive">*</span></Label>
-                    <Input 
-                        id="dateOfBirth" 
-                        type="date" 
-                        required 
-                        onChange={handleInputChange} 
-                    />
+                    <Label htmlFor="employeeNumber">Employee Number <span className="text-destructive">*</span></Label>
+                    <Input id="employeeNumber" placeholder="e.g., EMP123" required onChange={handleInputChange} />
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor="participantNumber">Employee Number <span className="text-destructive">*</span></Label>
-                    <Input id="participantNumber" placeholder="e.g., EMP123" required onChange={handleInputChange} />
+                  <Label htmlFor="dutyStation">Duty Station <span className="text-destructive">*</span></Label>
+                  <Input id="dutyStation" placeholder="e.g., Nairobi" required onChange={handleInputChange} />
                 </div>
             </div>
             
@@ -301,10 +295,6 @@ function RegistrationWizard() {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="dutyStation">Duty Station <span className="text-destructive">*</span></Label>
-                  <Input id="dutyStation" placeholder="e.g., Nairobi" required onChange={handleInputChange} />
                 </div>
               </div>
             
@@ -380,3 +370,6 @@ export default function RegistrationPage() {
     
 
 
+
+
+    

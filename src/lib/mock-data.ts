@@ -41,7 +41,6 @@ const initialParticipants: Participant[] = [
         avatarUrl: `https://picsum.photos/seed/auth-uid-admin/100/100`,
         phoneNumber: "+254700000000",
         idNumber: "00000000",
-        dateOfBirth: "1980-01-01",
         organizationName: "PerdiemPro Inc."
     },
     {
@@ -52,7 +51,6 @@ const initialParticipants: Participant[] = [
         avatarUrl: `https://picsum.photos/seed/auth-uid-admin2/100/100`,
         phoneNumber: "+254700000002",
         idNumber: "00000002",
-        dateOfBirth: "1985-05-10",
         organizationName: "HealthOrg LLC"
     },
     {
@@ -63,7 +61,6 @@ const initialParticipants: Participant[] = [
         avatarUrl: `https://picsum.photos/seed/auth-uid-participant-1/100/100`,
         phoneNumber: "+254711111111",
         idNumber: "11111111",
-        dateOfBirth: "1990-03-15",
         participantNumber: "EMP001",
         dutyStation: "Nairobi",
         jobGroup: "C3"
@@ -76,7 +73,6 @@ const initialParticipants: Participant[] = [
         avatarUrl: `https://picsum.photos/seed/auth-uid-participant-2/100/100`,
         phoneNumber: "+254722222222",
         idNumber: "22222222",
-        dateOfBirth: "1992-07-20",
         participantNumber: "EMP002",
         dutyStation: "Mombasa",
         jobGroup: "D1"
@@ -89,7 +85,6 @@ const initialParticipants: Participant[] = [
         avatarUrl: `https://picsum.photos/seed/auth-uid-participant-3/100/100`,
         phoneNumber: "+254733333333",
         idNumber: "33333333",
-        dateOfBirth: "1988-11-30",
         participantNumber: "EMP003",
         dutyStation: "Kisumu",
         jobGroup: "B5"
@@ -102,7 +97,6 @@ const initialParticipants: Participant[] = [
         avatarUrl: `https://picsum.photos/seed/auth-uid-participant-4/100/100`,
         phoneNumber: "+254744444444",
         idNumber: "44444444",
-        dateOfBirth: "1995-02-25",
         participantNumber: "EMP004",
         dutyStation: "Nairobi",
         jobGroup: "K"
@@ -464,5 +458,7 @@ export const markEventAsPaid = async (eventId: string, mpesaCode: string): Promi
         saveDb();
     }
 };
+
+    
 
     

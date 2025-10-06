@@ -18,7 +18,6 @@ export type Participant = {
   dutyStation?: string;
   avatarUrl: string;
   email: string;
-  dateOfBirth?: string;
   jobGroup?: string;
   organizationName?: string;
 };
@@ -119,3 +118,5 @@ export const OUT_OF_OFFICE_RATES: { [key: string]: number } = {
   "H": 7000, "J": 8000, "K": 9000, "L": 10000, "M": 11000, "N": 12000,
   "P": 13000, "Q": 14000, "R": 15000, "S": 16000
 };
+
+    
