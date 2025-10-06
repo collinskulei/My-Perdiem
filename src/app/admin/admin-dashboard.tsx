@@ -79,7 +79,7 @@ import { useToast } from "@/hooks/use-toast";
 import * as firestore from '@/lib/firebase/firestore';
 import * as mock from '@/lib/mock-data';
 import { isTestMode } from '@/lib/test-mode';
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, getHaversineDistance } from "@/lib/utils";
 import { ClientOnly } from "@/components/client-only";
 import { PerDiemBalanceCard } from "@/app/dashboard/employee-dashboard";
 import { Separator } from "@/components/ui/separator";
@@ -475,9 +475,9 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
             participantJobGroup: participant?.jobGroup || 'N/A',
             participantRole: participant?.role || 'N/A',
             eventLocation: event?.venueName || 'N/A',
-            eventStartDate: event?.eventDates?.[0] || 'N/A',
-            eventEndDate: event?.eventDates?.[(event.eventDates || []).length - 1] || 'N/A',
-            eventFacilitator: event?.facilitator || 'N/A',
+            eventStartDate: event?.eventDates?.[0] || 'N A',
+            eventEndDate: event?.eventDates?.[(event.eventDates || []).length - 1] || 'N A',
+            eventFacilitator: event?.facilitator || 'N A',
             eventAttendance: attendance,
         };
     });

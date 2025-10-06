@@ -46,52 +46,56 @@ export function PlacesAutocomplete({ onPlaceSelect, initialValue }: PlacesAutoco
       libraries: ['places'],
     });
 
+    let autocomplete: google.maps.places.Autocomplete | null = null;
+    const placeChangedListener = () => {
+        if (autocomplete) {
+            const placeResult = autocomplete.getPlace();
+
+            if (placeResult.geometry && placeResult.address_components) {
+                let city = '';
+                let county = '';
+
+                for (const component of placeResult.address_components) {
+                    if (component.types.includes('locality')) {
+                        city = component.long_name;
+                    }
+                    if (component.types.includes('administrative_area_level_1')) {
+                        county = component.long_name.replace(' County', '');
+                    }
+                }
+                
+                if (!city) {
+                    for (const component of placeResult.address_components) {
+                        if (component.types.includes('administrative_area_level_2')) {
+                            city = component.long_name.replace(' County', '');
+                            break;
+                        }
+                    }
+                }
+
+                const place: Place = {
+                    name: placeResult.name || '',
+                    city: city,
+                    county: county,
+                    latitude: placeResult.geometry.location.lat(),
+                    longitude: placeResult.geometry.location.lng(),
+                };
+                onPlaceSelect(place);
+            } else {
+                onPlaceSelect(null);
+            }
+        }
+    };
+
+
     loader.load().then(() => {
       if (inputRef.current) {
-        const autocomplete = new google.maps.places.Autocomplete(inputRef.current, {
+        autocomplete = new google.maps.places.Autocomplete(inputRef.current, {
           fields: ['name', 'address_components', 'geometry.location'],
           types: ['establishment'],
         });
 
-        autocomplete.addListener('place_changed', () => {
-          const placeResult = autocomplete.getPlace();
-
-          if (placeResult.geometry && placeResult.address_components) {
-            let city = '';
-            let county = '';
-
-            for (const component of placeResult.address_components) {
-              if (component.types.includes('locality')) {
-                city = component.long_name;
-              }
-              if (component.types.includes('administrative_area_level_1')) {
-                county = component.long_name.replace(' County', '');
-              }
-            }
-            
-            // If locality is not found, use administrative_area_level_2 as city
-            if (!city) {
-                 for (const component of placeResult.address_components) {
-                    if (component.types.includes('administrative_area_level_2')) {
-                        city = component.long_name.replace(' County', '');
-                        break;
-                    }
-                 }
-            }
-
-
-            const place: Place = {
-              name: placeResult.name || '',
-              city: city,
-              county: county,
-              latitude: placeResult.geometry.location.lat(),
-              longitude: placeResult.geometry.location.lng(),
-            };
-            onPlaceSelect(place);
-          } else {
-            onPlaceSelect(null);
-          }
-        });
+        autocomplete.addListener('place_changed', placeChangedListener);
       }
     });
 
