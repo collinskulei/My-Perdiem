@@ -27,6 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Table,
   TableBody,
@@ -37,28 +38,19 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import {
-  Tooltip as UITooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import type { PerdiemRequest, Participant, AppEvent, Venue } from "@/lib/data";
-import { dutyStationCoordinates, OUT_OF_OFFICE_RATES, DAILY_ALLOWANCE, MILEAGE_RATE_KSH } from "@/lib/data";
-import * as firestore from '@/lib/firebase/firestore';
 import * as mock from '@/lib/mock-data';
 import { isTestMode as getIsTestMode } from '@/lib/test-mode';
 import app from "@/lib/firebase/config";
 import { useToast } from "@/hooks/use-toast";
 import { SuccessDialog } from "@/components/success-dialog";
-import { MapPin, Loader2, Check, LocateFixed, Wallet, Clock } from "lucide-react";
-import { cn, formatCurrency } from "@/lib/utils";
+import { MapPin, Loader2, Check, LocateFixed, Wallet, Clock, AlertTriangle } from "lucide-react";
+import { cn, formatCurrency, getHaversineDistance } from "@/lib/utils";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ClientOnly } from "@/components/client-only";
 import { Input } from "@/components/ui/input";
-import { getHaversineDistance } from "@/lib/utils";
 
 
 const dataProvider = mock;
@@ -179,19 +171,6 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
     const timer = setInterval(checkTime, 1000); // Check every second
     return () => clearInterval(timer);
   }, []);
-
-  useEffect(() => {
-    if (geoError && !isTestMode) {
-      const {id} = toast({
-        title: "Location Error",
-        description: geoError.message,
-        variant: "destructive",
-        duration: Infinity
-      });
-      return () => dismiss(id);
-    }
-  }, [geoError, isTestMode, toast, dismiss])
-
 
  const handleCheckIn = (event: AppEvent, date: Date) => {
     if (!authUser) return;
@@ -424,6 +403,16 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
             )}
         </div>
         
+        {geoError && !isTestMode && (
+            <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Location Services Required</AlertTitle>
+                <AlertDescription>
+                    {geoError.message}. Please enable location services in your browser settings to check in to events.
+                </AlertDescription>
+            </Alert>
+        )}
+        
         {currentUser && (
             <PerDiemBalanceCard 
                 participant={currentUser}
@@ -450,7 +439,6 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                         <CardDescription>Events you are allocated to. Check-in daily between 10 AM and 5 PM to record your attendance.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                     <TooltipProvider>
                        <div className="overflow-x-auto">
                         <Table>
                             <TableHeader>
@@ -477,7 +465,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                       distance = getHaversineDistance(latitude, longitude, eventVenue.latitude, eventVenue.longitude);
                                     }
                                     
-                                    const isInRange = isTestMode && bypassLocationCheck ? true : distance !== -1 && distance <= 1000;
+                                    const isInRange = (isTestMode && bypassLocationCheck) || (distance !== -1 && distance <= 1000);
                                     const canRequestPerDiem = hasCheckedInForAllDays(event) && !hasRequestedPerDiem(event.id);
                                     
                                     const checkInToday = eventDays.find(day => isToday(day));
@@ -509,7 +497,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                                      <Badge variant="secondary">Requested</Badge>
                                                    ) : canCheckInToday ? (
                                                         isCheckinOpen ? (
-                                                            <Button size="sm" onClick={() => handleCheckIn(event, checkInToday)} disabled={!isInRange || !!isSubmitting} className="whitespace-nowrap">
+                                                            <Button size="sm" onClick={() => handleCheckIn(event, checkInToday)} disabled={!isInRange || !!isSubmitting || (geoError && !isTestMode)} className="whitespace-nowrap">
                                                                 {isSubmitting === `${event.id}-${format(checkInToday, 'yyyy-MM-dd')}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MapPin className="mr-2 h-4 w-4" />}
                                                                 Check-in Today
                                                             </Button>
@@ -528,7 +516,6 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                             </TableBody>
                         </Table>
                        </div>
-                      </TooltipProvider>
                     </CardContent>
                 </Card>
             </TabsContent>
@@ -792,3 +779,4 @@ export function PerDiemBalanceCard({ participant, events, requests, venues }: { 
         </Card>
     );
 }
+

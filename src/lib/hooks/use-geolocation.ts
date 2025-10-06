@@ -70,7 +70,7 @@ export const useGeolocation = (options: PositionOptions = {}) => {
    * Callback function to handle geolocation errors.
    * Updates the state with the error information.
    */
-  const onEventError = useCallback((error: GeolocationPositionError | { code: number; message: string }) => {
+  const onEventError = useCallback((error: GeolocationPositionError) => {
     setState((s) => ({
       ...s,
       loading: false,
@@ -85,8 +85,11 @@ export const useGeolocation = (options: PositionOptions = {}) => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       onEventError({
         code: 0,
-        message: "Geolocation is not supported by your browser.",
-      });
+        message: "Geolocation is not supported by this browser.",
+        PERMISSION_DENIED: 1,
+        POSITION_UNAVAILABLE: 2,
+        TIMEOUT: 3,
+      } as GeolocationPositionError);
       return;
     }
 
