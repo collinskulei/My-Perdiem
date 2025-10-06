@@ -19,7 +19,7 @@ type GeolocationState = {
   longitude: number | null;
   speed: number | null;
   timestamp: number | null;
-  error: GeolocationPositionError | null;
+  error: GeolocationPositionError | { code: number; message: string } | null;
 };
 
 /**
@@ -70,7 +70,7 @@ export const useGeolocation = (options: PositionOptions = {}) => {
    * Callback function to handle geolocation errors.
    * Updates the state with the error information.
    */
-  const onEventError = useCallback((error: GeolocationPositionError) => {
+  const onEventError = useCallback((error: GeolocationPositionError | { code: number; message: string }) => {
     setState((s) => ({
       ...s,
       loading: false,
@@ -82,15 +82,15 @@ export const useGeolocation = (options: PositionOptions = {}) => {
    * Manually triggers a request for the user's current position.
    */
   const getPosition = useCallback(() => {
-    if (!navigator.geolocation) {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
       onEventError({
         code: 0,
-        message: "Geolocation is not supported.",
-      } as GeolocationPositionError);
+        message: "Geolocation is not supported by your browser.",
+      });
       return;
     }
 
-    setState((s) => ({ ...s, loading: true }));
+    setState((s) => ({ ...s, loading: true, error: null }));
     navigator.geolocation.getCurrentPosition(
       onEvent,
       onEventError,

@@ -52,12 +52,13 @@ import app from "@/lib/firebase/config";
 import { useToast } from "@/hooks/use-toast";
 import { SuccessDialog } from "@/components/success-dialog";
 import { MapPin, Loader2, Check, LocateFixed, Wallet, Clock } from "lucide-react";
-import { cn, formatCurrency, getHaversineDistance } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ClientOnly } from "@/components/client-only";
 import { Input } from "@/components/ui/input";
+import { getHaversineDistance } from "@/lib/utils";
 
 
 const dataProvider = mock;
@@ -87,7 +88,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
   const [isSubmitting, setIsSubmitting] = useState<string | null>(null); // Tracks eventId-date string
   const [isSuccess, setIsSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState({ title: "", description: "" });
-  const { toast } = useToast();
+  const { toast, dismiss } = useToast();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState(currentTab);
   const [isTestMode, setIsTestMode] = useState(false);
@@ -178,6 +179,18 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
     const timer = setInterval(checkTime, 1000); // Check every second
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (geoError && !isTestMode) {
+      const {id} = toast({
+        title: "Location Error",
+        description: geoError.message,
+        variant: "destructive",
+        duration: Infinity
+      });
+      return () => dismiss(id);
+    }
+  }, [geoError, isTestMode, toast, dismiss])
 
 
  const handleCheckIn = (event: AppEvent, date: Date) => {
