@@ -615,8 +615,8 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
             const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
             
             const [headers, ...rows] = data as string[][];
-            const nameIndex = headers.findIndex(h => h.toLowerCase().includes('name'));
-            const phoneIndex = headers.findIndex(h => h.toLowerCase().includes('phone'));
+            const nameIndex = headers.findIndex(h => typeof h === 'string' && h.toLowerCase().includes('name'));
+            const phoneIndex = headers.findIndex(h => typeof h === 'string' && h.toLowerCase().includes('phone'));
 
             if (nameIndex === -1 || phoneIndex === -1) {
                 toast({
@@ -1639,22 +1639,5 @@ function SuccessDialog({ isOpen, onClose, event }: { isOpen: boolean; onClose: (
         </Dialog>
     );
 }
-
-    
-
-
-
-
-
-    
-
-
-    
-
-
-
-    
-
-    
 
     
