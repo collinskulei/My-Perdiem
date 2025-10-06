@@ -52,7 +52,7 @@ import app from "@/lib/firebase/config";
 import { useToast } from "@/hooks/use-toast";
 import { SuccessDialog } from "@/components/success-dialog";
 import { MapPin, Loader2, Check, LocateFixed, Wallet } from "lucide-react";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, getHaversineDistance } from "@/lib/utils";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -748,3 +748,4 @@ export function PerDiemBalanceCard({ participant, events, requests, venues }: { 
     
 
     
+
