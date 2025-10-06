@@ -83,6 +83,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { ClientOnly } from "@/components/client-only";
 import { PerDiemBalanceCard } from "@/app/dashboard/employee-dashboard";
 import { Separator } from "@/components/ui/separator";
+import { PlacesAutocomplete, type Place } from "@/components/places-autocomplete";
 
 const dataProvider = mock;
 
@@ -672,6 +673,18 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
             </div>
         );
     }
+  
+  const handlePlaceSelect = useCallback((place: Place | null) => {
+    if (place) {
+      setNewVenue({
+        name: place.name,
+        city: place.city,
+        county: place.county,
+        latitude: place.latitude.toString(),
+        longitude: place.longitude.toString(),
+      });
+    }
+  }, []);
 
 
   return (
@@ -1079,8 +1092,13 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
             <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div><CardTitle>Venues</CardTitle><CardDescription>A list of all registered venues.</CardDescription></div>
                <Dialog open={isAddVenueOpen} onOpenChange={setIsAddVenueOpen}><DialogTrigger asChild><Button size="sm" className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4" />Add Venue</Button></DialogTrigger>
-                <DialogContent><DialogHeader><DialogTitle>Add New Venue</DialogTitle><DialogDescription>Enter the details for the new venue.</DialogDescription></DialogHeader>
-                  <div className="grid gap-4 py-4"><div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="venue-name" className="text-right">Name</Label><Input id="venue-name" value={newVenue.name} onChange={(e) => setNewVenue({ ...newVenue, name: e.target.value })} className="col-span-3"/></div>
+                <DialogContent><DialogHeader><DialogTitle>Add New Venue</DialogTitle><DialogDescription>Search for a venue and the details will be auto-filled.</DialogDescription></DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="venue-search">Search Venue Name</Label>
+                        <PlacesAutocomplete onPlaceSelect={handlePlaceSelect} />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="venue-name" className="text-right">Name</Label><Input id="venue-name" value={newVenue.name} onChange={(e) => setNewVenue({ ...newVenue, name: e.target.value })} className="col-span-3"/></div>
                     <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="venue-county" className="text-right">County</Label><Select value={newVenue.county} onValueChange={(value) => setNewVenue({ ...newVenue, county: value })}><SelectTrigger className="col-span-3"><SelectValue placeholder="Select a county" /></SelectTrigger><SelectContent>{kenyanCounties.map(county => (<SelectItem key={county} value={county}>{county}</SelectItem>))}</SelectContent></Select></div>
                     <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="venue-city" className="text-right">City</Label><Input id="venue-city" value={newVenue.city} onChange={(e) => setNewVenue({ ...newVenue, city: e.target.value })} className="col-span-3"/></div>
                     <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="venue-lat" className="text-right">Latitude</Label><Input id="venue-lat" type="number" value={newVenue.latitude} onChange={(e) => setNewVenue({ ...newVenue, latitude: e.target.value })} className="col-span-3"/></div>
