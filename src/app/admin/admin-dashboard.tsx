@@ -470,6 +470,10 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
 
         return {
             ...req,
+            participantDutyStation: participant?.dutyStation || 'N/A',
+            participantJobGroup: participant?.jobGroup || 'N/A',
+            participantRole: participant?.role || 'N/A',
+            eventLocation: event?.venueName || 'N/A',
             eventStartDate: event?.eventDates?.[0] || 'N/A',
             eventEndDate: event?.eventDates?.[(event.eventDates || []).length - 1] || 'N/A',
             eventFacilitator: event?.facilitator || 'N/A',
@@ -478,13 +482,15 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
     });
 
     const columns = [
-        "date", "participantName", "eventName", "eventStartDate", "eventEndDate", "eventFacilitator",
-        "eventAttendance", "location", "mileageTotal", "accommodationTotal", "outOfOfficeAllowance", 
+        "date", "participantName", "participantDutyStation", "participantRole", "participantJobGroup",
+        "eventName", "eventLocation", "eventStartDate", "eventEndDate", "eventFacilitator",
+        "eventAttendance", "mileageTotal", "accommodationTotal", "outOfOfficeAllowance", 
         "totalPerdiem", "status", "transactionCode"
     ];
     const columnHeaders = [
-        "Request Date", "Participant Name", "Event", "Event Start", "Event End", "Facilitator",
-        "Attendance (Days)", "Location", "Mileage (Ksh)", "Accommodation (Ksh)", "Allowance (Ksh)",
+        "Request Date", "Participant Name", "Duty Station", "Designation", "Job Group", 
+        "Event", "Event Location", "Event Start", "Event End", "Facilitator",
+        "Attendance (Days)", "Mileage (Ksh)", "Accommodation (Ksh)", "Allowance (Ksh)",
         "Total Amount (Ksh)", "Status", "Transaction Code"
     ];
     const csvData = toCSV(detailedData, columns, columnHeaders);
@@ -1016,7 +1022,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                     {loading ? <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading participants...</TableCell></TableRow> : participants.map(participant => (
                         <TableRow key={participant.id}>
                         <TableCell><Image alt="Participant avatar" className="aspect-square rounded-full object-cover" height="40" src={participant.avatarUrl} width="40" data-ai-hint="person portrait"/></TableCell>
-                        <TableCell className="font-medium whitespace-nowrap">{participant.name}<div className="text-sm text-muted-foreground">{participant.participantNumber}</div></TableCell>
+                        <TableCell className="font-medium whitespace-nowrap">{participant.name}<div className="text-sm text-muted-foreground">{participant.employeeNumber}</div></TableCell>
                         <TableCell>{participant.role}</TableCell>
                         <TableCell>{participant.dutyStation}</TableCell>
                         <TableCell>{participant.jobGroup}</TableCell>
@@ -1242,8 +1248,8 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                         <>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="participantNumber">Employee Number</Label>
-                                    <Input id="participantNumber" value={participantFormData.participantNumber || ''} onChange={(e) => setParticipantFormData(prev => ({ ...prev, participantNumber: e.target.value }))} />
+                                    <Label htmlFor="employeeNumber">Employee Number</Label>
+                                    <Input id="employeeNumber" value={participantFormData.employeeNumber || ''} onChange={(e) => setParticipantFormData(prev => ({ ...prev, employeeNumber: e.target.value }))} />
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="dutyStation">Duty Station</Label>
