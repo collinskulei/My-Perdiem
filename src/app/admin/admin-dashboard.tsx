@@ -1823,7 +1823,7 @@ const AmendRejectDialog = ({ state, setState, onConfirm }: { state: AmendRequest
             For {request.participantName}'s request for the event "{request.eventName}".
           </DialogDescription>
         </DialogHeader>
-        <div className="py-4 space-y-6">
+        <div className="py-4 space-y-6 max-h-[60vh] overflow-y-auto pr-4">
           {mode === 'reject' && (
             <div className="space-y-2">
               <Label htmlFor="rejectionReason">Reason for Rejection</Label>
@@ -1884,3 +1884,4 @@ const AmendInputField = ({ label, value, onChange }: { label: string, value: num
 );
 
     
+
