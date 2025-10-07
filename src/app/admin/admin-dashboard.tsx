@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2, QrCode, Upload, File as FileIcon, X, Wallet, Paperclip } from "lucide-react";
+import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2, QrCode, Upload, File as FileIcon, X, Wallet, Paperclip, Info } from "lucide-react";
 import Image from "next/image";
 import { DateRange } from "react-day-picker";
 import { format, isWithinInterval, parseISO, isPast, endOfDay, subDays } from "date-fns";
@@ -47,6 +47,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -71,6 +72,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -111,6 +113,25 @@ const designations = [
 const jobGroups = ["A", "B1", "B2", "B3", "B4", "B5", "C1", "C2", "C3", "C4", "C5", "D1", "D2", "D3", "D4", "D5", "E1", "E2", "E4", "H", "J", "K", "L", "M", "N", "P", "Q", "R", "S"];
 
 type UnregisteredParticipant = { name: string; phoneNumber: string };
+
+type AmendRequestState = {
+  request: PerdiemRequest | null;
+  mode: 'amend' | 'reject' | null;
+  isOpen: boolean;
+  rejectionReason: string;
+  amendmentReason: string;
+  updatedValues: Partial<Pick<PerdiemRequest, 'mileageTotal' | 'accommodationTotal' | 'outOfOfficeAllowance' | 'airTicketCost' | 'groundTransferCost'>>
+};
+
+const defaultAmendState: AmendRequestState = {
+  request: null,
+  mode: null,
+  isOpen: false,
+  rejectionReason: '',
+  amendmentReason: '',
+  updatedValues: {}
+};
+
 
 const toCSV = (data: any[], columns: string[], columnHeaders: string[]): string => {
   const header = columnHeaders.join(',') + '\n';
@@ -167,6 +188,9 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   // State for participant-specific data in the dialog
   const [participantEvents, setParticipantEvents] = useState<AppEvent[]>([]);
   const [participantRequests, setParticipantRequests] = useState<PerdiemRequest[]>([]);
+
+  // State for amendment/rejection dialog
+  const [amendRequestState, setAmendRequestState] = useState<AmendRequestState>(defaultAmendState);
 
 
   // QR Code Success Dialog
@@ -428,16 +452,75 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   };
 
 
-  const updateRequestStatus = useCallback(async (requestId: string, status: 'Approved' | 'Rejected') => {
+  const updateRequestStatus = useCallback(async (requestId: string, status: 'Approved' | 'Rejected' | 'Amended', reason?: string) => {
     try {
-      await dataProvider.updatePerDiemRequest(requestId, { status });
-      setPerdiemRequests(prev => prev.map(req => req.id === requestId ? { ...req, status } : req));
+      const dataToUpdate: Partial<PerdiemRequest> = { status };
+      if (status === 'Rejected') {
+        dataToUpdate.rejectionReason = reason;
+      }
+      if (status === 'Amended') {
+          dataToUpdate.amendmentReason = reason;
+      }
+
+      await dataProvider.updatePerDiemRequest(requestId, dataToUpdate);
+      await fetchAllData();
       toast({ title: "Success", description: `Request status updated to ${status}.` });
     } catch (error) {
       console.error(`Error updating status for request ${requestId}:`, error);
       toast({ title: "Error", description: "Failed to update request status.", variant: "destructive" });
     }
-  }, [toast]);
+  }, [toast, fetchAllData]);
+  
+  const handleOpenAmendRejectDialog = (request: PerdiemRequest, mode: 'amend' | 'reject') => {
+    setAmendRequestState({
+      request,
+      mode,
+      isOpen: true,
+      rejectionReason: '',
+      amendmentReason: '',
+      updatedValues: {
+        mileageTotal: request.mileageTotal,
+        accommodationTotal: request.accommodationTotal,
+        outOfOfficeAllowance: request.outOfOfficeAllowance,
+        airTicketCost: request.airTicketCost,
+        groundTransferCost: request.groundTransferCost,
+      }
+    });
+  };
+
+  const handleConfirmAmendment = async () => {
+    if (!amendRequestState.request || !amendRequestState.mode) return;
+
+    if (amendRequestState.mode === 'reject') {
+      if (!amendRequestState.rejectionReason) {
+        toast({ title: "Reason Required", description: "Please provide a reason for rejection.", variant: "destructive" });
+        return;
+      }
+      await updateRequestStatus(amendRequestState.request.id, 'Rejected', amendRequestState.rejectionReason);
+    } 
+    else if (amendRequestState.mode === 'amend') {
+      if (!amendRequestState.amendmentReason) {
+        toast({ title: "Reason Required", description: "Please provide a reason for the amendment.", variant: "destructive" });
+        return;
+      }
+      const originalTotal = amendRequestState.request.totalPerdiem;
+      const newTotal = Object.values(amendRequestState.updatedValues).reduce((sum, val) => sum + (val || 0), 0);
+
+      const dataToUpdate: Partial<PerdiemRequest> = {
+        ...amendRequestState.updatedValues,
+        totalPerdiem: newTotal,
+        amendmentReason: amendRequestState.amendmentReason,
+        status: 'Amended',
+      };
+      
+      await dataProvider.updatePerDiemRequest(amendRequestState.request.id, dataToUpdate);
+      await fetchAllData();
+      toast({ title: "Request Amended", description: `Total changed from ${formatCurrency(originalTotal)} to ${formatCurrency(newTotal)}.` });
+    }
+    
+    setAmendRequestState(defaultAmendState);
+  };
+
 
   const handleOpenBulkPaidDialog = (event: AppEvent) => {
     setBulkPaidEvent(event);
@@ -598,6 +681,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         case 'Paid': return 'default';
         case 'Confirmed': return 'success';
         case 'Rejected': return 'destructive';
+        case 'Amended': return 'outline';
         default: return 'outline';
     }
    };
@@ -734,13 +818,16 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
                                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                        <DropdownMenuItem onSelect={() => updateRequestStatus(request.id, 'Approved')} disabled={request.status !== 'Pending'}>
+                                         <DropdownMenuItem onSelect={() => updateRequestStatus(request.id, 'Approved')} disabled={request.status !== 'Pending' && request.status !== 'Amended'}>
                                             Approve
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onSelect={() => updateRequestStatus(request.id, 'Rejected')} disabled={request.status === 'Rejected' || request.status === 'Paid' || request.status === 'Confirmed'}>
+                                        <DropdownMenuItem onSelect={() => handleOpenAmendRejectDialog(request, 'amend')} disabled={request.status !== 'Pending'}>
+                                            Amend
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onSelect={() => handleOpenAmendRejectDialog(request, 'reject')} disabled={['Rejected', 'Paid', 'Confirmed'].includes(request.status)} className="text-destructive">
                                             Reject
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem>View Details</DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             </TableCell>
@@ -1395,6 +1482,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <AmendRejectDialog state={amendRequestState} setState={setAmendRequestState} onConfirm={handleConfirmAmendment} />
     </>
   );
 }
@@ -1408,6 +1496,7 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
             case 'Paid': return 'default';
             case 'Confirmed': return 'success';
             case 'Rejected': return 'destructive';
+            case 'Amended': return 'outline';
             default: return 'outline';
         }
     };
@@ -1528,6 +1617,7 @@ function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[]
     const COLORS = {
       Pending: '#f97316',
       Approved: '#10b981',
+      Amended: '#64748b',
       Paid: '#3b82f6',
       Rejected: '#ef4444',
       Confirmed: '#22c55e',
@@ -1707,5 +1797,90 @@ function SuccessDialog({ isOpen, onClose, event }: { isOpen: boolean; onClose: (
     );
 }
 
+const AmendRejectDialog = ({ state, setState, onConfirm }: { state: AmendRequestState, setState: React.Dispatch<React.SetStateAction<AmendRequestState>>, onConfirm: () => void }) => {
+  if (!state.isOpen || !state.request || !state.mode) return null;
+
+  const { request, mode, rejectionReason, amendmentReason, updatedValues } = state;
+
+  const handleValueChange = (field: keyof typeof updatedValues, value: string) => {
+    setState(prev => ({
+      ...prev,
+      updatedValues: {
+        ...prev.updatedValues,
+        [field]: Number(value) || 0
+      }
+    }));
+  };
+
+  const newTotal = Object.values(updatedValues).reduce((sum, val) => sum + (val || 0), 0);
+
+  return (
+    <Dialog open={state.isOpen} onOpenChange={(isOpen) => setState(prev => ({ ...prev, isOpen }))}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{mode === 'amend' ? 'Amend Per Diem Request' : 'Reject Per Diem Request'}</DialogTitle>
+          <DialogDescription>
+            For {request.participantName}'s request for the event "{request.eventName}".
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-4 space-y-6">
+          {mode === 'reject' && (
+            <div className="space-y-2">
+              <Label htmlFor="rejectionReason">Reason for Rejection</Label>
+              <Textarea
+                id="rejectionReason"
+                placeholder="Provide a clear reason for rejecting this request..."
+                value={rejectionReason}
+                onChange={(e) => setState(prev => ({ ...prev, rejectionReason: e.target.value }))}
+              />
+            </div>
+          )}
+          {mode === 'amend' && (
+            <div className="space-y-4">
+               <div className="space-y-2">
+                <Label htmlFor="amendmentReason">Reason for Amendment</Label>
+                <Textarea
+                  id="amendmentReason"
+                  placeholder="Explain why this request is being amended..."
+                  value={amendmentReason}
+                  onChange={(e) => setState(prev => ({ ...prev, amendmentReason: e.target.value }))}
+                />
+              </div>
+              <Separator />
+               <div className="grid grid-cols-2 gap-4">
+                    <AmendInputField label="Mileage" value={updatedValues.mileageTotal} onChange={(e) => handleValueChange('mileageTotal', e.target.value)} />
+                    <AmendInputField label="Accommodation" value={updatedValues.accommodationTotal} onChange={(e) => handleValueChange('accommodationTotal', e.target.value)} />
+                    <AmendInputField label="Out of Office" value={updatedValues.outOfOfficeAllowance} onChange={(e) => handleValueChange('outOfOfficeAllowance', e.target.value)} />
+                    <AmendInputField label="Air Ticket" value={updatedValues.airTicketCost} onChange={(e) => handleValueChange('airTicketCost', e.target.value)} />
+                    <AmendInputField label="Ground Transfer" value={updatedValues.groundTransferCost} onChange={(e) => handleValueChange('groundTransferCost', e.target.value)} />
+                </div>
+                 <Separator />
+                <div className="flex justify-between items-center font-bold text-lg">
+                    <span>New Total Per Diem</span>
+                    <span>{formatCurrency(newTotal)}</span>
+                </div>
+                 <p className="text-sm text-muted-foreground">
+                    Original Total: {formatCurrency(request.totalPerdiem)}
+                </p>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setState(defaultAmendState)}>Cancel</Button>
+          <Button onClick={onConfirm} disabled={mode === 'reject' && !rejectionReason || mode === 'amend' && !amendmentReason}>
+            {mode === 'amend' ? 'Confirm Amendment' : 'Confirm Rejection'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const AmendInputField = ({ label, value, onChange }: { label: string, value: number | undefined, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void }) => (
+    <div className="space-y-1">
+        <Label htmlFor={label} className="text-xs">{label}</Label>
+        <Input id={label} type="number" value={value || 0} onChange={onChange} />
+    </div>
+);
 
     

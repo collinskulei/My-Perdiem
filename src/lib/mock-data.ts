@@ -426,7 +426,7 @@ export const getPerDiemRequestsByParticipant = async (participantId: string): Pr
 };
 
 export const addPerDiemRequest = async (request: PerDiemRequestData): Promise<string> => {
-    const newRequest: PerdiemRequest = { id: generateId(), ...request };
+    const newRequest: PerdiemRequest = { id: generateId(), ...request, status: 'Pending' };
     getDb().perdiemRequests.push(newRequest);
     saveDb();
     return newRequest.id;

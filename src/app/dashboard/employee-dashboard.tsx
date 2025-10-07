@@ -44,7 +44,7 @@ import { isTestMode as getIsTestMode } from '@/lib/test-mode';
 import app from "@/lib/firebase/config";
 import { useToast } from "@/hooks/use-toast";
 import { SuccessDialog } from "@/components/success-dialog";
-import { MapPin, Loader2, Check, LocateFixed, Wallet, Clock, AlertTriangle } from "lucide-react";
+import { MapPin, Loader2, Check, LocateFixed, Wallet, Clock, AlertTriangle, Info } from "lucide-react";
 import { cn, formatCurrency, getHaversineDistance } from "@/lib/utils";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { Switch } from "@/components/ui/switch";
@@ -65,6 +65,7 @@ type MockUser = {
 const ANALYTICS_COLORS = {
   Pending: '#f97316', // orange-500
   Approved: '#10b981', // emerald-500
+  Amended: '#64748b', // slate-500
   Paid: '#3b82f6', // blue-500
   Rejected: '#ef4444', // red-500
   Confirmed: '#22c55e', // green-500
@@ -358,6 +359,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
         case 'Pending': return 'outline';
         case 'Approved': return 'secondary';
         case 'Paid': return 'default';
+        case 'Amended': return 'outline';
         case 'Confirmed': return 'success';
         case 'Rejected': return 'destructive';
         default: return 'outline';
@@ -600,7 +602,12 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                             <TableRow key={request.id}>
                                 <TableCell>
                                 <div className="font-medium">{request.eventName}</div>
-                                <div className="text-sm text-muted-foreground">{request.location}</div>
+                                 {request.rejectionReason && (
+                                     <p className="text-xs text-destructive mt-1">Reason: {request.rejectionReason}</p>
+                                 )}
+                                 {request.amendmentReason && (
+                                     <p className="text-xs text-muted-foreground mt-1">Amendment: {request.amendmentReason}</p>
+                                 )}
                                 </TableCell>
                                 <TableCell>
                                     <Badge variant={getBadgeVariant(request.status)}>{request.status}</Badge>
@@ -610,6 +617,9 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                 <TableCell className="text-right">
                                     {request.status === 'Paid' && (
                                         <Button size="sm" onClick={() => handleOpenConfirmDialog(request)}>Confirm Payment</Button>
+                                    )}
+                                     {request.status === 'Amended' && (
+                                        <Button size="sm" onClick={() => dataProvider.updatePerDiemRequest(request.id, { status: 'Pending' }).then(fetchData)}>Acknowledge</Button>
                                     )}
                                 </TableCell>
                             </TableRow>
@@ -750,7 +760,7 @@ export function PerDiemBalanceCard({ participant, events, requests, venues }: { 
             .reduce((sum, event) => sum + calculatePotentialPerDiem(event), 0);
 
         const requested = requests
-            .filter(req => req.status === 'Pending' || req.status === 'Approved')
+            .filter(req => req.status === 'Pending' || req.status === 'Approved' || req.status === 'Amended')
             .reduce((sum, req) => sum + req.totalPerdiem, 0);
 
         return { unrequested, requested, total: unrequested + requested };
@@ -780,3 +790,4 @@ export function PerDiemBalanceCard({ participant, events, requests, venues }: { 
     );
 }
 
+const { MILEAGE_RATE_KSH, DAILY_ALLOWANCE, OUT_OF_OFFICE_RATES } = mock;

@@ -64,8 +64,10 @@ export type PerdiemRequest = {
   eventName: string;
   location: string;
   date: string;
-  status: 'Approved' | 'Pending' | 'Rejected' | 'Paid' | 'Confirmed';
+  status: 'Approved' | 'Pending' | 'Rejected' | 'Paid' | 'Confirmed' | 'Amended';
   transactionCode?: string;
+  rejectionReason?: string;
+  amendmentReason?: string;
 
   // Detailed financial breakdown from the wizard
   mileageKm?: number;
