@@ -39,6 +39,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import type { PerdiemRequest, Participant, AppEvent, Venue } from "@/lib/data";
+import { dutyStationCoordinates } from "@/lib/data";
 import * as mock from '@/lib/mock-data';
 import { isTestMode as getIsTestMode } from '@/lib/test-mode';
 import app from "@/lib/firebase/config";
@@ -328,7 +329,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
     .filter(req => req.status === 'Paid')
     .reduce((sum, req) => sum + req.totalPerdiem, 0), [userRequests]);
 
-  const handleOpenConfirmDialog = (request: PerdiemRequest) => {
+  const handleOpenConfirmDialog = (request: PerDiemRequest) => {
     setConfirmingRequest(request);
     setConfirmTransactionCode("");
     setIsConfirmingPayment(true);
@@ -791,3 +792,5 @@ export function PerDiemBalanceCard({ participant, events, requests, venues }: { 
 }
 
 const { MILEAGE_RATE_KSH, DAILY_ALLOWANCE, OUT_OF_OFFICE_RATES } = mock;
+
+    
