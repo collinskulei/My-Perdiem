@@ -39,7 +39,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import type { PerdiemRequest, Participant, AppEvent, Venue } from "@/lib/data";
-import { dutyStationCoordinates } from "@/lib/data";
+import { dutyStationCoordinates, MILEAGE_RATE_KSH, DAILY_ALLOWANCE, OUT_OF_OFFICE_RATES } from "@/lib/data";
 import * as mock from '@/lib/mock-data';
 import { isTestMode as getIsTestMode } from '@/lib/test-mode';
 import app from "@/lib/firebase/config";
@@ -720,7 +720,6 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
   );
 }
 
-const { MILEAGE_RATE_KSH, DAILY_ALLOWANCE, OUT_OF_OFFICE_RATES } = mock;
 
 // Helper component for balance card
 export function PerDiemBalanceCard({ participant, events, requests, venues }: { participant: Participant, events: AppEvent[], requests: PerdiemRequest[], venues: Venue[] }) {
@@ -794,3 +793,4 @@ export function PerDiemBalanceCard({ participant, events, requests, venues }: { 
 }
 
     
+
