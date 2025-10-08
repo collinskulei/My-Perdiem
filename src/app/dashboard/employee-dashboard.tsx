@@ -329,7 +329,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
     .filter(req => req.status === 'Paid')
     .reduce((sum, req) => sum + req.totalPerdiem, 0), [userRequests]);
 
-  const handleOpenConfirmDialog = (request: PerDiemRequest) => {
+  const handleOpenConfirmDialog = (request: PerdiemRequest) => {
     setConfirmingRequest(request);
     setConfirmTransactionCode("");
     setIsConfirmingPayment(true);
@@ -720,6 +720,8 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
   );
 }
 
+const { MILEAGE_RATE_KSH, DAILY_ALLOWANCE, OUT_OF_OFFICE_RATES } = mock;
+
 // Helper component for balance card
 export function PerDiemBalanceCard({ participant, events, requests, venues }: { participant: Participant, events: AppEvent[], requests: PerdiemRequest[], venues: Venue[] }) {
     const balance = useMemo(() => {
@@ -790,7 +792,5 @@ export function PerDiemBalanceCard({ participant, events, requests, venues }: { 
         </Card>
     );
 }
-
-const { MILEAGE_RATE_KSH, DAILY_ALLOWANCE, OUT_OF_OFFICE_RATES } = mock;
 
     
