@@ -77,7 +77,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { PerdiemRequest, Venue, Participant, AppEvent } from "@/lib/data";
-import { dutyStationCoordinates } from "@/lib/data";
+import { dutyStationCoordinates, MILEAGE_RATE_KSH, DAILY_ALLOWANCE, OUT_OF_OFFICE_RATES } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import * as firestore from '@/lib/firebase/firestore';
 import * as mock from '@/lib/mock-data';
@@ -1884,4 +1884,6 @@ const AmendInputField = ({ label, value, onChange }: { label: string, value: num
 );
 
     
+
+
 
