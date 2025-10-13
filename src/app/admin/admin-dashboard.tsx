@@ -77,7 +77,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { PerdiemRequest, Venue, Participant, AppEvent } from "@/lib/data";
-import { MILEAGE_RATE_KSH, DAILY_ALLOWANCE, OUT_OF_OFFICE_RATES } from "@/lib/data";
+import { MILEAGE_RATE_KSH, DAILY_ALLOWANCE, OUT_OF_OFFICE_RATES, dutyStationCoordinates } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import * as firestore from '@/lib/firebase/firestore';
 import * as mock from '@/lib/mock-data';
@@ -100,7 +100,7 @@ const kenyanCounties = [
     "Nyamira", "Nairobi"
 ];
 
-const dutyStations = Object.keys(mock.dutyStationCoordinates);
+const dutyStations = Object.keys(dutyStationCoordinates);
 
 const defaultNewVenue = { name: "", city: "", county: "Nairobi", latitude: "0", longitude: "0" };
 const defaultNewEvent = { name: "", facilitator: "", venueId: "", allocatedParticipants: [] as string[] };
@@ -1584,7 +1584,7 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
                                     <TableCell className="font-mono">{request.transactionCode || '-'}</TableCell>
                                 </>
                             ) : (
-                                <TableCell><Badge variant={getBadgeVariant(request.status)}>{request.status}</TableCell></TableCell>
+                                <TableCell><Badge variant={getBadgeVariant(request.status)}>{request.status}</Badge></TableCell>
                             )}
                             <TableCell className="whitespace-nowrap">{request.date}</TableCell>
                             <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.totalPerdiem)}</TableCell>
@@ -1932,3 +1932,4 @@ const AmendInputField = ({ label, value, onChange }: { label: string, value: num
     
 
     
+
