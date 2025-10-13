@@ -1544,7 +1544,7 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
                                     <TableCell className="font-mono">{request.transactionCode || '-'}</TableCell>
                                 </>
                             ) : (
-                                <TableCell><Badge variant={getBadgeVariant(request.status)}>{request.status}</Badge></TableCell>
+                                <TableCell><Badge variant={getBadgeVariant(request.status)}>{request.status}</TableCell></TableCell>
                             )}
                             <TableCell className="whitespace-nowrap">{request.date}</TableCell>
                             <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.totalPerdiem)}</TableCell>
@@ -1888,5 +1888,7 @@ const AmendInputField = ({ label, value, onChange }: { label: string, value: num
 
 
 
+
+    
 
     
