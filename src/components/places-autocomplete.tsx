@@ -22,9 +22,11 @@ export type Place = {
 interface PlacesAutocompleteProps {
   onPlaceSelect: (place: Place | null) => void;
   initialValue?: string;
+  types?: string[];
+  country?: string;
 }
 
-export function PlacesAutocomplete({ onPlaceSelect, initialValue }: PlacesAutocompleteProps) {
+export function PlacesAutocomplete({ onPlaceSelect, initialValue, types = ['establishment'], country }: PlacesAutocompleteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
@@ -36,7 +38,7 @@ export function PlacesAutocomplete({ onPlaceSelect, initialValue }: PlacesAutoco
 
   useEffect(() => {
     if (!apiKey) {
-      console.error("Google Maps API key is missing. Please add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to your .env.local file.");
+      console.error("Google Maps API key is missing. Please add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY to your .env file.");
       return;
     }
 
@@ -77,8 +79,8 @@ export function PlacesAutocomplete({ onPlaceSelect, initialValue }: PlacesAutoco
                     name: placeResult.name || '',
                     city: city,
                     county: county,
-                    latitude: placeResult.geometry.location.lat(),
-                    longitude: placeResult.geometry.location.lng(),
+                    latitude: placeResult.geometry.location!.lat(),
+                    longitude: placeResult.geometry.location!.lng(),
                 };
                 onPlaceSelect(place);
             } else {
@@ -90,10 +92,16 @@ export function PlacesAutocomplete({ onPlaceSelect, initialValue }: PlacesAutoco
 
     loader.load().then(() => {
       if (inputRef.current) {
-        autocomplete = new google.maps.places.Autocomplete(inputRef.current, {
-          fields: ['name', 'address_components', 'geometry.location'],
-          types: ['establishment'],
-        });
+        const autocompleteOptions: google.maps.places.AutocompleteOptions = {
+            fields: ['name', 'address_components', 'geometry.location'],
+            types: types,
+        };
+
+        if (country) {
+            autocompleteOptions.componentRestrictions = { country };
+        }
+        
+        autocomplete = new google.maps.places.Autocomplete(inputRef.current, autocompleteOptions);
 
         autocomplete.addListener('place_changed', placeChangedListener);
       }
@@ -109,7 +117,7 @@ export function PlacesAutocomplete({ onPlaceSelect, initialValue }: PlacesAutoco
       const pacContainers = document.querySelectorAll('.pac-container');
       pacContainers.forEach(container => container.remove());
     };
-  }, [apiKey, onPlaceSelect]);
+  }, [apiKey, onPlaceSelect, types, country]);
 
   if (!apiKey) {
     return (
@@ -125,8 +133,14 @@ export function PlacesAutocomplete({ onPlaceSelect, initialValue }: PlacesAutoco
     <Input
       ref={inputRef}
       type="text"
-      placeholder="Start typing a venue name..."
+      placeholder="Start typing a facility name..."
       defaultValue={initialValue}
+      onChange={(e) => {
+        // If the user clears the input, we should probably notify the parent
+        if (e.target.value === '') {
+          onPlaceSelect(null);
+        }
+      }}
     />
   );
 }

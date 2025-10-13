@@ -6,7 +6,7 @@
  */
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, Suspense, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2 } from "lucide-react";
@@ -39,6 +39,8 @@ import { isTestMode } from '@/lib/test-mode';
 import type { ParticipantData } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import app from "@/lib/firebase/config";
+import { PlacesAutocomplete, type Place } from "@/components/places-autocomplete";
+
 
 const dataProvider = isTestMode() ? mock : firestore;
 const auth = getAuth(app);
@@ -63,6 +65,13 @@ function RegistrationWizard() {
     const { id, value } = e.target;
     setFormData(prev => ({ ...prev, [id]: value }));
   };
+  
+  const handleDutyStationSelect = useCallback((place: Place | null) => {
+    if (place) {
+      setFormData(prev => ({ ...prev, dutyStation: place.name }));
+    }
+  }, []);
+
 
   /**
    * Handles select changes and updates the form data state.
@@ -256,12 +265,17 @@ function RegistrationWizard() {
 
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <Label htmlFor="employeeNumber">Participant Employment Number <span className="text-destructive">*</span></Label>
-                    <Input id="employeeNumber" placeholder="e.g., EMP123" required onChange={handleInputChange} />
+                    <Label htmlFor="participantNumber">Participant Employment Number <span className="text-destructive">*</span></Label>
+                    <Input id="participantNumber" placeholder="e.g., EMP123" required onChange={handleInputChange} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="dutyStation">Duty Station <span className="text-destructive">*</span></Label>
-                  <Input id="dutyStation" placeholder="e.g., Nairobi" required onChange={handleInputChange} />
+                  <PlacesAutocomplete
+                    onPlaceSelect={handleDutyStationSelect}
+                    initialValue={formData.dutyStation}
+                    types={['hospital', 'doctor', 'pharmacy', 'health']}
+                    country="ke"
+                   />
                 </div>
             </div>
             
