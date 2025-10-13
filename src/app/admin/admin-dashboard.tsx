@@ -77,7 +77,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { PerdiemRequest, Venue, Participant, AppEvent } from "@/lib/data";
-import { dutyStationCoordinates, MILEAGE_RATE_KSH, DAILY_ALLOWANCE, OUT_OF_OFFICE_RATES } from "@/lib/data";
+import { MILEAGE_RATE_KSH, DAILY_ALLOWANCE, OUT_OF_OFFICE_RATES } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import * as firestore from '@/lib/firebase/firestore';
 import * as mock from '@/lib/mock-data';
@@ -100,7 +100,7 @@ const kenyanCounties = [
     "Nyamira", "Nairobi"
 ];
 
-const dutyStations = Object.keys(dutyStationCoordinates);
+const dutyStations = Object.keys(mock.dutyStationCoordinates);
 
 const defaultNewVenue = { name: "", city: "", county: "Nairobi", latitude: "0", longitude: "0" };
 const defaultNewEvent = { name: "", facilitator: "", venueId: "", allocatedParticipants: [] as string[] };
@@ -175,6 +175,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   const [eventFormData, setEventFormData] = useState<{name: string; facilitator: string; venueId: string; allocatedParticipants: string[] }>(defaultNewEvent);
   const [eventDates, setEventDates] = useState<Date[] | undefined>();
   const [isParticipantSelectOpen, setParticipantSelectOpen] = useState(false);
+  const [isVenueSelectOpen, setVenueSelectOpen] = useState(false);
   const [uploadedParticipants, setUploadedParticipants] = useState<UnregisteredParticipant[]>([]);
   const [participantFile, setParticipantFile] = useState<File | null>(null);
   const [programFile, setProgramFile] = useState<File | null>(null);
@@ -879,10 +880,49 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
                                     <Label htmlFor="event-venue" className="text-left sm:text-right">Venue</Label>
-                                    <Select value={eventFormData.venueId} onValueChange={(value) => setEventFormData({ ...eventFormData, venueId: value })}>
-                                        <SelectTrigger className="col-span-3"><SelectValue placeholder="Select a venue" /></SelectTrigger>
-                                        <SelectContent>{venues.map((v) => (<SelectItem key={v.id} value={v.id}>{v.name} ({v.city})</SelectItem>))}</SelectContent>
-                                    </Select>
+                                    <Popover open={isVenueSelectOpen} onOpenChange={setVenueSelectOpen}>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                role="combobox"
+                                                aria-expanded={isVenueSelectOpen}
+                                                className="col-span-3 justify-between"
+                                            >
+                                                {eventFormData.venueId
+                                                    ? venues.find((venue) => venue.id === eventFormData.venueId)?.name
+                                                    : "Select a venue"}
+                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                            <Command>
+                                                <CommandInput placeholder="Search venue..." />
+                                                <CommandList>
+                                                    <CommandEmpty>No venue found.</CommandEmpty>
+                                                    <CommandGroup>
+                                                        {venues.map((venue) => (
+                                                            <CommandItem
+                                                                key={venue.id}
+                                                                value={venue.name}
+                                                                onSelect={() => {
+                                                                    setEventFormData({ ...eventFormData, venueId: venue.id });
+                                                                    setVenueSelectOpen(false);
+                                                                }}
+                                                            >
+                                                                <Check
+                                                                    className={cn(
+                                                                        "mr-2 h-4 w-4",
+                                                                        eventFormData.venueId === venue.id ? "opacity-100" : "opacity-0"
+                                                                    )}
+                                                                />
+                                                                {venue.name} ({venue.city})
+                                                            </CommandItem>
+                                                        ))}
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
                                     <Label htmlFor="event-facilitator" className="text-left sm:text-right">Facilitator</Label>
