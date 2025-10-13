@@ -256,7 +256,7 @@ function RegistrationWizard() {
 
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <Label htmlFor="employeeNumber">Employee Number <span className="text-destructive">*</span></Label>
+                    <Label htmlFor="employeeNumber">Participant Employment Number <span className="text-destructive">*</span></Label>
                     <Input id="employeeNumber" placeholder="e.g., EMP123" required onChange={handleInputChange} />
                 </div>
                 <div className="space-y-2">
