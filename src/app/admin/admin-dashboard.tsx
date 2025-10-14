@@ -241,7 +241,8 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
       ]);
       setVenues(venuesData);
       setParticipants(participantsData);
-      setPerdiemRequests(requestsData);
+      // Sort requests by date descending
+      setPerdiemRequests(requestsData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
       setEvents(eventsData.sort((a, b) => {
         const dateA = a.eventDates && a.eventDates.length > 0 ? new Date(a.eventDates[0]).getTime() : 0;
         const dateB = b.eventDates && b.eventDates.length > 0 ? new Date(b.eventDates[0]).getTime() : 0;
@@ -800,14 +801,14 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
             <CardContent>
               <div className="overflow-x-auto">
                 <Table>
-                    <TableHeader><TableRow><TableHead>Participant</TableHead><TableHead>Event</TableHead><TableHead>Status</TableHead><TableHead>Date</TableHead><TableHead className="text-right">Amount</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead>Participant</TableHead><TableHead>Event</TableHead><TableHead>Status</TableHead><TableHead>Date Submitted</TableHead><TableHead className="text-right">Amount</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
                     <TableBody>
                     {loading ? <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading requests...</TableCell></TableRow> : perdiemRequests.map(request => (
                         <TableRow key={request.id}>
                         <TableCell><div className="font-medium">{request.participantName}</div><div className="hidden text-sm text-muted-foreground md:inline">ID: {request.participantId}</div></TableCell>
                         <TableCell>{request.eventName}</TableCell>
                         <TableCell><Badge variant={getBadgeVariant(request.status)}>{request.status}</Badge></TableCell>
-                        <TableCell>{request.date}</TableCell>
+                        <TableCell>{format(parseISO(request.date), 'PPP')}</TableCell>
                         <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.totalPerdiem)}</TableCell>
                         <TableCell>
                                 <DropdownMenu>
@@ -1932,4 +1933,5 @@ const AmendInputField = ({ label, value, onChange }: { label: string, value: num
     
 
     
+
 
