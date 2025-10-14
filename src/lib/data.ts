@@ -45,6 +45,8 @@ export type AppEvent = {
   venueName: string;
   venueCity: string;
   facilitator: string;
+  checkinStartTime?: string; // e.g., "10:00"
+  checkinEndTime?: string; // e.g., "17:00"
   allocatedParticipants: string[]; // Array of participant IDs for registered users
   unregisteredParticipants?: { name: string, phoneNumber: string }[]; // For bulk uploads
   checkedInParticipants?: { [participantId: string]: { [date: string]: number } }; // participantId: { date: checkInTimestamp }

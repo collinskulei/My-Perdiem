@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
-import { isToday, parseISO, format, isFuture, startOfDay } from "date-fns";
+import { isToday, parse, format, isFuture, startOfDay } from "date-fns";
 import { useRouter } from "next/navigation";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -88,8 +88,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
   const [isTestMode, setIsTestMode] = useState(false);
   const [bypassLocationCheck, setBypassLocationCheck] = useState(true);
   const [bypassTimeCheck, setBypassTimeCheck] = useState(true);
-  const [isWithinCheckinTime, setIsWithinCheckinTime] = useState(false);
-
+  
   // State for Confirm Payment dialog
   const [isConfirmingPayment, setIsConfirmingPayment] = useState(false);
   const [confirmingRequest, setConfirmingRequest] = useState<PerdiemRequest | null>(null);
@@ -161,18 +160,24 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
     setActiveTab(currentTab);
   }, [currentTab]);
   
-  // Check the time every second to enable/disable check-in
-  useEffect(() => {
-    const checkTime = () => {
-        const now = new Date();
-        const hours = now.getHours();
-        // Check if current time is between 10 AM (10) and 5 PM (17)
-        setIsWithinCheckinTime(hours >= 10 && hours < 17);
-    };
-    checkTime(); // Check immediately on mount
-    const timer = setInterval(checkTime, 1000); // Check every second
-    return () => clearInterval(timer);
-  }, []);
+  const isCheckinOpenForEvent = (event: AppEvent): { isOpen: boolean, window: string } => {
+    if (isTestMode && bypassTimeCheck) {
+        return { isOpen: true, window: 'Bypassed' };
+    }
+
+    const now = new Date();
+    const startTimeStr = event.checkinStartTime || '10:00';
+    const endTimeStr = event.checkinEndTime || '17:00';
+    
+    const startDate = parse(startTimeStr, 'HH:mm', now);
+    const endDate = parse(endTimeStr, 'HH:mm', now);
+
+    const isOpen = now >= startDate && now <= endDate;
+    const window = `${format(startDate, 'h:mm a')} - ${format(endDate, 'h:mm a')}`;
+
+    return { isOpen, window };
+  };
+
 
  const handleCheckIn = (event: AppEvent, date: Date) => {
     if (!authUser) return;
@@ -286,7 +291,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
   };
 
   const getEventDays = (event: AppEvent) => {
-    return (event.eventDates || []).map(dateStr => parseISO(dateStr));
+    return (event.eventDates || []).map(dateStr => parse(dateStr, 'yyyy-MM-dd', new Date()));
   }
 
   const getAttendanceProgress = (event: AppEvent) => {
@@ -439,7 +444,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                  <Card>
                     <CardHeader>
                         <CardTitle>My Events</CardTitle>
-                        <CardDescription>Events you are allocated to. Check-in daily between 10 AM and 5 PM to record your attendance.</CardDescription>
+                        <CardDescription>Events you are allocated to. Check-in daily to record your attendance.</CardDescription>
                     </CardHeader>
                     <CardContent>
                        <div className="overflow-x-auto">
@@ -475,7 +480,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                     const isCheckedInForToday = checkInToday ? !!event.checkedInParticipants?.[authUser?.uid ?? '']?.[format(checkInToday, 'yyyy-MM-dd')] : false;
                                     const canCheckInToday = checkInToday && !isCheckedInForToday;
 
-                                    const isCheckinOpen = isWithinCheckinTime || (isTestMode && bypassTimeCheck);
+                                    const { isOpen: isCheckinOpen, window: checkinWindow } = isCheckinOpenForEvent(event);
 
                                     return (
                                         <TableRow key={event.id}>
@@ -507,7 +512,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                                         ) : (
                                                             <Button size="sm" disabled className="whitespace-nowrap bg-gray-400">
                                                                 <Clock className="mr-2 h-4 w-4" />
-                                                                Check-in Closed
+                                                                <span className="hidden sm:inline">Closed </span>({checkinWindow})
                                                             </Button>
                                                         )
                                                    ) : null }
@@ -546,7 +551,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                         .map(([date, timestamp]) => (
                                             <TableRow key={`${event.id}-${date}`}>
                                                 <TableCell>{event.name}</TableCell>
-                                                <TableCell className="whitespace-nowrap">{format(parseISO(date), 'PPP')}</TableCell>
+                                                <TableCell className="whitespace-nowrap">{format(parse(date, 'yyyy-MM-dd', new Date()), 'PPP')}</TableCell>
                                                 <TableCell className="text-center">
                                                     <Badge variant="secondary"><Check className="mr-1 h-3 w-3" />Checked-In</Badge>
                                                 </TableCell>
@@ -556,11 +561,11 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                     ) : (
                                         myEvents.flatMap(event => 
                                             Object.entries(event.checkedInParticipants?.[authUser?.uid ?? ''] || {})
-                                                .sort(([dateA], [dateB]) => parseISO(dateB).getTime() - parseISO(dateA).getTime())
+                                                .sort(([dateA], [dateB]) => parse(dateB, 'yyyy-MM-dd', new Date()).getTime() - parse(dateA, 'yyyy-MM-dd', new Date()).getTime())
                                                 .map(([date, timestamp]) => (
                                                     <TableRow key={`${event.id}-${date}`}>
                                                         <TableCell>{event.name}</TableCell>
-                                                        <TableCell className="whitespace-nowrap">{format(parseISO(date), 'PPP')}</TableCell>
+                                                        <TableCell className="whitespace-nowrap">{format(parse(date, 'yyyy-MM-dd', new Date()), 'PPP')}</TableCell>
                                                         <TableCell className="text-center">
                                                             <Badge variant="secondary"><Check className="mr-1 h-3 w-3" />Checked-In</Badge>
                                                         </TableCell>
@@ -613,7 +618,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                 <TableCell>
                                     <Badge variant={getBadgeVariant(request.status)}>{request.status}</Badge>
                                 </TableCell>
-                                <TableCell className="whitespace-nowrap">{format(parseISO(request.date), 'PPP')}</TableCell>
+                                <TableCell className="whitespace-nowrap">{format(parse(request.date, 'yyyy-MM-dd', new Date()), 'PPP')}</TableCell>
                                 <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.totalPerdiem)}</TableCell>
                                 <TableCell className="text-right">
                                     {request.status === 'Paid' && (

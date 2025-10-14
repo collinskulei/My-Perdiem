@@ -103,7 +103,7 @@ const kenyanCounties = [
 const dutyStations = Object.keys(dutyStationCoordinates);
 
 const defaultNewVenue = { name: "", city: "", county: "Nairobi", latitude: "0", longitude: "0" };
-const defaultNewEvent = { name: "", facilitator: "", venueId: "", allocatedParticipants: [] as string[] };
+const defaultNewEvent = { name: "", facilitator: "", venueId: "", allocatedParticipants: [] as string[], checkinStartTime: "10:00", checkinEndTime: "17:00" };
 const defaultFilters = { date: undefined, county: "all", dutyStation: "all", participant: "all" };
 
 const designations = [
@@ -172,7 +172,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   
   const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<AppEvent | null>(null);
-  const [eventFormData, setEventFormData] = useState<{name: string; facilitator: string; venueId: string; allocatedParticipants: string[] }>(defaultNewEvent);
+  const [eventFormData, setEventFormData] = useState<{name: string; facilitator: string; venueId: string; allocatedParticipants: string[], checkinStartTime?: string, checkinEndTime?: string }>(defaultNewEvent);
   const [eventDates, setEventDates] = useState<Date[] | undefined>();
   const [isParticipantSelectOpen, setParticipantSelectOpen] = useState(false);
   const [isVenueSelectOpen, setVenueSelectOpen] = useState(false);
@@ -330,6 +330,8 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         facilitator: eventToEdit.facilitator,
         venueId: eventToEdit.venueId,
         allocatedParticipants: eventToEdit.allocatedParticipants,
+        checkinStartTime: eventToEdit.checkinStartTime || "10:00",
+        checkinEndTime: eventToEdit.checkinEndTime || "17:00",
       });
       setEventDates((eventToEdit.eventDates || []).map(dateStr => parseISO(dateStr)));
       setUploadedParticipants(eventToEdit.unregisteredParticipants || []);
@@ -389,6 +391,8 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         facilitator: eventFormData.facilitator,
         allocatedParticipants: finalAllocatedIds,
         unregisteredParticipants: finalUnregistered,
+        checkinStartTime: eventFormData.checkinStartTime,
+        checkinEndTime: eventFormData.checkinEndTime,
         programFilename: programFile?.name,
         letterFilename: letterFile?.name,
     };
@@ -878,6 +882,19 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                         {eventDates?.length ? `${eventDates.length} date(s) selected.` : 'Select one or more dates for the event.'}
                                         </p>
                                     </div>
+                                </div>
+                                 <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                                     <Label className="text-left sm:text-right">Check-in Window</Label>
+                                     <div className="col-span-3 grid grid-cols-2 gap-4">
+                                         <div className="space-y-1">
+                                             <Label htmlFor="checkin-start-time" className="text-xs">Start Time</Label>
+                                             <Input id="checkin-start-time" type="time" value={eventFormData.checkinStartTime} onChange={(e) => setEventFormData({ ...eventFormData, checkinStartTime: e.target.value })} />
+                                         </div>
+                                         <div className="space-y-1">
+                                             <Label htmlFor="checkin-end-time" className="text-xs">End Time</Label>
+                                             <Input id="checkin-end-time" type="time" value={eventFormData.checkinEndTime} onChange={(e) => setEventFormData({ ...eventFormData, checkinEndTime: e.target.value })} />
+                                         </div>
+                                     </div>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
                                     <Label htmlFor="event-venue" className="text-left sm:text-right">Venue</Label>
@@ -1908,7 +1925,7 @@ const AmendRejectDialog = ({ state, setState, onConfirm }: { state: AmendRequest
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setState(defaultAmendState)}>Cancel</Button>
-          <Button onClick={onConfirm} disabled={mode === 'reject' && !rejectionReason || mode === 'amend' && !amendmentReason}>
+          <Button onClick={onConfirm} disabled={(mode === 'reject' && !rejectionReason) || (mode === 'amend' && !amendmentReason)}>
             {mode === 'amend' ? 'Confirm Amendment' : 'Confirm Rejection'}
           </Button>
         </DialogFooter>
@@ -1933,5 +1950,6 @@ const AmendInputField = ({ label, value, onChange }: { label: string, value: num
     
 
     
+
 
 

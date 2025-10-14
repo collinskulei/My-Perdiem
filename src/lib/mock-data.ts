@@ -120,6 +120,8 @@ const initialEvents: AppEvent[] = [
         venueCity: 'Nairobi',
         facilitator: 'Dr. Emily Carter',
         allocatedParticipants: ['auth-uid-participant-1', 'auth-uid-participant-4'],
+        checkinStartTime: '09:00',
+        checkinEndTime: '18:00',
         checkedInParticipants: { 
             'auth-uid-participant-1': { 
                 [formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 10))]: Date.now(),
@@ -141,6 +143,8 @@ const initialEvents: AppEvent[] = [
         venueName: 'Serena Beach Resort & Spa',
         venueCity: 'Mombasa',
         facilitator: 'Prof. David Chen',
+        checkinStartTime: '08:30',
+        checkinEndTime: '16:00',
         allocatedParticipants: ['auth-uid-participant-2', 'auth-uid-participant-1'],
         checkedInParticipants: {
              'auth-uid-participant-2': { 
@@ -462,3 +466,4 @@ export const markEventAsPaid = async (eventId: string, transactionCode: string):
     
 
     
+
