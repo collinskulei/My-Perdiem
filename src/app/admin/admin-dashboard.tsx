@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
@@ -1086,7 +1085,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                         <TableCell className="font-medium">{event.name}</TableCell>
                                         <TableCell>{event.venueName}</TableCell>
                                         <TableCell className="whitespace-nowrap">{(event.eventDates || []).join(', ')}</TableCell>
-                                        <TableCell className="whitespace-nowrap">{format(parseISO(event.createdAt), 'PPP')}</TableCell>
+                                        <TableCell className="whitespace-nowrap">{format(parseISO(event.createdAt || event.eventDates[0]), 'PPP')}</TableCell>
                                         <TableCell>
                                             <div className="flex items-center gap-2">
                                                 {event.programFilename && <Paperclip className="h-4 w-4 text-muted-foreground" title="Program attached" />}
@@ -1951,15 +1950,3 @@ const AmendInputField = ({ label, value, onChange }: { label: string, value: num
 );
 
     
-
-
-
-
-
-    
-
-    
-
-
-
-
