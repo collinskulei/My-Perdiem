@@ -40,6 +40,7 @@ export type Venue = {
 export type AppEvent = {
   id: string;
   name: string;
+  createdAt: string; // ISO date string
   eventDates: string[]; // Array of 'yyyy-MM-dd' strings
   venueId: string;
   venueName: string;

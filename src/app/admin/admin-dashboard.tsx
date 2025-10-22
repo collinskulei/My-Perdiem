@@ -243,11 +243,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
       setParticipants(participantsData);
       // Sort requests by date descending
       setPerdiemRequests(requestsData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-      setEvents(eventsData.sort((a, b) => {
-        const dateA = a.eventDates && a.eventDates.length > 0 ? new Date(a.eventDates[0]).getTime() : 0;
-        const dateB = b.eventDates && b.eventDates.length > 0 ? new Date(b.eventDates[0]).getTime() : 0;
-        return dateB - dateA;
-      }));
+      setEvents(eventsData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
     } catch (error) {
       console.error("Failed to fetch data:", error);
       toast({
@@ -407,8 +403,9 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         toast({ title: "Success", description: "Event updated successfully." });
       } else {
         // Add new event
-        eventId = await dataProvider.addEvent(eventData);
-        finalEvent = { id: eventId, ...eventData, checkedInParticipants: {} } as AppEvent;
+        const newEventData = { ...eventData, createdAt: new Date().toISOString() };
+        eventId = await dataProvider.addEvent(newEventData);
+        finalEvent = { id: eventId, ...newEventData, checkedInParticipants: {} } as AppEvent;
         toast({ title: "Success", description: "Event created successfully." });
       }
       setIsEventDialogOpen(false);
@@ -1064,9 +1061,20 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
             <CardContent>
                 <div className="overflow-x-auto">
                     <Table>
-                        <TableHeader><TableRow><TableHead>Event Name</TableHead><TableHead>Venue</TableHead><TableHead>Dates</TableHead><TableHead>Attachments</TableHead><TableHead>Assigned</TableHead><TableHead>Attendance</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Event Name</TableHead>
+                                <TableHead>Venue</TableHead>
+                                <TableHead>Dates</TableHead>
+                                <TableHead>Date Created</TableHead>
+                                <TableHead>Attachments</TableHead>
+                                <TableHead>Assigned</TableHead>
+                                <TableHead>Attendance</TableHead>
+                                <TableHead><span className="sr-only">Actions</span></TableHead>
+                            </TableRow>
+                        </TableHeader>
                         <TableBody>
-                            {loading ? <TableRow><TableCell colSpan={7} className="h-24 text-center">Loading events...</TableCell></TableRow> 
+                            {loading ? <TableRow><TableCell colSpan={8} className="h-24 text-center">Loading events...</TableCell></TableRow> 
                             : events.map((event) => {
                                 const lastEventDate = event.eventDates?.length ? parseISO(event.eventDates[event.eventDates.length - 1]) : new Date(0);
                                 const isEventPast = isPast(endOfDay(lastEventDate));
@@ -1078,6 +1086,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                         <TableCell className="font-medium">{event.name}</TableCell>
                                         <TableCell>{event.venueName}</TableCell>
                                         <TableCell className="whitespace-nowrap">{(event.eventDates || []).join(', ')}</TableCell>
+                                        <TableCell className="whitespace-nowrap">{format(parseISO(event.createdAt), 'PPP')}</TableCell>
                                         <TableCell>
                                             <div className="flex items-center gap-2">
                                                 {event.programFilename && <Paperclip className="h-4 w-4 text-muted-foreground" title="Program attached" />}
@@ -1913,7 +1922,7 @@ const AmendRejectDialog = ({ state, setState, onConfirm }: { state: AmendRequest
                     <AmendInputField label="Ground Transfer" value={updatedValues.groundTransferCost} onChange={(e) => handleValueChange('groundTransferCost', e.target.value)} />
                 </div>
                  <Separator />
-                <div className="flex justify-between items-center font-bold text-lg">
+                <div className="flex justify-between items-center text-lg font-bold">
                     <span>New Total Per Diem</span>
                     <span>{formatCurrency(newTotal)}</span>
                 </div>
@@ -1950,6 +1959,7 @@ const AmendInputField = ({ label, value, onChange }: { label: string, value: num
     
 
     
+
 
 
 

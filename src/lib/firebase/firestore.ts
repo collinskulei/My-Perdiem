@@ -189,8 +189,12 @@ export type EventData = Omit<AppEvent, 'id'>;
  * @returns {Promise<string>} A promise that resolves to the new document's ID.
  */
 export const addEvent = async (event: Partial<AppEvent>): Promise<string> => {
+    const eventWithTimestamp = {
+      ...event,
+      createdAt: new Date().toISOString(),
+    };
     const eventsCol = collection(db, 'events');
-    const docRef = await addDoc(eventsCol, event);
+    const docRef = await addDoc(eventsCol, eventWithTimestamp);
     return docRef.id;
 };
 
@@ -368,4 +372,3 @@ export const markEventAsPaid = async (eventId: string, transactionCode: string):
     
 
     
-

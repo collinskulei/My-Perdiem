@@ -110,6 +110,7 @@ const initialEvents: AppEvent[] = [
     {
         id: 'event-001',
         name: 'Annual Health Conference (Past Event)',
+        createdAt: new Date(today.getFullYear(), today.getMonth(), today.getDate() - 15).toISOString(),
         eventDates: [
             formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 10)),
             formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 9)),
@@ -135,6 +136,7 @@ const initialEvents: AppEvent[] = [
     {
         id: 'event-002',
         name: 'Maternal Health Workshop (Active Event)',
+        createdAt: new Date(today.getFullYear(), today.getMonth(), today.getDate() - 5).toISOString(),
         eventDates: [
             formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1)),
             formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)),
@@ -156,6 +158,7 @@ const initialEvents: AppEvent[] = [
     {
         id: 'event-003',
         name: 'Lab Technology Symposium (Active Event)',
+        createdAt: new Date(today.getFullYear(), today.getMonth(), today.getDate() - 2).toISOString(),
         eventDates: [
             formatDate(today),
             formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 3)),
@@ -172,6 +175,7 @@ const initialEvents: AppEvent[] = [
     {
         id: 'event-004',
         name: 'Pharmaceutical Best Practices (Upcoming Event)',
+        createdAt: new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString(),
         eventDates: [
             formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 5)),
             formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7)),
@@ -362,7 +366,11 @@ export const isPhoneNumberUnique = async (phoneNumber: string): Promise<boolean>
 
 
 export const addEvent = async (event: Partial<AppEvent>): Promise<string> => {
-    const newEvent: AppEvent = { id: generateId(), ...event } as AppEvent;
+    const newEvent: AppEvent = { 
+        id: generateId(), 
+        createdAt: new Date().toISOString(),
+        ...event 
+    } as AppEvent;
     getDb().events.push(newEvent);
     saveDb();
     return newEvent.id;
@@ -466,4 +474,3 @@ export const markEventAsPaid = async (eventId: string, transactionCode: string):
     
 
     
-
