@@ -171,7 +171,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   
   const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<AppEvent | null>(null);
-  const [eventFormData, setEventFormData = useState<{name: string; facilitator: string; venueId: string; allocatedParticipants: string[], checkinStartTime?: string, checkinEndTime?: string }>(defaultNewEvent);
+  const [eventFormData, setEventFormData] = useState<{name: string; facilitator: string; venueId: string; allocatedParticipants: string[], checkinStartTime?: string, checkinEndTime?: string }>(defaultNewEvent);
   const [eventDates, setEventDates] = useState<Date[] | undefined>();
   const [isParticipantSelectOpen, setParticipantSelectOpen] = useState(false);
   const [isVenueSelectOpen, setVenueSelectOpen] = useState(false);
@@ -182,7 +182,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   
   const [isParticipantDialogOpen, setIsParticipantDialogOpen] = useState(false);
   const [editingParticipant, setEditingParticipant] = useState<Participant | null>(null);
-  const [participantFormData, setParticipantFormData = useState<Partial<Participant>>({});
+  const [participantFormData, setParticipantFormData] = useState<Partial<Participant>>({});
   const [isSaving, setIsSaving] = useState(false);
 
   // State for participant-specific data in the dialog
@@ -1952,6 +1952,8 @@ const AmendInputField = ({ label, value, onChange }: { label: string, value: num
         <Input id={label} type="number" value={value || 0} onChange={onChange} />
     </div>
 );
+
+    
 
     
 
