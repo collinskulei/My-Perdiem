@@ -172,23 +172,6 @@ const initialEvents: AppEvent[] = [
         letterFilename: 'event-003-letter.pdf',
         programFilename: 'event-003-program.pdf'
     },
-    {
-        id: 'event-004',
-        name: 'Pharmaceutical Best Practices (Upcoming Event)',
-        createdAt: new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString(),
-        eventDates: [
-            formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 5)),
-            formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7)),
-        ],
-        venueId: 'venue-nrb-002',
-        venueName: 'Villa Rosa Kempinski',
-        venueCity: 'Nairobi',
-        facilitator: 'Dr. Benard Omondi',
-        allocatedParticipants: ['auth-uid-participant-4', 'auth-uid-participant-1'],
-        unregisteredParticipants: [{ name: 'Future User', phoneNumber: '799999999'}],
-        checkedInParticipants: {},
-        letterFilename: 'event-004-letter.pdf'
-    },
 ];
 const initialPerDiemRequests: PerdiemRequest[] = [
     {
