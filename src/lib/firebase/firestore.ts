@@ -4,7 +4,7 @@
  * @file This file contains helper functions for interacting with Cloud Firestore.
  * It abstracts the logic for common database operations like getting and adding documents.
  */
-import { getFirestore, collection, getDocs, addDoc, query, where, doc, setDoc, getDoc, updateDoc, writeBatch, limit } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, addDoc, query, where, doc, setDoc, getDoc, updateDoc, writeBatch, limit, deleteDoc } from 'firebase/firestore';
 import app from './config';
 import type { Venue, PerdiemRequest, Participant, AppEvent } from '../data';
 
@@ -260,6 +260,16 @@ export const updateEvent = async (eventId: string, dataToUpdate: Partial<AppEven
     await updateDoc(eventDocRef, dataToUpdate);
 };
 
+/**
+ * Deletes an event from the 'events' collection.
+ * @param {string} eventId - The ID of the event to delete.
+ * @returns {Promise<void>}
+ */
+export const deleteEvent = async (eventId: string): Promise<void> => {
+    const eventRef = doc(db, 'events', eventId);
+    await deleteDoc(eventRef);
+};
+
 
 /**
  * Records an participant's check-in for a specific event on a specific date.
@@ -372,3 +382,4 @@ export const markEventAsPaid = async (eventId: string, transactionCode: string):
     
 
     
+

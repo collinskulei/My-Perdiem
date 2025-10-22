@@ -1,9 +1,10 @@
 
+
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2, QrCode, Upload, File as FileIcon, X, Wallet, Paperclip, Info } from "lucide-react";
+import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2, QrCode, Upload, File as FileIcon, X, Wallet, Paperclip, Info, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { DateRange } from "react-day-picker";
 import { format, isWithinInterval, parseISO, isPast, endOfDay, subDays } from "date-fns";
@@ -41,6 +42,16 @@ import {
   DialogDescription,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -191,6 +202,10 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
 
   // State for amendment/rejection dialog
   const [amendRequestState, setAmendRequestState] = useState<AmendRequestState>(defaultAmendState);
+
+  // State for delete confirmation
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState<AppEvent | null>(null);
 
 
   // QR Code Success Dialog
@@ -640,6 +655,33 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
     // --- Finalize and Download ---
     XLSX.utils.book_append_sheet(wb, ws, ws_name);
     XLSX.writeFile(wb, `check-in-report_${event.name.replace(/\s+/g, '-')}.xlsx`);
+  };
+
+  const handleOpenDeleteDialog = (event: AppEvent) => {
+    setEventToDelete(event);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteEvent = async () => {
+    if (!eventToDelete) return;
+    try {
+      await dataProvider.deleteEvent(eventToDelete.id);
+      toast({
+        title: "Event Deleted",
+        description: `"${eventToDelete.name}" has been successfully deleted.`,
+      });
+      fetchAllData(); // Refresh the list
+    } catch (error) {
+      console.error("Error deleting event:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete the event.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setEventToDelete(null);
+    }
   };
 
 
@@ -1117,7 +1159,10 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                                     <DropdownMenuItem onSelect={() => handleOpenBulkPaidDialog(event)} disabled={!hasApprovedRequests}>
                                                         Mark Event Paid
                                                     </DropdownMenuItem>
-                                                    <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => handleOpenDeleteDialog(event)} className="text-destructive">
+                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                        Delete
+                                                    </DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </TableCell>
@@ -1553,6 +1598,24 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
       </DialogContent>
     </Dialog>
     <AmendRejectDialog state={amendRequestState} setState={setAmendRequestState} onConfirm={handleConfirmAmendment} />
+    <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the event
+                    "{eventToDelete?.name}" and all associated check-in data. Per diem requests
+                    will NOT be deleted.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setEventToDelete(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteEvent} className={cn(buttonVariants({ variant: "destructive" }))}>
+                    Yes, delete event
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 }

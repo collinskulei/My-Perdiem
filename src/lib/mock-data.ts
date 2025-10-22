@@ -384,6 +384,17 @@ export const updateEvent = async (eventId: string, dataToUpdate: Partial<AppEven
   }
 };
 
+export const deleteEvent = async (eventId: string): Promise<void> => {
+    const dbInstance = getDb();
+    const index = dbInstance.events.findIndex(e => e.id === eventId);
+    if (index !== -1) {
+        dbInstance.events.splice(index, 1);
+        saveDb();
+    } else {
+        throw new Error("Event not found");
+    }
+};
+
 
 export const checkInToEvent = async (eventId: string, participantId: string, dateString: string): Promise<void> => {
     const dbInstance = getDb();
@@ -457,3 +468,4 @@ export const markEventAsPaid = async (eventId: string, transactionCode: string):
     
 
     
+
