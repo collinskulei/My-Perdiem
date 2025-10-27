@@ -7,6 +7,7 @@
  */
 
 import type { Venue, PerdiemRequest, Participant, AppEvent } from './data';
+import { OUT_OF_OFFICE_RATES } from './data';
 import type { VenueData, ParticipantData, EventData, PerDiemRequestData } from './firebase/firestore';
 
 const MOCK_DATA_KEY = 'perdiem-pro-mock-data';
@@ -61,7 +62,6 @@ const initialParticipants: Participant[] = [
         avatarUrl: `https://picsum.photos/seed/auth-uid-participant-1/100/100`,
         phoneNumber: "+254711111111",
         idNumber: "11111111",
-        participantNumber: "EMP001",
         dutyStation: "Nairobi",
         jobGroup: "C3"
     },
@@ -73,7 +73,6 @@ const initialParticipants: Participant[] = [
         avatarUrl: `https://picsum.photos/seed/auth-uid-participant-2/100/100`,
         phoneNumber: "+254722222222",
         idNumber: "22222222",
-        participantNumber: "EMP002",
         dutyStation: "Mombasa",
         jobGroup: "D1"
     },
@@ -85,7 +84,6 @@ const initialParticipants: Participant[] = [
         avatarUrl: `https://picsum.photos/seed/auth-uid-participant-3/100/100`,
         phoneNumber: "+254733333333",
         idNumber: "33333333",
-        participantNumber: "EMP003",
         dutyStation: "Kisumu",
         jobGroup: "B5"
     },
@@ -97,7 +95,6 @@ const initialParticipants: Participant[] = [
         avatarUrl: `https://picsum.photos/seed/auth-uid-participant-4/100/100`,
         phoneNumber: "+254744444444",
         idNumber: "44444444",
-        participantNumber: "EMP004",
         dutyStation: "Nairobi",
         jobGroup: "K"
     },
@@ -120,6 +117,7 @@ const initialEvents: AppEvent[] = [
         venueName: 'Sarova Stanley',
         venueCity: 'Nairobi',
         facilitator: 'Dr. Emily Carter',
+        jobGroupAllowances: OUT_OF_OFFICE_RATES,
         allocatedParticipants: ['auth-uid-participant-1', 'auth-uid-participant-4'],
         checkinStartTime: '09:00',
         checkinEndTime: '18:00',
@@ -145,6 +143,7 @@ const initialEvents: AppEvent[] = [
         venueName: 'Serena Beach Resort & Spa',
         venueCity: 'Mombasa',
         facilitator: 'Prof. David Chen',
+        jobGroupAllowances: OUT_OF_OFFICE_RATES,
         checkinStartTime: '08:30',
         checkinEndTime: '16:00',
         allocatedParticipants: ['auth-uid-participant-2', 'auth-uid-participant-1'],
@@ -167,6 +166,7 @@ const initialEvents: AppEvent[] = [
         venueName: 'Acacia Premier Hotel',
         venueCity: 'Kisumu',
         facilitator: 'Aisha Khan',
+        jobGroupAllowances: OUT_OF_OFFICE_RATES,
         allocatedParticipants: ['auth-uid-participant-3'],
         checkedInParticipants: {},
         letterFilename: 'event-003-letter.pdf',
@@ -184,11 +184,11 @@ const initialPerDiemRequests: PerdiemRequest[] = [
         date: formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7)),
         status: 'Approved',
         accommodationNights: 3,
-        accommodationTotal: 15000,
+        accommodationTotal: 12000,
         outOfOfficeAllowance: 12000,
         mileageKm: 50,
         mileageTotal: 2250,
-        totalPerdiem: 29250,
+        totalPerdiem: 26250,
     },
     {
         id: 'req-002',
@@ -468,4 +468,3 @@ export const markEventAsPaid = async (eventId: string, transactionCode: string):
     
 
     
-

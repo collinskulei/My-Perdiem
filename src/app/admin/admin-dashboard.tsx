@@ -15,7 +15,7 @@ import { toJpeg } from 'html-to-image';
 
 
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Card,
@@ -87,7 +87,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { PerdiemRequest, Venue, Participant, AppEvent } from "@/lib/data";
-import { MILEAGE_RATE_KSH, DAILY_ALLOWANCE, OUT_OF_OFFICE_RATES, dutyStationCoordinates } from "@/lib/data";
+import { MILEAGE_RATE_KSH, OUT_OF_OFFICE_RATES, dutyStationCoordinates } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import * as firestore from '@/lib/firebase/firestore';
 import * as mock from '@/lib/mock-data';
@@ -97,6 +97,7 @@ import { ClientOnly } from "@/components/client-only";
 import { PerDiemBalanceCard } from "@/app/dashboard/employee-dashboard";
 import { Separator } from "@/components/ui/separator";
 import { PlacesAutocomplete, type Place } from "@/components/places-autocomplete";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const dataProvider = mock;
 
@@ -113,7 +114,7 @@ const kenyanCounties = [
 const dutyStations = Object.keys(dutyStationCoordinates);
 
 const defaultNewVenue = { name: "", city: "", county: "Nairobi", latitude: "0", longitude: "0" };
-const defaultNewEvent = { name: "", facilitator: "", venueId: "", allocatedParticipants: [] as string[], checkinStartTime: "10:00", checkinEndTime: "17:00" };
+const defaultNewEvent = { name: "", facilitator: "", venueId: "", allocatedParticipants: [] as string[], checkinStartTime: "10:00", checkinEndTime: "17:00", jobGroupAllowances: { ...OUT_OF_OFFICE_RATES } };
 const defaultFilters = { date: undefined, county: "all", dutyStation: "all", participant: "all" };
 
 const designations = [
@@ -182,7 +183,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   
   const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<AppEvent | null>(null);
-  const [eventFormData, setEventFormData] = useState<{name: string; facilitator: string; venueId: string; allocatedParticipants: string[], checkinStartTime?: string, checkinEndTime?: string }>(defaultNewEvent);
+  const [eventFormData, setEventFormData] = useState<{name: string; facilitator: string; venueId: string; allocatedParticipants: string[], checkinStartTime?: string, checkinEndTime?: string, jobGroupAllowances?: { [key: string]: number } }>(defaultNewEvent);
   const [eventDates, setEventDates] = useState<Date[] | undefined>();
   const [isParticipantSelectOpen, setParticipantSelectOpen] = useState(false);
   const [isVenueSelectOpen, setVenueSelectOpen] = useState(false);
@@ -346,6 +347,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         allocatedParticipants: eventToEdit.allocatedParticipants,
         checkinStartTime: eventToEdit.checkinStartTime || "10:00",
         checkinEndTime: eventToEdit.checkinEndTime || "17:00",
+        jobGroupAllowances: { ...OUT_OF_OFFICE_RATES, ...eventToEdit.jobGroupAllowances }
       });
       setEventDates((eventToEdit.eventDates || []).map(dateStr => parseISO(dateStr)));
       setUploadedParticipants(eventToEdit.unregisteredParticipants || []);
@@ -407,6 +409,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         unregisteredParticipants: finalUnregistered,
         checkinStartTime: eventFormData.checkinStartTime,
         checkinEndTime: eventFormData.checkinEndTime,
+        jobGroupAllowances: eventFormData.jobGroupAllowances,
         programFilename: programFile?.name,
         letterFilename: letterFile?.name,
     };
@@ -820,6 +823,11 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
     }
   }, []);
 
+   const handleAllowanceChange = (jobGroup: string, value: string) => {
+    const newAllowances = { ...eventFormData.jobGroupAllowances, [jobGroup]: Number(value) };
+    setEventFormData(prev => ({ ...prev, jobGroupAllowances: newAllowances }));
+  };
+
 
   return (
     <>
@@ -851,7 +859,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                     <TableBody>
                     {loading ? <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading requests...</TableCell></TableRow> : perdiemRequests.map(request => (
                         <TableRow key={request.id}>
-                        <TableCell><div className="font-medium">{request.participantName}</div><div className="hidden text-sm text-muted-foreground md:inline">ID: {request.participantId}</div></TableCell>
+                        <TableCell><div className="font-medium">{request.participantName}</div><div className="hidden text-sm text-muted-foreground md:inline">{participants.find(p => p.id === request.participantId)?.idNumber}</div></TableCell>
                         <TableCell>{request.eventName}</TableCell>
                         <TableCell><Badge variant={getBadgeVariant(request.status)}>{request.status}</Badge></TableCell>
                         <TableCell>{format(parseISO(request.date), 'PPP')}</TableCell>
@@ -898,7 +906,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                             <PlusCircle className="mr-2 h-4 w-4" />Add Event
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-3xl flex flex-col max-h-[90vh]">
+                    <DialogContent className="sm:max-w-4xl flex flex-col max-h-[90vh]">
                         <DialogHeader>
                             <DialogTitle>{editingEvent ? 'Edit Event' : 'Add New Event'}</DialogTitle>
                             <DialogDescription>
@@ -988,6 +996,42 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                     <Label htmlFor="event-facilitator" className="text-left sm:text-right">Facilitator</Label>
                                     <Input id="event-facilitator" value={eventFormData.facilitator} onChange={(e) => setEventFormData({ ...eventFormData, facilitator: e.target.value })} className="col-span-3" />
                                 </div>
+
+                                <Separator />
+
+                                 <div className="grid grid-cols-1 sm:grid-cols-4 items-start gap-4">
+                                    <Label className="text-left sm:text-right pt-2">Daily Allowances</Label>
+                                    <div className="col-span-3">
+                                      <Card>
+                                        <CardHeader className="p-4">
+                                          <CardTitle className="text-base">Set Per Diem Per Job Group</CardTitle>
+                                          <CardDescription className="text-xs">
+                                            Define the daily allowance for each job group for this event.
+                                          </CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="p-4 pt-0">
+                                          <ScrollArea className="h-48">
+                                            <div className="space-y-4">
+                                              {jobGroups.map((group) => (
+                                                <div key={group} className="grid grid-cols-3 items-center gap-4">
+                                                  <Label htmlFor={`allowance-${group}`} className="text-sm font-normal">{group}</Label>
+                                                  <Input
+                                                    id={`allowance-${group}`}
+                                                    type="number"
+                                                    className="col-span-2"
+                                                    value={eventFormData.jobGroupAllowances?.[group] || ''}
+                                                    onChange={(e) => handleAllowanceChange(group, e.target.value)}
+                                                    placeholder="Ksh"
+                                                  />
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </ScrollArea>
+                                        </CardContent>
+                                      </Card>
+                                    </div>
+                                </div>
+
 
                                 <Separator />
 
@@ -1257,12 +1301,13 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
             <CardContent>
               <div className="overflow-x-auto">
                 <Table>
-                    <TableHeader><TableRow><TableHead className="w-[64px]"><span className="sr-only">Image</span></TableHead><TableHead>Name</TableHead><TableHead>Role</TableHead><TableHead>Duty Station</TableHead><TableHead>Job Group</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead className="w-[64px]"><span className="sr-only">Image</span></TableHead><TableHead>Name</TableHead><TableHead>ID Number</TableHead><TableHead>Role</TableHead><TableHead>Duty Station</TableHead><TableHead>Job Group</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
                     <TableBody>
-                    {loading ? <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading participants...</TableCell></TableRow> : participants.map(participant => (
+                    {loading ? <TableRow><TableCell colSpan={7} className="h-24 text-center">Loading participants...</TableCell></TableRow> : participants.map(participant => (
                         <TableRow key={participant.id}>
                         <TableCell><Image alt="Participant avatar" className="aspect-square rounded-full object-cover" height="40" src={participant.avatarUrl} width="40" data-ai-hint="person portrait"/></TableCell>
-                        <TableCell className="font-medium whitespace-nowrap">{participant.name}<div className="text-sm text-muted-foreground">{participant.participantNumber}</div></TableCell>
+                        <TableCell className="font-medium whitespace-nowrap">{participant.name}</TableCell>
+                        <TableCell>{participant.idNumber}</TableCell>
                         <TableCell>{participant.role}</TableCell>
                         <TableCell>{participant.dutyStation}</TableCell>
                         <TableCell>{participant.jobGroup}</TableCell>
@@ -1498,10 +1543,6 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                          <div className="space-y-2">
                             <Label htmlFor="idNumber">ID Number</Label>
                             <Input id="idNumber" value={participantFormData.idNumber || ''} onChange={(e) => setParticipantFormData(prev => ({ ...prev, idNumber: e.target.value }))} />
-                        </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="participantNumber">Employee Number</Label>
-                            <Input id="participantNumber" value={participantFormData.participantNumber || ''} onChange={(e) => setParticipantFormData(prev => ({ ...prev, participantNumber: e.target.value }))} />
                         </div>
                     </div>
 

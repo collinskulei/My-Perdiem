@@ -13,7 +13,7 @@ import { differenceInCalendarDays, parseISO } from "date-fns";
 import { useForm, FormProvider, useFormContext } from "react-hook-form";
 
 import type { Participant, AppEvent, PerdiemRequest, Venue } from "@/lib/data";
-import { dutyStationCoordinates } from "@/lib/data";
+import { dutyStationCoordinates, OUT_OF_OFFICE_RATES } from "@/lib/data";
 import * as firestore from '@/lib/firebase/firestore';
 import * as mock from '@/lib/mock-data';
 import { isTestMode } from '@/lib/test-mode';
@@ -38,15 +38,6 @@ const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
 
 // Constants for calculations
 const MILEAGE_RATE_KSH = 45;
-const DAILY_ALLOWANCE = 5000;
-const OUT_OF_OFFICE_RATES: { [key: string]: number } = {
-  "A": 3000, "B1": 3500, "B2": 3500, "B3": 3500, "B4": 3500, "B5": 3500,
-  "C1": 4000, "C2": 4000, "C3": 4000, "C4": 4000, "C5": 4000,
-  "D1": 5000, "D2": 5000, "D3": 5000, "D4": 5000, "D5": 5000,
-  "E1": 6000, "E2": 6000, "E4": 6000,
-  "H": 7000, "J": 8000, "K": 9000, "L": 10000, "M": 11000, "N": 12000,
-  "P": 13000, "Q": 14000, "R": 15000, "S": 16000
-};
 
 type MockUser = { uid: string };
 type PerDiemFormValues = Partial<PerdiemRequest> & {
@@ -364,8 +355,9 @@ const Step2 = ({ event, participant }: { event: AppEvent, participant: Participa
 
     const accommodation = useMemo(() => {
         const nights = (event.eventDates || []).length > 0 ? (event.eventDates || []).length : 0;
-        return { nights, total: nights * DAILY_ALLOWANCE };
-    }, [event]);
+        const dailyRate = (participant.jobGroup && event.jobGroupAllowances) ? event.jobGroupAllowances[participant.jobGroup] || 0 : 0;
+        return { nights, total: nights * dailyRate, dailyRate };
+    }, [event, participant]);
 
     const outOfOfficeAllowance = useMemo(() => {
         if (!participant.jobGroup || !OUT_OF_OFFICE_RATES[participant.jobGroup]) {
@@ -392,7 +384,12 @@ const Step2 = ({ event, participant }: { event: AppEvent, participant: Participa
                         <Input id="accommodationNights" type="number" readOnly {...register('accommodationNights')} />
                     </div>
                     <div className="space-y-2">
-                         <Label>Accommodation Total</Label>
+                         <div className="flex justify-between items-baseline">
+                            <Label>Accommodation Total</Label>
+                             <span className="text-xs text-muted-foreground">
+                                Rate: {formatCurrency(accommodation.dailyRate)}/night
+                            </span>
+                         </div>
                          <Input readOnly value={formatCurrency(accommodation.total)} />
                     </div>
                 </div>
@@ -530,4 +527,3 @@ const SummaryItem = ({ label, value }: { label: string, value: string | number }
 
 
     
-

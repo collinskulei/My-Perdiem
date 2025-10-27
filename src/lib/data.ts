@@ -48,6 +48,7 @@ export type AppEvent = {
   facilitator: string;
   checkinStartTime?: string; // e.g., "10:00"
   checkinEndTime?: string; // e.g., "17:00"
+  jobGroupAllowances?: { [key: string]: number }; // New field for event-specific allowances
   allocatedParticipants: string[]; // Array of participant IDs for registered users
   unregisteredParticipants?: { name: string, phoneNumber: string }[]; // For bulk uploads
   checkedInParticipants?: { [participantId: string]: { [date: string]: number } }; // participantId: { date: checkInTimestamp }
@@ -77,11 +78,11 @@ export type PerdiemRequest = {
   mileageKm?: number;
   mileageTotal?: number;
   airTicketCost?: number;
+  boardingPassUrl?: string;
+  boardingPassFilename?: string;
   groundTransferCost?: number;
   airTicketUrl?: string;
   airTicketFilename?: string;
-  boardingPassUrl?: string;
-  boardingPassFilename?: string;
   groundTransferUrl?: string;
   groundTransferFilename?: string;
   accommodationNights?: number;
@@ -117,7 +118,6 @@ export const venues: Venue[] = [
 
 // Constants for calculations
 export const MILEAGE_RATE_KSH = 45;
-export const DAILY_ALLOWANCE = 5000;
 export const OUT_OF_OFFICE_RATES: { [key: string]: number } = {
   "A": 3000, "B1": 3500, "B2": 3500, "B3": 3500, "B4": 3500, "B5": 3500,
   "C1": 4000, "C2": 4000, "C3": 4000, "C4": 4000, "C5": 4000,
@@ -126,5 +126,4 @@ export const OUT_OF_OFFICE_RATES: { [key: string]: number } = {
   "H": 7000, "J": 8000, "K": 9000, "L": 10000, "M": 11000, "N": 12000,
   "P": 13000, "Q": 14000, "R": 15000, "S": 16000
 };
-
     

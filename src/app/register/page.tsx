@@ -461,10 +461,3 @@ export default function RegistrationPage() {
     
 
     
-
-
-
-
-    
-
-

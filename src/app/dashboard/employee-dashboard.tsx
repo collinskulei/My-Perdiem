@@ -39,7 +39,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import type { PerdiemRequest, Participant, AppEvent, Venue } from "@/lib/data";
-import { dutyStationCoordinates, MILEAGE_RATE_KSH, DAILY_ALLOWANCE, OUT_OF_OFFICE_RATES } from "@/lib/data";
+import { dutyStationCoordinates, MILEAGE_RATE_KSH, OUT_OF_OFFICE_RATES } from "@/lib/data";
 import * as mock from '@/lib/mock-data';
 import { isTestMode as getIsTestMode } from '@/lib/test-mode';
 import app from "@/lib/firebase/config";
@@ -743,19 +743,20 @@ export function PerDiemBalanceCard({ participant, events, requests, venues }: { 
         };
 
         const calculatePotentialPerDiem = (event: AppEvent): number => {
-            const venue = venues.find(v => v.id === event.venueId);
-            if (!participant.dutyStation || !dutyStationCoordinates[participant.dutyStation] || !venue) {
+            if (!participant.dutyStation || !dutyStationCoordinates[participant.dutyStation] || !venues.find(v => v.id === event.venueId) || !participant.jobGroup || !event.jobGroupAllowances) {
                 return 0;
             }
+            const venue = venues.find(v => v.id === event.venueId)!;
             const { latitude: lat1, longitude: lon1 } = dutyStationCoordinates[participant.dutyStation];
             const { latitude: lat2, longitude: lon2 } = venue;
             const distance = getHaversineDistance(lat1, lon1, lat2, lon2) * 2; // Return trip
             const mileageTotal = Math.round(distance * MILEAGE_RATE_KSH);
 
             const nights = (event.eventDates || []).length;
-            const accommodationTotal = nights * DAILY_ALLOWANCE;
+            const dailyRate = event.jobGroupAllowances[participant.jobGroup] || 0;
+            const accommodationTotal = nights * dailyRate;
 
-            const outOfOfficeAllowance = (participant.jobGroup && OUT_OF_OFFICE_RATES[participant.jobGroup])
+            const outOfOfficeAllowance = (OUT_OF_OFFICE_RATES[participant.jobGroup])
                 ? OUT_OF_OFFICE_RATES[participant.jobGroup] * nights
                 : 0;
 
