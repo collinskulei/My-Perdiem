@@ -29,6 +29,7 @@ import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, ArrowLeft, ArrowRight, Info, Upload, File as FileIcon, X } from "lucide-react";
+import { extractTicketCost } from "@/ai/flows/extract-ticket-cost-flow";
 
 
 const dataProvider = mock;
@@ -140,7 +141,7 @@ function PerDiemWizard() {
 
     const prevStep = () => {
         if (currentStep > 0) {
-            setCurrentStep(step => step + 1);
+            setCurrentStep(step => step - 1);
         }
     };
 
@@ -238,7 +239,9 @@ export default function RequestPerDiemPage() {
 // --- WIZARD STEPS ---
 
 const Step1 = ({ event, participant, venue }: { event: AppEvent, participant: Participant, venue: Venue }) => {
-    const { register } = useFormContext<PerDiemFormValues>();
+    const { register, setValue } = useFormContext<PerDiemFormValues>();
+    const [isExtractingCost, setIsExtractingCost] = useState(false);
+    const { toast } = useToast();
     
     const mileage = useMemo(() => {
         if (!participant.dutyStation || !dutyStationCoordinates[participant.dutyStation] || !venue) {
@@ -251,11 +254,41 @@ const Step1 = ({ event, participant, venue }: { event: AppEvent, participant: Pa
     }, [participant.dutyStation, venue]);
     
     // Set initial values for this step
-    const { setValue } = useFormContext<PerDiemFormValues>();
     useEffect(() => {
         setValue('mileageKm', mileage.distance);
         setValue('mileageTotal', mileage.total);
     }, [mileage, setValue]);
+
+    const handleTicketUpload = async (file: File) => {
+        if (!file) return;
+
+        setIsExtractingCost(true);
+        toast({ title: 'Reading Ticket...', description: 'AI is extracting the cost from your ticket.' });
+
+        try {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = async () => {
+                const dataUri = reader.result as string;
+                const result = await extractTicketCost({ ticketImage: dataUri });
+                
+                if (result && result.cost > 0) {
+                    setValue('airTicketCost', result.cost, { shouldValidate: true });
+                    toast({ title: 'Cost Extracted!', description: `The ticket cost was set to ${formatCurrency(result.cost)}.` });
+                } else {
+                    toast({ title: 'Could Not Find Cost', description: 'Please enter the ticket cost manually.', variant: 'destructive' });
+                }
+                setIsExtractingCost(false);
+            };
+            reader.onerror = () => {
+                throw new Error("Could not read file.");
+            };
+        } catch (error) {
+            console.error("Error extracting ticket cost:", error);
+            toast({ title: 'Extraction Failed', description: 'There was an error reading the ticket.', variant: 'destructive' });
+            setIsExtractingCost(false);
+        }
+    };
 
 
     return (
@@ -297,15 +330,17 @@ const Step1 = ({ event, participant, venue }: { event: AppEvent, participant: Pa
                              <Input readOnly value={formatCurrency(mileage.total)} />
                         </div>
                     </div>
-                     <FileUpload name="airTicketFile" label="Air Ticket (PDF, PNG, JPG)" />
-                     <div className="space-y-2">
+                     <FileUpload name="airTicketFile" label="Air Ticket (PDF, PNG, JPG)" onFileSelect={handleTicketUpload} />
+                     <div className="relative space-y-2">
                         <Label htmlFor="airTicketCost">Air Ticket Cost (Ksh)</Label>
                         <Input 
                             id="airTicketCost" 
                             type="number" 
                             placeholder="0" 
                             {...register('airTicketCost', { valueAsNumber: true })}
+                            disabled={isExtractingCost}
                         />
+                        {isExtractingCost && <Loader2 className="absolute right-2 top-8 h-5 w-5 animate-spin text-muted-foreground" />}
                      </div>
                       <FileUpload name="boardingPassFile" label="Boarding Pass (PDF, PNG, JPG)" />
                      <FileUpload name="groundTransferFile" label="Ground Transfer Receipts (PDF, PNG, JPG)" />
@@ -438,9 +473,20 @@ const Step3 = () => {
 
 // --- HELPER COMPONENTS ---
 
-const FileUpload = ({ name, label }: { name: "airTicketFile" | "groundTransferFile" | "boardingPassFile", label: string }) => {
+const FileUpload = ({ name, label, onFileSelect }: { name: "airTicketFile" | "groundTransferFile" | "boardingPassFile", label: string, onFileSelect?: (file: File) => void }) => {
     const { register, watch, setValue } = useFormContext<PerDiemFormValues>();
-    const file = watch(name)?.[0];
+    const files = watch(name);
+    const file = files?.[0];
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const selectedFile = e.target.files?.[0];
+        if (selectedFile && onFileSelect) {
+            onFileSelect(selectedFile);
+        }
+        // We still let react-hook-form handle the file input state
+        register(name).onChange(e);
+    };
+
 
     return (
         <div className="space-y-2">
@@ -451,7 +497,7 @@ const FileUpload = ({ name, label }: { name: "airTicketFile" | "groundTransferFi
                         <Upload className="w-8 h-8 mb-2 text-gray-500" />
                         <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Click to upload</span> or drag and drop</p>
                     </div>
-                    <Input id={name} type="file" className="hidden" {...register(name)} accept=".pdf,.png,.jpg,.jpeg" />
+                    <Input id={name} type="file" className="hidden" {...register(name)} onChange={handleFileChange} accept=".pdf,.png,.jpg,.jpeg" />
                 </Label>
             ) : (
                 <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50 dark:bg-muted/20">
@@ -484,3 +530,4 @@ const SummaryItem = ({ label, value }: { label: string, value: string | number }
 
 
     
+
