@@ -628,11 +628,10 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
     const ws = XLSX.utils.aoa_to_sheet(headerData);
 
     // --- Create Data Grid ---
-    const gridHeader = ['Participant Name', 'Employee ID', ...dateHeaders, 'Attendance %'];
+    const gridHeader = ['Participant Name', ...dateHeaders, 'Attendance %'];
     const gridData = allocatedParticipants.map(participant => {
         const row: (string | number)[] = [
             participant.name,
-            participant.employeeNumber || 'N/A',
         ];
 
         let checkedInCount = 0;
@@ -2021,3 +2020,4 @@ const AmendInputField = ({ label, value, onChange }: { label: string, value: num
     
 
     
+

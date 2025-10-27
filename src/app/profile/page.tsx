@@ -1,4 +1,5 @@
 
+
 /**
  * @file This file defines the user profile page.
  * It allows both participants and admins to view and edit their personal information.
@@ -194,14 +195,6 @@ function Profile() {
                 {participant.role !== 'Admin' && (
                     <>
                         <div className="space-y-2">
-                            <Label htmlFor="participantNumber">Employee Number</Label>
-                            <Controller
-                                name="participantNumber"
-                                control={control}
-                                render={({ field }) => <Input id="participantNumber" {...field} />}
-                            />
-                        </div>
-                        <div className="space-y-2">
                             <Label htmlFor="dutyStation">Duty Station</Label>
                              <Controller
                                 name="dutyStation"
@@ -266,3 +259,4 @@ export default function ProfilePage() {
 
 
     
+

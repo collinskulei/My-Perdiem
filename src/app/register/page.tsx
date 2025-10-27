@@ -140,7 +140,7 @@ function RegistrationWizard() {
 
 
     const requiredFields: (keyof typeof formData)[] = [
-        "name", "phone", "idNumber", "email", "password", "participantNumber", "jobGroup", "dutyStation"
+        "name", "phone", "idNumber", "email", "password", "jobGroup", "dutyStation"
     ];
 
 
@@ -184,7 +184,6 @@ function RegistrationWizard() {
           idNumber: formData.idNumber,
           email: user.email!, // Use email from the created user
           role: finalRole,
-          participantNumber: formData.participantNumber,
           dutyStation: formData.dutyStation,
           jobGroup: formData.jobGroup,
       };
@@ -292,11 +291,7 @@ function RegistrationWizard() {
             </div>
 
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <Label htmlFor="participantNumber">Participant Employment Number <span className="text-destructive">*</span></Label>
-                    <Input id="participantNumber" placeholder="e.g., EMP123" required onChange={handleInputChange} />
-                </div>
-                <div className="space-y-2">
+                 <div className="space-y-2">
                   <Label htmlFor="dutyStation">Duty Station <span className="text-destructive">*</span></Label>
                   <PlacesAutocomplete
                     onPlaceSelect={handleDutyStationSelect}
@@ -471,4 +466,5 @@ export default function RegistrationPage() {
 
 
     
+
 
