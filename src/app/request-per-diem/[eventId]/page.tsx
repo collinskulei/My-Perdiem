@@ -1,5 +1,4 @@
 
-
 /**
  * @file This file defines the multi-step wizard for requesting a per diem.
  * It guides the user through Event Information, Transport, Accommodation, Allowances, and a final Preview.
@@ -10,7 +9,7 @@ import { useState, useEffect, useMemo, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
 import { differenceInCalendarDays, parseISO } from "date-fns";
-import { useForm, FormProvider, useFormContext } from "react-hook-form";
+import { useForm, FormProvider, useFormContext, Controller } from "react-hook-form";
 
 import type { Participant, AppEvent, PerdiemRequest, Venue } from "@/lib/data";
 import { dutyStationCoordinates, OUT_OF_OFFICE_RATES } from "@/lib/data";
@@ -30,6 +29,7 @@ import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, ArrowLeft, ArrowRight, Info, Upload, File as FileIcon, X } from "lucide-react";
 import { extractTicketCost } from "@/ai/flows/extract-ticket-cost-flow";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 
 const dataProvider = mock;
@@ -44,7 +44,9 @@ type PerDiemFormValues = Partial<PerdiemRequest> & {
     airTicketFile: FileList | null;
     boardingPassFile: FileList | null;
     groundTransferFile: FileList | null;
+    transportMode: 'vehicle' | 'flight';
 };
+
 
 const steps = [
     { id: '01', name: 'Event & Transport', fields: [] },
@@ -67,7 +69,15 @@ function PerDiemWizard() {
     const { toast } = useToast();
     const eventId = params.eventId as string;
 
-    const methods = useForm<PerDiemFormValues>();
+    const methods = useForm<PerDiemFormValues>({
+        defaultValues: {
+            transportMode: 'vehicle',
+            mileageKm: 0,
+            mileageTotal: 0,
+            airTicketCost: 0,
+            groundTransferCost: 0,
+        }
+    });
     const { handleSubmit, trigger } = methods;
 
     // --- DATA FETCHING ---
@@ -132,7 +142,7 @@ function PerDiemWizard() {
 
     const prevStep = () => {
         if (currentStep > 0) {
-            setCurrentStep(step => step - 1);
+            setCurrentStep(step => step + 1);
         }
     };
 
@@ -150,14 +160,17 @@ function PerDiemWizard() {
                 location: event.venueCity,
                 date: new Date().toISOString().split('T')[0],
                 status: 'Pending' as const,
-                mileageKm: data.mileageKm || 0,
-                mileageTotal: data.mileageTotal || 0,
-                airTicketCost: data.airTicketCost || 0,
+                mileageKm: data.transportMode === 'vehicle' ? data.mileageKm : 0,
+                mileageTotal: data.transportMode === 'vehicle' ? data.mileageTotal : 0,
+                airTicketCost: data.transportMode === 'flight' ? data.airTicketCost : 0,
                 groundTransferCost: data.groundTransferCost || 0,
                 accommodationNights: data.accommodationNights || 0,
                 accommodationTotal: data.accommodationTotal || 0,
                 outOfOfficeAllowance: data.outOfOfficeAllowance || 0,
                 totalPerdiem: data.totalPerdiem || 0,
+                boardingPassFilename: data.boardingPassFile?.[0]?.name,
+                airTicketFilename: data.airTicketFile?.[0]?.name,
+                groundTransferFilename: data.groundTransferFile?.[0]?.name,
             };
 
             await dataProvider.addPerDiemRequest(requestData);
@@ -230,10 +243,12 @@ export default function RequestPerDiemPage() {
 // --- WIZARD STEPS ---
 
 const Step1 = ({ event, participant, venue }: { event: AppEvent, participant: Participant, venue: Venue }) => {
-    const { register, setValue } = useFormContext<PerDiemFormValues>();
+    const { register, setValue, watch, control } = useFormContext<PerDiemFormValues>();
     const [isExtractingCost, setIsExtractingCost] = useState(false);
     const { toast } = useToast();
     
+    const transportMode = watch('transportMode');
+
     const mileage = useMemo(() => {
         if (!participant.dutyStation || !dutyStationCoordinates[participant.dutyStation] || !venue) {
             return { distance: 0, total: 0 };
@@ -246,9 +261,15 @@ const Step1 = ({ event, participant, venue }: { event: AppEvent, participant: Pa
     
     // Set initial values for this step
     useEffect(() => {
-        setValue('mileageKm', mileage.distance);
-        setValue('mileageTotal', mileage.total);
-    }, [mileage, setValue]);
+        if (transportMode === 'vehicle') {
+            setValue('mileageKm', mileage.distance);
+            setValue('mileageTotal', mileage.total);
+            setValue('airTicketCost', 0);
+        } else {
+            setValue('mileageKm', 0);
+            setValue('mileageTotal', 0);
+        }
+    }, [mileage, setValue, transportMode]);
 
     const handleTicketUpload = async (file: File) => {
         if (!file) return;
@@ -298,52 +319,83 @@ const Step1 = ({ event, participant, venue }: { event: AppEvent, participant: Pa
                 <h3 className="text-lg font-medium">Transport Information</h3>
                 <Separator className="my-2" />
                 <div className="space-y-6">
-                    <Alert>
-                        <Info className="h-4 w-4" />
-                        <AlertTitle>Claiming Transport</AlertTitle>
-                        <AlertDescription>
-                            You can claim mileage for using a personal vehicle OR claim the cost of an air ticket. Ground transfer receipts can be uploaded separately.
-                        </AlertDescription>
-                    </Alert>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
-                         <div className="space-y-2">
-                            <Label htmlFor="mileageKm">Mileage (Return Trip)</Label>
-                            <Input id="mileageKm" type="number" readOnly {...register('mileageKm')} />
-                        </div>
-                        <div className="space-y-2">
-                             <div className="flex justify-between items-baseline">
-                                <Label>Mileage Total</Label>
-                                <span className="text-xs text-muted-foreground">
-                                    Rate: Ksh {MILEAGE_RATE_KSH}/km
-                                </span>
+                    <Controller
+                        control={control}
+                        name="transportMode"
+                        render={({ field: { onChange, value } }) => (
+                            <RadioGroup
+                                value={value}
+                                onValueChange={onChange}
+                                className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                            >
+                                <Label htmlFor="transport-vehicle" className="flex flex-col items-start gap-3 rounded-lg border p-4 cursor-pointer hover:bg-accent hover:text-accent-foreground has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:checked]:border-primary">
+                                    <div className="flex items-center gap-3">
+                                        <RadioGroupItem value="vehicle" id="transport-vehicle" />
+                                        <span className="font-semibold">Personal Vehicle</span>
+                                    </div>
+                                    <p className="text-sm opacity-80 pl-8">Claim mileage for using your own car.</p>
+                                </Label>
+                                <Label htmlFor="transport-flight" className="flex flex-col items-start gap-3 rounded-lg border p-4 cursor-pointer hover:bg-accent hover:text-accent-foreground has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:checked]:border-primary">
+                                    <div className="flex items-center gap-3">
+                                        <RadioGroupItem value="flight" id="transport-flight" />
+                                        <span className="font-semibold">Air Travel / Other</span>
+                                    </div>
+                                     <p className="text-sm opacity-80 pl-8">Claim costs for flights, public transport, etc.</p>
+                                </Label>
+                            </RadioGroup>
+                        )}
+                    />
+                    
+                    {transportMode === 'vehicle' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end p-4 border rounded-lg">
+                            <div className="space-y-2">
+                                <Label htmlFor="mileageKm">Mileage (Return Trip)</Label>
+                                <Input id="mileageKm" type="number" readOnly {...register('mileageKm')} />
                             </div>
-                             <Input readOnly value={formatCurrency(mileage.total)} />
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-baseline">
+                                    <Label>Mileage Total</Label>
+                                    <span className="text-xs text-muted-foreground">
+                                        Rate: Ksh {MILEAGE_RATE_KSH}/km
+                                    </span>
+                                </div>
+                                <Input readOnly value={formatCurrency(mileage.total)} />
+                            </div>
+                        </div>
+                    )}
+                    
+                    {transportMode === 'flight' && (
+                         <div className="space-y-4 p-4 border rounded-lg">
+                            <FileUpload name="airTicketFile" label="Air Ticket (PDF, PNG, JPG)" onFileSelect={handleTicketUpload} />
+                            <div className="relative space-y-2">
+                                <Label htmlFor="airTicketCost">Air Ticket Cost (Ksh)</Label>
+                                <Input 
+                                    id="airTicketCost" 
+                                    type="number" 
+                                    placeholder="0" 
+                                    {...register('airTicketCost', { valueAsNumber: true })}
+                                    disabled={isExtractingCost}
+                                />
+                                {isExtractingCost && <Loader2 className="absolute right-2 top-8 h-5 w-5 animate-spin text-muted-foreground" />}
+                            </div>
+                            <FileUpload name="boardingPassFile" label="Boarding Pass (PDF, PNG, JPG)" />
+                         </div>
+                    )}
+
+                    <div className="space-y-4">
+                        <h4 className="font-medium text-base">Other Transport Costs</h4>
+                        <Separator />
+                        <FileUpload name="groundTransferFile" label="Ground Transfer Receipts (Taxi, etc.)" />
+                        <div className="space-y-2">
+                            <Label htmlFor="groundTransferCost">Ground Transfer Cost (Ksh)</Label>
+                            <Input 
+                                id="groundTransferCost" 
+                                type="number" 
+                                placeholder="0" 
+                                {...register('groundTransferCost', { valueAsNumber: true })}
+                            />
                         </div>
                     </div>
-                     <FileUpload name="airTicketFile" label="Air Ticket (PDF, PNG, JPG)" onFileSelect={handleTicketUpload} />
-                     <div className="relative space-y-2">
-                        <Label htmlFor="airTicketCost">Air Ticket Cost (Ksh)</Label>
-                        <Input 
-                            id="airTicketCost" 
-                            type="number" 
-                            placeholder="0" 
-                            {...register('airTicketCost', { valueAsNumber: true })}
-                            disabled={isExtractingCost}
-                        />
-                        {isExtractingCost && <Loader2 className="absolute right-2 top-8 h-5 w-5 animate-spin text-muted-foreground" />}
-                     </div>
-                      <FileUpload name="boardingPassFile" label="Boarding Pass (PDF, PNG, JPG)" />
-                     <FileUpload name="groundTransferFile" label="Ground Transfer Receipts (PDF, PNG, JPG)" />
-                     <div className="space-y-2">
-                        <Label htmlFor="groundTransferCost">Ground Transfer Cost (Ksh)</Label>
-                        <Input 
-                            id="groundTransferCost" 
-                            type="number" 
-                            placeholder="0" 
-                            {...register('groundTransferCost', { valueAsNumber: true })}
-                        />
-                     </div>
                 </div>
             </div>
         </div>
@@ -413,20 +465,33 @@ const Step2 = ({ event, participant }: { event: AppEvent, participant: Participa
 };
 
 const Step3 = () => {
-    const { getValues } = useFormContext<PerDiemFormValues>();
+    const { getValues, watch } = useFormContext<PerDiemFormValues>();
     const values = getValues();
+    
+    // Watch relevant values to trigger re-calculation
+    const watchedValues = watch([
+        'transportMode',
+        'mileageTotal',
+        'airTicketCost',
+        'groundTransferCost',
+        'accommodationTotal',
+        'outOfOfficeAllowance'
+    ]);
     
     const airTicketFile = values.airTicketFile?.[0];
     const boardingPassFile = values.boardingPassFile?.[0];
     const groundTransferFile = values.groundTransferFile?.[0];
 
     const totalPerdiem = useMemo(() => {
-        return (values.mileageTotal || 0) + 
+        const transportTotal = values.transportMode === 'vehicle' 
+            ? (values.mileageTotal || 0)
+            : (values.airTicketCost || 0);
+
+        return transportTotal + 
+               (values.groundTransferCost || 0) +
                (values.accommodationTotal || 0) + 
-               (values.outOfOfficeAllowance || 0) + 
-               (values.airTicketCost || 0) +
-               (values.groundTransferCost || 0);
-    }, [values]);
+               (values.outOfOfficeAllowance || 0);
+    }, [values, watchedValues]);
 
     // Set final total
      const { setValue } = useFormContext<PerDiemFormValues>();
@@ -444,9 +509,15 @@ const Step3 = () => {
 
             <div className="space-y-6">
                 <SummarySection title="Transport Costs">
-                    <SummaryItem label="Mileage Claim" value={formatCurrency(values.mileageTotal || 0)} />
-                    <SummaryItem label="Air Ticket Cost" value={formatCurrency(values.airTicketCost || 0)} />
+                    <SummaryItem label="Mode of Transport" value={values.transportMode === 'vehicle' ? "Personal Vehicle" : "Air Travel / Other"} />
+                    {values.transportMode === 'vehicle' ? (
+                       <SummaryItem label="Mileage Claim" value={formatCurrency(values.mileageTotal || 0)} />
+                    ) : (
+                       <SummaryItem label="Air Ticket Cost" value={formatCurrency(values.airTicketCost || 0)} />
+                    )}
                     <SummaryItem label="Ground Transfer Cost" value={formatCurrency(values.groundTransferCost || 0)} />
+                    <Separator className="my-2" />
+                    <h4 className="font-medium text-sm pt-2">Attached Files</h4>
                     <SummaryItem label="Air Ticket File" value={airTicketFile ? airTicketFile.name : "Not provided"} />
                     <SummaryItem label="Boarding Pass File" value={boardingPassFile ? boardingPassFile.name : "Not provided"} />
                     <SummaryItem label="Ground Transfer File" value={groundTransferFile ? groundTransferFile.name : "Not provided"} />
@@ -524,6 +595,5 @@ const SummaryItem = ({ label, value }: { label: string, value: string | number }
         <p className="font-medium text-left sm:text-right">{value}</p>
     </div>
 );
-
 
     
