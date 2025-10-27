@@ -79,6 +79,8 @@ export type PerdiemRequest = {
   groundTransferCost?: number;
   airTicketUrl?: string;
   airTicketFilename?: string;
+  boardingPassUrl?: string;
+  boardingPassFilename?: string;
   groundTransferUrl?: string;
   groundTransferFilename?: string;
   accommodationNights?: number;

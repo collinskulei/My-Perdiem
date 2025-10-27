@@ -1,4 +1,5 @@
 
+
 /**
  * @file This file defines the multi-step wizard for requesting a per diem.
  * It guides the user through Event Information, Transport, Accommodation, Allowances, and a final Preview.
@@ -49,6 +50,7 @@ const OUT_OF_OFFICE_RATES: { [key: string]: number } = {
 type MockUser = { uid: string };
 type PerDiemFormValues = Partial<PerdiemRequest> & {
     airTicketFile: FileList | null;
+    boardingPassFile: FileList | null;
     groundTransferFile: FileList | null;
 };
 
@@ -305,6 +307,7 @@ const Step1 = ({ event, participant, venue }: { event: AppEvent, participant: Pa
                             {...register('airTicketCost', { valueAsNumber: true })}
                         />
                      </div>
+                      <FileUpload name="boardingPassFile" label="Boarding Pass (PDF, PNG, JPG)" />
                      <FileUpload name="groundTransferFile" label="Ground Transfer Receipts (PDF, PNG, JPG)" />
                      <div className="space-y-2">
                         <Label htmlFor="groundTransferCost">Ground Transfer Cost (Ksh)</Label>
@@ -382,6 +385,7 @@ const Step3 = () => {
     const values = getValues();
     
     const airTicketFile = values.airTicketFile?.[0];
+    const boardingPassFile = values.boardingPassFile?.[0];
     const groundTransferFile = values.groundTransferFile?.[0];
 
     const totalPerdiem = useMemo(() => {
@@ -412,6 +416,7 @@ const Step3 = () => {
                     <SummaryItem label="Air Ticket Cost" value={formatCurrency(values.airTicketCost || 0)} />
                     <SummaryItem label="Ground Transfer Cost" value={formatCurrency(values.groundTransferCost || 0)} />
                     <SummaryItem label="Air Ticket File" value={airTicketFile ? airTicketFile.name : "Not provided"} />
+                    <SummaryItem label="Boarding Pass File" value={boardingPassFile ? boardingPassFile.name : "Not provided"} />
                     <SummaryItem label="Ground Transfer File" value={groundTransferFile ? groundTransferFile.name : "Not provided"} />
                 </SummarySection>
 
@@ -433,7 +438,7 @@ const Step3 = () => {
 
 // --- HELPER COMPONENTS ---
 
-const FileUpload = ({ name, label }: { name: "airTicketFile" | "groundTransferFile", label: string }) => {
+const FileUpload = ({ name, label }: { name: "airTicketFile" | "groundTransferFile" | "boardingPassFile", label: string }) => {
     const { register, watch, setValue } = useFormContext<PerDiemFormValues>();
     const file = watch(name)?.[0];
 
