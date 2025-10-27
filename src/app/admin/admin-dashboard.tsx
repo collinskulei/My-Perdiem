@@ -15,7 +15,7 @@ import { toJpeg } from 'html-to-image';
 
 
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Card,
@@ -87,7 +87,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { PerdiemRequest, Venue, Participant, AppEvent } from "@/lib/data";
-import { MILEAGE_RATE_KSH, OUT_OF_OFFICE_RATES, dutyStationCoordinates } from "@/lib/data";
+import { OUT_OF_OFFICE_RATES, dutyStationCoordinates } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import * as firestore from '@/lib/firebase/firestore';
 import * as mock from '@/lib/mock-data';
@@ -632,10 +632,11 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
     const ws = XLSX.utils.aoa_to_sheet(headerData);
 
     // --- Create Data Grid ---
-    const gridHeader = ['Participant Name', ...dateHeaders, 'Attendance %'];
+    const gridHeader = ['Participant Name', 'ID Number', ...dateHeaders, 'Attendance %'];
     const gridData = allocatedParticipants.map(participant => {
         const row: (string | number)[] = [
             participant.name,
+            participant.idNumber,
         ];
 
         let checkedInCount = 0;
