@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
@@ -574,9 +573,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
     const detailedData = dataToDownload.map(req => {
         const event = events.find(e => e.id === req.eventId);
         const participant = participants.find(p => p.id === req.participantId);
-        const eventDuration = event && event.eventDates ? event.eventDates.length : 0;
         const daysAttended = participant && event?.checkedInParticipants?.[participant.id] ? Object.keys(event.checkedInParticipants[participant.id]).length : 0;
-        const attendance = eventDuration > 0 ? `${daysAttended}/${eventDuration}` : 'N/A';
 
         return {
             ...req,
@@ -587,7 +584,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
             eventStartDate: event?.eventDates?.[0] || 'N A',
             eventEndDate: event?.eventDates?.[(event.eventDates || []).length - 1] || 'N A',
             eventFacilitator: event?.facilitator || 'N A',
-            eventAttendance: attendance,
+            eventAttendance: daysAttended,
         };
     });
 
@@ -2107,6 +2104,8 @@ const AmendInputField = ({ label, value, onChange }: { label: string, value: num
         <Input id={label} type="number" value={value || 0} onChange={onChange} />
     </div>
 );
+
+    
 
     
 
