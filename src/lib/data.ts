@@ -71,6 +71,7 @@ export type PerdiemRequest = {
   transactionCode?: string;
   rejectionReason?: string;
   amendmentReason?: string;
+  originalTotal?: number;
 
   // Detailed financial breakdown from the wizard
   mileageKm?: number;

@@ -530,6 +530,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
       const dataToUpdate: Partial<PerdiemRequest> = {
         ...amendRequestState.updatedValues,
         totalPerdiem: newTotal,
+        originalTotal: originalTotal, // Save original total
         amendmentReason: amendRequestState.amendmentReason,
         status: 'Amended',
       };
@@ -1261,7 +1262,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                     {loading ? <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading participants...</TableCell></TableRow> : participants.map(participant => (
                         <TableRow key={participant.id}>
                         <TableCell><Image alt="Participant avatar" className="aspect-square rounded-full object-cover" height="40" src={participant.avatarUrl} width="40" data-ai-hint="person portrait"/></TableCell>
-                        <TableCell className="font-medium whitespace-nowrap">{participant.name}<div className="text-sm text-muted-foreground">{participant.employeeNumber}</div></TableCell>
+                        <TableCell className="font-medium whitespace-nowrap">{participant.name}<div className="text-sm text-muted-foreground">{participant.participantNumber}</div></TableCell>
                         <TableCell>{participant.role}</TableCell>
                         <TableCell>{participant.dutyStation}</TableCell>
                         <TableCell>{participant.jobGroup}</TableCell>
@@ -1419,6 +1420,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                 <TabsTrigger value="approved">Approved</TabsTrigger>
                                 <TabsTrigger value="paid">Paid</TabsTrigger>
                                 <TabsTrigger value="rejected">Rejected</TabsTrigger>
+                                <TabsTrigger value="amended">Amended</TabsTrigger>
                             </TabsList>
                         </div>
                         
@@ -1446,6 +1448,13 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                              data={filteredReportData.filter(r => r.status === 'Rejected')}
                              loading={loading}
                              onDownload={() => handleDownloadPerDiemReport(filteredReportData.filter(r => r.status === 'Rejected'), 'rejected_perdiems')}
+                           />
+                        </TabsContent>
+                        <TabsContent value="amended">
+                           <AmendedReportTabContent 
+                             title="Amended Perdiems" 
+                             data={filteredReportData.filter(r => r.status === 'Amended')}
+                             loading={loading}
                            />
                         </TabsContent>
                     </Tabs>
@@ -1490,15 +1499,15 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                             <Label htmlFor="idNumber">ID Number</Label>
                             <Input id="idNumber" value={participantFormData.idNumber || ''} onChange={(e) => setParticipantFormData(prev => ({ ...prev, idNumber: e.target.value }))} />
                         </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="participantNumber">Employee Number</Label>
+                            <Input id="participantNumber" value={participantFormData.participantNumber || ''} onChange={(e) => setParticipantFormData(prev => ({ ...prev, participantNumber: e.target.value }))} />
+                        </div>
                     </div>
 
                     {editingParticipant?.role !== 'Admin' && (
                         <>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="employeeNumber">Employee Number</Label>
-                                    <Input id="employeeNumber" value={participantFormData.employeeNumber || ''} onChange={(e) => setParticipantFormData(prev => ({ ...prev, employeeNumber: e.target.value }))} />
-                                </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="dutyStation">Duty Station</Label>
                                     <Select value={participantFormData.dutyStation} onValueChange={(value) => setParticipantFormData(prev => ({ ...prev, dutyStation: value }))}>
@@ -1508,8 +1517,6 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                         </SelectContent>
                                     </Select>
                                 </div>
-                            </div>
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="jobGroup">Job Group</Label>
                                     <Select value={participantFormData.jobGroup} onValueChange={(value) => setParticipantFormData(prev => ({ ...prev, jobGroup: value }))}>
@@ -1519,6 +1526,8 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                         </SelectContent>
                                     </Select>
                                 </div>
+                            </div>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="role">Role/Designation</Label>
                                     <Select value={participantFormData.role} onValueChange={(value) => setParticipantFormData(prev => ({ ...prev, role: value }))}>
@@ -1689,6 +1698,48 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
         </Card>
     )
 }
+
+function AmendedReportTabContent({ title, data, loading }: { title: string, data: PerdiemRequest[], loading: boolean }) {
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>{title}</CardTitle>
+                {/* Add download button if needed */}
+            </CardHeader>
+            <CardContent>
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Participant</TableHead>
+                                <TableHead>Event</TableHead>
+                                <TableHead>Reason for Amendment</TableHead>
+                                <TableHead className="text-right">Original Amount</TableHead>
+                                <TableHead className="text-right">Amended Amount</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {loading ? (
+                            <TableRow><TableCell colSpan={5} className="h-24 text-center">Loading report data...</TableCell></TableRow>
+                        ) : data.length === 0 ? (
+                             <TableRow><TableCell colSpan={5} className="h-24 text-center">No amended requests match the current filters.</TableCell></TableRow>
+                        ) : data.map(request => (
+                            <TableRow key={request.id}>
+                                <TableCell>{request.participantName}</TableCell>
+                                <TableCell>{request.eventName}</TableCell>
+                                <TableCell className="max-w-xs truncate">{request.amendmentReason}</TableCell>
+                                <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.originalTotal ?? 0)}</TableCell>
+                                <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.totalPerdiem)}</TableCell>
+                            </TableRow>
+                        ))}
+                        </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 
 function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[], loading: boolean }) {
   const pieChartRef = useRef<HTMLDivElement>(null);
@@ -2020,4 +2071,3 @@ const AmendInputField = ({ label, value, onChange }: { label: string, value: num
     
 
     
-
