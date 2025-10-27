@@ -9,7 +9,7 @@
 import { useState, Suspense, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, ChevronsUpDown, Check } from "lucide-react";
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import * as firestore from '@/lib/firebase/firestore';
 import * as mock from '@/lib/mock-data';
@@ -40,6 +53,7 @@ import type { ParticipantData } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import app from "@/lib/firebase/config";
 import { PlacesAutocomplete, type Place } from "@/components/places-autocomplete";
+import { cn } from "@/lib/utils";
 
 
 const dataProvider = isTestMode() ? mock : firestore;
@@ -56,6 +70,9 @@ function RegistrationWizard() {
   const [isAgreed, setIsAgreed] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const [isDesignationOpen, setIsDesignationOpen] = useState(false);
+  const [otherDesignation, setOtherDesignation] = useState("");
+
 
   /**
    * Handles input changes and updates the form data state.
@@ -80,6 +97,9 @@ function RegistrationWizard() {
    */
   const handleSelectChange = (id: string, value: string) => {
     setFormData(prev => ({ ...prev, [id]: value }));
+     if (id === 'role' && value !== 'Other') {
+      setOtherDesignation("");
+    }
   };
   
   /**
@@ -111,8 +131,16 @@ function RegistrationWizard() {
       return;
     }
 
+    const finalRole = formData.role === 'Other' ? otherDesignation : formData.role;
+
+    if (!finalRole) {
+        toast({ title: "Missing required fields", description: `Please fill out the 'Designation' field.`, variant: "destructive" });
+        return;
+    }
+
+
     const requiredFields: (keyof typeof formData)[] = [
-        "name", "phone", "idNumber", "email", "password", "participantNumber", "role", "jobGroup", "dutyStation"
+        "name", "phone", "idNumber", "email", "password", "participantNumber", "jobGroup", "dutyStation"
     ];
 
 
@@ -155,7 +183,7 @@ function RegistrationWizard() {
           phoneNumber: fullPhoneNumber,
           idNumber: formData.idNumber,
           email: user.email!, // Use email from the created user
-          role: formData.role,
+          role: finalRole,
           participantNumber: formData.participantNumber,
           dutyStation: formData.dutyStation,
           jobGroup: formData.jobGroup,
@@ -282,18 +310,74 @@ function RegistrationWizard() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="role">Designation <span className="text-destructive">*</span></Label>
-                   <Select required onValueChange={(value) => handleSelectChange('role', value)}>
-                    <SelectTrigger id="role">
-                      <SelectValue placeholder="Select a designation" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {designations.map((designation) => (
-                        <SelectItem key={designation} value={designation}>
-                          {designation}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                   <Popover open={isDesignationOpen} onOpenChange={setIsDesignationOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={isDesignationOpen}
+                        className="w-full justify-between font-normal"
+                      >
+                        {formData.role
+                          ? designations.find((d) => d === formData.role) || formData.role
+                          : "Select a designation"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                      <Command>
+                        <CommandInput placeholder="Search designation..." />
+                        <CommandList>
+                          <CommandEmpty>No designation found.</CommandEmpty>
+                          <CommandGroup>
+                            {designations.map((designation) => (
+                              <CommandItem
+                                key={designation}
+                                value={designation}
+                                onSelect={(currentValue) => {
+                                  handleSelectChange("role", currentValue === formData.role ? "" : designation);
+                                  setIsDesignationOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    formData.role === designation ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {designation}
+                              </CommandItem>
+                            ))}
+                             <CommandItem
+                                value="Other"
+                                onSelect={() => {
+                                  handleSelectChange("role", "Other");
+                                  setIsDesignationOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    formData.role === "Other" ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                Other
+                              </CommandItem>
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  {formData.role === 'Other' && (
+                    <Input
+                      id="otherDesignation"
+                      placeholder="Please specify"
+                      className="mt-2"
+                      value={otherDesignation}
+                      onChange={(e) => setOtherDesignation(e.target.value)}
+                      required
+                    />
+                  )}
                 </div>
                  <div className="space-y-2">
                   <Label htmlFor="jobGroup">Job Group <span className="text-destructive">*</span></Label>
@@ -387,3 +471,4 @@ export default function RegistrationPage() {
 
 
     
+
