@@ -2,9 +2,14 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow read/write access to any authenticated user.
-    // This is suitable for development but should be made more
-    // secure before moving to production by adding role-based checks.
+    // Allow users to create their own profile upon registration
+    match /participants/{userId} {
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Allow any authenticated user to read/write other collections for now.
+    // This should be refined for production.
     match /{document=**} {
       allow read, write: if request.auth != null;
     }
