@@ -1,4 +1,3 @@
-
 /**
  * @file This file defines the new user registration page.
  * It features a dynamic form that adapts based on whether the user is registering as an Participant or an Admin.
@@ -23,7 +22,6 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Logo } from "@/components/logo";
 import {
   Select,
   SelectContent,
@@ -31,20 +29,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import * as firestore from '@/lib/firebase/firestore';
 import * as mock from '@/lib/mock-data';
 import { isTestMode as checkIsTestMode } from '@/lib/test-mode';
@@ -52,7 +36,6 @@ import type { ParticipantData } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import app from "@/lib/firebase/config";
 import { PlacesAutocomplete, type Place } from "@/components/places-autocomplete";
-import { cn } from "@/lib/utils";
 
 
 const dataProvider = checkIsTestMode() ? mock : firestore;
@@ -69,8 +52,6 @@ function RegistrationWizard() {
   const [isAgreed, setIsAgreed] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
-  const [isDesignationOpen, setIsDesignationOpen] = useState(false);
-  const [isEmailOpen, setIsEmailOpen] = useState(false);
   const [otherDesignation, setOtherDesignation] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -230,25 +211,6 @@ function RegistrationWizard() {
   
   const jobGroups = ["A", "B1", "B2", "B3", "B4", "B5", "C1", "C2", "C3", "C4", "C5", "D1", "D2", "D3", "D4", "D5", "E1", "E2", "E4", "H", "J", "K", "L", "M", "N", "P", "Q", "R", "S"];
 
-  const emailOptions = [
-    "participant1@example.com",
-    "participant2@example.com",
-    "participant3@example.com",
-    "participant4@example.com",
-    "admin@example.com",
-    "admin2@example.com",
-    "outreach@health.org",
-    "wellness@health.org",
-    "community@health.org",
-    "training@health.org",
-    "education@health.org",
-    "research@health.org",
-    "innovation@health.org",
-    "telemedicine@health.org",
-    "patientcare@health.org",
-    "appointments@health.org"
-  ];
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-2xl mx-auto">
@@ -311,75 +273,28 @@ function RegistrationWizard() {
             
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="role">Designation <span className="text-destructive">*</span></Label>
-                   <Popover open={isDesignationOpen} onOpenChange={setIsDesignationOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={isDesignationOpen}
-                        className="w-full justify-between font-normal"
-                      >
-                        {formData.role
-                          ? designations.find((d) => d === formData.role) || formData.role
-                          : "Select a designation"}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                      <Command>
-                        <CommandInput placeholder="Search designation..." />
-                        <CommandList>
-                          <CommandEmpty>No designation found.</CommandEmpty>
-                          <CommandGroup>
+                    <Label htmlFor="role">Designation <span className="text-destructive">*</span></Label>
+                    <Select required onValueChange={(value) => handleSelectChange('role', value)}>
+                        <SelectTrigger id="role">
+                            <SelectValue placeholder="Select a designation" />
+                        </SelectTrigger>
+                        <SelectContent>
                             {designations.map((designation) => (
-                              <CommandItem
-                                key={designation}
-                                value={designation}
-                                onSelect={(currentValue) => {
-                                  handleSelectChange("role", designation);
-                                  setIsDesignationOpen(false);
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    formData.role === designation ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                {designation}
-                              </CommandItem>
+                                <SelectItem key={designation} value={designation}>{designation}</SelectItem>
                             ))}
-                             <CommandItem
-                                value="Other"
-                                onSelect={() => {
-                                  handleSelectChange("role", "Other");
-                                  setIsDesignationOpen(false);
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    formData.role === "Other" ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                Other
-                              </CommandItem>
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  {formData.role === 'Other' && (
-                    <Input
-                      id="otherDesignation"
-                      placeholder="Please specify"
-                      className="mt-2"
-                      value={otherDesignation}
-                      onChange={(e) => setOtherDesignation(e.target.value)}
-                      required
-                    />
-                  )}
+                            <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    {formData.role === 'Other' && (
+                        <Input
+                            id="otherDesignation"
+                            placeholder="Please specify your designation"
+                            className="mt-2"
+                            value={otherDesignation}
+                            onChange={(e) => setOtherDesignation(e.target.value)}
+                            required
+                        />
+                    )}
                 </div>
                  <div className="space-y-2">
                   <Label htmlFor="jobGroup">Job Group <span className="text-destructive">*</span></Label>
@@ -400,52 +315,13 @@ function RegistrationWizard() {
             
             <div className="space-y-2">
                 <Label htmlFor="email">Email <span className="text-destructive">*</span></Label>
-                 <Popover open={isEmailOpen} onOpenChange={setIsEmailOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={isEmailOpen}
-                        className="w-full justify-between font-normal"
-                        id="email"
-                      >
-                        {formData.email || "Select or type an email"}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                      <Command>
-                         <CommandInput 
-                            placeholder="Search or type email..." 
-                            value={formData.email}
-                            onValueChange={(value) => handleSelectChange('email', value)}
-                         />
-                        <CommandList>
-                          <CommandEmpty>No email found.</CommandEmpty>
-                          <CommandGroup>
-                            {emailOptions.map((email) => (
-                              <CommandItem
-                                key={email}
-                                value={email}
-                                onSelect={(currentValue) => {
-                                  handleSelectChange("email", currentValue);
-                                  setIsEmailOpen(false);
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    formData.email === email ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                {email}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                 <Input 
+                    id="email" 
+                    type="email"
+                    placeholder="email@example.com" 
+                    required 
+                    onChange={handleInputChange} 
+                 />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -532,5 +408,6 @@ export default function RegistrationPage() {
     
 
     
+
 
 
