@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
@@ -98,7 +99,7 @@ import { Separator } from "@/components/ui/separator";
 import { PlacesAutocomplete, type Place } from "@/components/places-autocomplete";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-const dataProvider = mock;
+const dataProvider = isTestMode() ? mock : firestore;
 
 const kenyanCounties = [
     "Mombasa", "Kwale", "Kilifi", "Tana River", "Lamu", "Taita-Taveta", "Garissa", "Wajir",

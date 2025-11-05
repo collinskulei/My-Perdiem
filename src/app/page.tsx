@@ -1,4 +1,5 @@
 
+
 /**
  * @file This file defines the main login page for the application.
  * It presents a tabbed interface for users to log in as either an Participant or an Admin.
@@ -22,6 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import app from "@/lib/firebase/config";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, Suspense } from "react";
+import * as firestore from '@/lib/firebase/firestore';
 import * as mock from "@/lib/mock-data";
 import { Switch } from "@/components/ui/switch";
 import { isTestMode, setTestMode } from "@/lib/test-mode";
@@ -29,7 +31,7 @@ import { Loader2 } from "lucide-react";
 
 const auth = getAuth(app);
 const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
-const dataProvider = mock;
+const dataProvider = isTestMode() ? mock : firestore;
 
 /**
  * The main interactive component for the login page, featuring separate tabs for participant and admin login.

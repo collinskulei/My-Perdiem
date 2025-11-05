@@ -40,6 +40,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import type { PerdiemRequest, Participant, AppEvent, Venue } from "@/lib/data";
 import { dutyStationCoordinates, MILEAGE_RATE_KSH, OUT_OF_OFFICE_RATES } from "@/lib/data";
+import * as firestore from '@/lib/firebase/firestore';
 import * as mock from '@/lib/mock-data';
 import { isTestMode as getIsTestMode } from '@/lib/test-mode';
 import app from "@/lib/firebase/config";
@@ -54,7 +55,7 @@ import { ClientOnly } from "@/components/client-only";
 import { Input } from "@/components/ui/input";
 
 
-const dataProvider = mock;
+const dataProvider = getIsTestMode() ? mock : firestore;
 const auth = getAuth(app);
 const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
 
@@ -799,4 +800,5 @@ export function PerDiemBalanceCard({ participant, events, requests, venues }: { 
 }
 
     
+
 

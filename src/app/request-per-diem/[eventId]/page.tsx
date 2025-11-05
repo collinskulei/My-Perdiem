@@ -33,7 +33,7 @@ import { extractTicketCost } from "@/ai/flows/extract-ticket-cost-flow";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 
-const dataProvider = mock;
+const dataProvider = isTestMode() ? mock : firestore;
 const auth = getAuth(app);
 const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
 
@@ -143,7 +143,7 @@ function PerDiemWizard() {
 
     const prevStep = () => {
         if (currentStep > 0) {
-            setCurrentStep(step => step - 1);
+            setCurrentStep(step => step + 1);
         }
     };
 
