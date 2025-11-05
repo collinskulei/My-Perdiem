@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
@@ -687,7 +686,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   };
 
 
-  const nonAdminParticipants = participants.filter(p => p.role !== 'Admin');
+  const nonAdminParticipants = useMemo(() => participants.filter(p => p.role !== 'Admin'), [participants]);
 
   const handleSelectParticipant = useCallback((participantId: string) => {
     setEventFormData(prev => {
@@ -878,7 +877,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onSelect={() => handleOpenAmendRejectDialog(request, 'amend')} disabled={request.status !== 'Pending'}>
                                             Amend
-                                        </DropdownMenuItem>
+                                        </DropdownMenuMenuItem>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem onSelect={() => handleOpenAmendRejectDialog(request, 'reject')} disabled={['Rejected', 'Paid', 'Confirmed'].includes(request.status)} className="text-destructive">
                                             Reject
@@ -2104,6 +2103,8 @@ const AmendInputField = ({ label, value, onChange }: { label: string, value: num
         <Input id={label} type="number" value={value || 0} onChange={onChange} />
     </div>
 );
+
+    
 
     
 
