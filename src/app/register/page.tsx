@@ -1,5 +1,4 @@
 
-
 /**
  * @file This file defines the new user registration page.
  * It features a dynamic form that adapts based on whether the user is registering as an Participant or an Admin.
@@ -9,7 +8,7 @@
 import { useState, Suspense, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, ChevronsUpDown, Check } from "lucide-react";
+import { ArrowLeft, Loader2, ChevronsUpDown, Check, Eye, EyeOff } from "lucide-react";
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 
 import { Button } from "@/components/ui/button";
@@ -72,6 +71,8 @@ function RegistrationWizard() {
   const { toast } = useToast();
   const [isDesignationOpen, setIsDesignationOpen] = useState(false);
   const [otherDesignation, setOtherDesignation] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
 
   /**
@@ -408,13 +409,43 @@ function RegistrationWizard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
+                <div className="space-y-2 relative">
                     <Label htmlFor="password">Password <span className="text-destructive">*</span></Label>
-                    <Input id="password" type="password" required onChange={handleInputChange} />
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      required
+                      onChange={handleInputChange}
+                    />
+                     <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-1 top-6 h-7 w-7"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        <span className="sr-only">{showPassword ? 'Hide password' : 'Show password'}</span>
+                      </Button>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 relative">
                     <Label htmlFor="confirmPassword">Confirm Password <span className="text-destructive">*</span></Label>
-                    <Input id="confirmPassword" type="password" required onChange={handleInputChange} />
+                    <Input
+                      id="confirmPassword"
+                      type={showConfirmPassword ? "text" : "password"}
+                      required
+                      onChange={handleInputChange}
+                    />
+                     <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-1 top-6 h-7 w-7"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      >
+                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        <span className="sr-only">{showConfirmPassword ? 'Hide password' : 'Show password'}</span>
+                      </Button>
                 </div>
             </div>
             <div className="items-top flex space-x-2">

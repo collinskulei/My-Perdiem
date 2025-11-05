@@ -1,5 +1,4 @@
 
-
 /**
  * @file This file defines the main login page for the application.
  * It presents a tabbed interface for users to log in as either an Participant or an Admin.
@@ -27,7 +26,7 @@ import * as firestore from '@/lib/firebase/firestore';
 import * as mock from "@/lib/mock-data";
 import { Switch } from "@/components/ui/switch";
 import { isTestMode as getIsTestMode, setTestMode } from "@/lib/test-mode";
-import { Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 const auth = getAuth(app);
 const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
@@ -45,6 +44,7 @@ function LoginCard() {
   const [adminPassword, setAdminPassword] = useState("password");
   const [testMode, setTestModeState] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const dataProvider = getIsTestMode() ? mock : firestore;
 
@@ -201,15 +201,25 @@ function LoginCard() {
                           onChange={(e) => setParticipantEmail(e.target.value)}
                         />
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-2 relative">
                         <Label htmlFor="password">Password</Label>
                         <Input
                           id="password"
-                          type="password"
+                          type={showPassword ? "text" : "password"}
                           required
                           value={participantPassword}
                           onChange={(e) => setParticipantPassword(e.target.value)}
                         />
+                         <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-1 top-7 h-7 w-7"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          <span className="sr-only">{showPassword ? 'Hide password' : 'Show password'}</span>
+                        </Button>
                       </div>
                     </>
                   ) : (
@@ -239,15 +249,25 @@ function LoginCard() {
                           onChange={(e) => setAdminEmail(e.target.value)}
                         />
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-2 relative">
                         <Label htmlFor="admin-password">Password</Label>
                         <Input
                           id="admin-password"
-                          type="password"
+                          type={showPassword ? "text" : "password"}
                           required
                           value={adminPassword}
                           onChange={(e) => setAdminPassword(e.target.value)}
                         />
+                         <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-1 top-7 h-7 w-7"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          <span className="sr-only">{showPassword ? 'Hide password' : 'Show password'}</span>
+                        </Button>
                       </div>
                     </>
                   ) : (
