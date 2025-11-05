@@ -120,13 +120,13 @@ export type ParticipantData = Omit<Participant, 'id' | 'avatarUrl'>;
 export const addParticipant = async (userData: any, uid: string): Promise<void> => {
     const participantsCol = collection(db, 'participants');
     // Add avatarUrl placeholder and default role
-    const userWithAvatar = {
+    const userWithDefaults = {
         ...userData,
         avatarUrl: `https://picsum.photos/seed/${uid}/100/100`,
         role: userData.role || 'Participant' // Ensure role is set
     };
     // Use the uid from Auth as the document ID
-    await setDoc(doc(participantsCol, uid), userWithAvatar);
+    await setDoc(doc(participantsCol, uid), userWithDefaults);
 };
 
 
