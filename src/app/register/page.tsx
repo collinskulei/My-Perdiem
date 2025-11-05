@@ -162,7 +162,7 @@ function RegistrationWizard() {
       const user = userCredential.user;
 
       // 2. Save additional participant details to Firestore
-      const participantData = {
+      const participantData: ParticipantData = {
           name: formData.name!,
           phoneNumber: fullPhoneNumber,
           idNumber: formData.idNumber!,
@@ -222,10 +222,20 @@ function RegistrationWizard() {
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 gap-4">
-              <div className="space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <div className="space-y-2">
                 <Label htmlFor="name">Full Name <span className="text-destructive">*</span></Label>
                 <Input id="name" placeholder="e.g., John Doe" required onChange={handleInputChange} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email <span className="text-destructive">*</span></Label>
+                <Input 
+                    id="email" 
+                    type="email"
+                    placeholder="your.email@example.com" 
+                    required 
+                    onChange={handleInputChange} 
+                />
               </div>
             </div>
 
@@ -269,15 +279,20 @@ function RegistrationWizard() {
                     country="ke"
                    />
                 </div>
-                 <div className="space-y-2">
-                    <Label htmlFor="email">Email <span className="text-destructive">*</span></Label>
-                    <Input 
-                        id="email" 
-                        type="email"
-                        placeholder="your.email@example.com" 
-                        required 
-                        onChange={handleInputChange} 
-                    />
+                <div className="space-y-2">
+                  <Label htmlFor="jobGroup">Job Group <span className="text-destructive">*</span></Label>
+                   <Select required onValueChange={(value) => handleSelectChange('jobGroup', value)}>
+                    <SelectTrigger id="jobGroup">
+                      <SelectValue placeholder="Select a job group" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {jobGroups.map((group) => (
+                        <SelectItem key={group} value={group}>
+                          {group}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
             </div>
             
@@ -305,21 +320,6 @@ function RegistrationWizard() {
                             required
                         />
                     )}
-                </div>
-                 <div className="space-y-2">
-                  <Label htmlFor="jobGroup">Job Group <span className="text-destructive">*</span></Label>
-                   <Select required onValueChange={(value) => handleSelectChange('jobGroup', value)}>
-                    <SelectTrigger id="jobGroup">
-                      <SelectValue placeholder="Select a job group" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {jobGroups.map((group) => (
-                        <SelectItem key={group} value={group}>
-                          {group}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
               </div>
             
@@ -408,6 +408,7 @@ export default function RegistrationPage() {
     
 
     
+
 
 
 
