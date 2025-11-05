@@ -47,7 +47,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import * as firestore from '@/lib/firebase/firestore';
 import * as mock from '@/lib/mock-data';
-import { isTestMode } from '@/lib/test-mode';
+import { isTestMode as checkIsTestMode } from '@/lib/test-mode';
 import type { ParticipantData } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import app from "@/lib/firebase/config";
@@ -55,7 +55,7 @@ import { PlacesAutocomplete, type Place } from "@/components/places-autocomplete
 import { cn } from "@/lib/utils";
 
 
-const dataProvider = isTestMode() ? mock : firestore;
+const dataProvider = checkIsTestMode() ? mock : firestore;
 const auth = getAuth(app);
 
 
@@ -70,9 +70,11 @@ function RegistrationWizard() {
   const router = useRouter();
   const { toast } = useToast();
   const [isDesignationOpen, setIsDesignationOpen] = useState(false);
+  const [isEmailOpen, setIsEmailOpen] = useState(false);
   const [otherDesignation, setOtherDesignation] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const isTestMode = checkIsTestMode();
 
 
   /**
@@ -196,6 +198,10 @@ function RegistrationWizard() {
           title: "Registration Successful",
           description: `Your participant account has been created.`,
       });
+
+      if (isTestMode) {
+          localStorage.setItem('perdiem-pro-test-user-id', user.uid);
+      }
 
       router.push("/dashboard");
 
@@ -394,18 +400,52 @@ function RegistrationWizard() {
             
             <div className="space-y-2">
                 <Label htmlFor="email">Email <span className="text-destructive">*</span></Label>
-                 <Select required onValueChange={(value) => handleSelectChange('email', value)}>
-                    <SelectTrigger id="email">
-                    <SelectValue placeholder="Select an email" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {emailOptions.map((email) => (
-                            <SelectItem key={email} value={email}>
+                 <Popover open={isEmailOpen} onOpenChange={setIsEmailOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={isEmailOpen}
+                        className="w-full justify-between font-normal"
+                        id="email"
+                      >
+                        {formData.email || "Select or type an email"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                      <Command>
+                         <CommandInput 
+                            placeholder="Search or type email..." 
+                            value={formData.email}
+                            onValueChange={(value) => handleSelectChange('email', value)}
+                         />
+                        <CommandList>
+                          <CommandEmpty>No email found.</CommandEmpty>
+                          <CommandGroup>
+                            {emailOptions.map((email) => (
+                              <CommandItem
+                                key={email}
+                                value={email}
+                                onSelect={(currentValue) => {
+                                  handleSelectChange("email", currentValue);
+                                  setIsEmailOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    formData.email === email ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
                                 {email}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -492,3 +532,4 @@ export default function RegistrationPage() {
     
 
     
+
