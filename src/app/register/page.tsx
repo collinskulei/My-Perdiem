@@ -337,7 +337,7 @@ function RegistrationWizard() {
                                 key={designation}
                                 value={designation}
                                 onSelect={(currentValue) => {
-                                  handleSelectChange("role", currentValue === formData.role ? "" : designation);
+                                  handleSelectChange("role", designation);
                                   setIsDesignationOpen(false);
                                 }}
                               >
@@ -532,4 +532,5 @@ export default function RegistrationPage() {
     
 
     
+
 
