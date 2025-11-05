@@ -163,13 +163,13 @@ function RegistrationWizard() {
 
       // 2. Save additional participant details to Firestore
       const participantData = {
-          name: formData.name,
+          name: formData.name!,
           phoneNumber: fullPhoneNumber,
-          idNumber: formData.idNumber,
+          idNumber: formData.idNumber!,
           email: user.email!, // Use email from the created user
           role: finalRole,
-          dutyStation: formData.dutyStation,
-          jobGroup: formData.jobGroup,
+          dutyStation: formData.dutyStation!,
+          jobGroup: formData.jobGroup!,
       };
 
 
@@ -269,6 +269,16 @@ function RegistrationWizard() {
                     country="ke"
                    />
                 </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="email">Email <span className="text-destructive">*</span></Label>
+                    <Input 
+                        id="email" 
+                        type="email"
+                        placeholder="your.email@example.com" 
+                        required 
+                        onChange={handleInputChange} 
+                    />
+                </div>
             </div>
             
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -313,16 +323,6 @@ function RegistrationWizard() {
                 </div>
               </div>
             
-            <div className="space-y-2">
-                <Label htmlFor="email">Email <span className="text-destructive">*</span></Label>
-                 <Input 
-                    id="email" 
-                    type="email"
-                    placeholder="email@example.com" 
-                    required 
-                    onChange={handleInputChange} 
-                 />
-            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2 relative">
@@ -408,6 +408,7 @@ export default function RegistrationPage() {
     
 
     
+
 
 
 
