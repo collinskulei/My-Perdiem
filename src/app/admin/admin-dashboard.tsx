@@ -1123,7 +1123,6 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                                                         <Checkbox
                                                                             className="mr-2"
                                                                             checked={eventFormData.allocatedParticipants.includes(participant.id)}
-                                                                            onCheckedChange={() => handleSelectParticipant(participant.id)}
                                                                         />
                                                                         <span>{participant.name}</span>
                                                                     </CommandItem>
@@ -2105,6 +2104,8 @@ const AmendInputField = ({ label, value, onChange }: { label: string, value: num
         <Input id={label} type="number" value={value || 0} onChange={onChange} />
     </div>
 );
+
+    
 
     
 
