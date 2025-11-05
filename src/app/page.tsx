@@ -26,12 +26,11 @@ import { useState, useEffect, Suspense } from "react";
 import * as firestore from '@/lib/firebase/firestore';
 import * as mock from "@/lib/mock-data";
 import { Switch } from "@/components/ui/switch";
-import { isTestMode, setTestMode } from "@/lib/test-mode";
+import { isTestMode as getIsTestMode, setTestMode } from "@/lib/test-mode";
 import { Loader2 } from "lucide-react";
 
 const auth = getAuth(app);
 const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
-const dataProvider = isTestMode() ? mock : firestore;
 
 /**
  * The main interactive component for the login page, featuring separate tabs for participant and admin login.
@@ -47,9 +46,11 @@ function LoginCard() {
   const [testMode, setTestModeState] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
 
+  const dataProvider = getIsTestMode() ? mock : firestore;
+
   useEffect(() => {
     setHasMounted(true);
-    const currentTestMode = isTestMode();
+    const currentTestMode = getIsTestMode();
     setTestModeState(currentTestMode);
     if (currentTestMode) {
       // Clear any previous test session on login page load
@@ -71,7 +72,7 @@ function LoginCard() {
    */
   const handleParticipantLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isTestMode()) {
+    if (getIsTestMode()) {
         const mockUsers = await mock.getParticipants();
         // In test mode, log in as the first available non-admin user
         const user = mockUsers.find(u => u.role !== 'Admin');
@@ -106,7 +107,7 @@ function LoginCard() {
    */
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isTestMode()) {
+    if (getIsTestMode()) {
         const mockUsers = await mock.getParticipants();
         // In test mode, log in as the first available admin user
         const user = mockUsers.find(u => u.role === 'Admin');
@@ -194,7 +195,7 @@ function LoginCard() {
                         <Input
                           id="participant-email"
                           type="email"
-                          placeholder="your-email@health.org"
+                          placeholder="email@example.com"
                           required
                           value={participantEmail}
                           onChange={(e) => setParticipantEmail(e.target.value)}
