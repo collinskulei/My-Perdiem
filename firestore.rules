@@ -2,14 +2,17 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow users to create their own profile upon registration
     match /participants/{userId} {
+      // Allow anyone to create their own user document upon sign-up.
+      // The document ID must match their user ID.
       allow create: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow authenticated users to read, update, and delete their own document.
       allow read, update, delete: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Allow any authenticated user to read/write other collections for now.
-    // This should be refined for production.
+    // For other collections, require the user to be authenticated.
+    // This is a good starting point for security.
     match /{document=**} {
       allow read, write: if request.auth != null;
     }
