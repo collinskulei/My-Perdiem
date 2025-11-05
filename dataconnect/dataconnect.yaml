@@ -1,6 +1,6 @@
 specVersion: "v1"
 serviceId: "studio"
-location: "us-central1"
+location: "us-east1"
 schema:
   source: "./schema"
   datasource:

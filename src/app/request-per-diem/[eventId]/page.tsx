@@ -1,4 +1,5 @@
 
+
 /**
  * @file This file defines the multi-step wizard for requesting a per diem.
  * It guides the user through Event Information, Transport, Accommodation, Allowances, and a final Preview.
@@ -142,7 +143,7 @@ function PerDiemWizard() {
 
     const prevStep = () => {
         if (currentStep > 0) {
-            setCurrentStep(step => step + 1);
+            setCurrentStep(step => step - 1);
         }
     };
 
@@ -407,9 +408,20 @@ const Step2 = ({ event, participant }: { event: AppEvent, participant: Participa
 
     const accommodation = useMemo(() => {
         const nights = (event.eventDates || []).length > 0 ? (event.eventDates || []).length : 0;
-        const dailyRate = (participant.jobGroup && event.jobGroupAllowances) ? event.jobGroupAllowances[participant.jobGroup] || 0 : 0;
+        
+        let dailyRate = 0;
+        if (participant.jobGroup) {
+            // Prefer event-specific rate, fall back to global rate
+            if (event.jobGroupAllowances && typeof event.jobGroupAllowances[participant.jobGroup] === 'number') {
+                dailyRate = event.jobGroupAllowances[participant.jobGroup]!;
+            } else if (OUT_OF_OFFICE_RATES[participant.jobGroup]) {
+                dailyRate = OUT_OF_OFFICE_RATES[participant.jobGroup];
+            }
+        }
+        
         return { nights, total: nights * dailyRate, dailyRate };
     }, [event, participant]);
+
 
     const outOfOfficeAllowance = useMemo(() => {
         if (!participant.jobGroup || !OUT_OF_OFFICE_RATES[participant.jobGroup]) {
