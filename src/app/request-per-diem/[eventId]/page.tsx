@@ -276,7 +276,7 @@ const Step1 = ({ event, participant, venue }: { event: AppEvent, participant: Pa
         if (!file) return;
 
         setIsExtractingCost(true);
-        toast({ title: 'Reading Ticket...', description: 'AI is extracting the cost from your ticket.' });
+        toast({ title: 'System Reading your ticket' });
 
         try {
             const reader = new FileReader();
@@ -287,7 +287,7 @@ const Step1 = ({ event, participant, venue }: { event: AppEvent, participant: Pa
                 
                 if (result && result.cost > 0) {
                     setValue('airTicketCost', result.cost, { shouldValidate: true });
-                    toast({ title: 'Cost Extracted!', description: `The ticket cost was set to ${formatCurrency(result.cost)}.` });
+                    toast({ title: 'Ticket scan complete', description: `The ticket cost was set to ${formatCurrency(result.cost)}.` });
                 } else {
                     toast({ title: 'Could Not Find Cost', description: 'Please enter the ticket cost manually.', variant: 'destructive' });
                 }
