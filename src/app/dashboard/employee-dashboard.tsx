@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
-import { isToday, parse, format, isFuture, startOfDay } from "date-fns";
+import { isToday, parse, format, isFuture, startOfDay, isPast, endOfDay, parseISO } from "date-fns";
 import { useRouter } from "next/navigation";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -475,7 +475,11 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                     }
                                     
                                     const isInRange = (isTestMode && bypassLocationCheck) || (distance !== -1 && distance <= 1000);
-                                    const canRequestPerDiem = hasCheckedInForAllDays(event) && !hasRequestedPerDiem(event.id);
+                                    
+                                    const lastEventDate = event.eventDates?.length ? parseISO(event.eventDates[event.eventDates.length - 1]) : new Date(0);
+                                    const isEventOver = isPast(endOfDay(lastEventDate));
+                                    
+                                    const canRequestPerDiem = (hasCheckedInForAllDays(event) || isEventOver) && !hasRequestedPerDiem(event.id);
                                     
                                     const checkInToday = eventDays.find(day => isToday(day));
                                     const isCheckedInForToday = checkInToday ? !!event.checkedInParticipants?.[authUser?.uid ?? '']?.[format(checkInToday, 'yyyy-MM-dd')] : false;
@@ -502,7 +506,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                                <div className="flex gap-2 justify-end">
                                                    {canRequestPerDiem ? (
                                                      <Button size="sm" onClick={() => handleRequestPerDiem(event)} className="whitespace-nowrap">Request Per Diem</Button>
-                                                   ) : hasCheckedInForAllDays(event) && hasRequestedPerDiem(event.id) ? (
+                                                   ) : hasRequestedPerDiem(event.id) ? (
                                                      <Badge variant="secondary">Requested</Badge>
                                                    ) : canCheckInToday ? (
                                                         isCheckinOpen ? (
@@ -800,5 +804,6 @@ export function PerDiemBalanceCard({ participant, events, requests, venues }: { 
 }
 
     
+
 
 
