@@ -877,7 +877,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onSelect={() => handleOpenAmendRejectDialog(request, 'amend')} disabled={request.status !== 'Pending'}>
                                             Amend
-                                        </DropdownMenuMenuItem>
+                                        </DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem onSelect={() => handleOpenAmendRejectDialog(request, 'reject')} disabled={['Rejected', 'Paid', 'Confirmed'].includes(request.status)} className="text-destructive">
                                             Reject
