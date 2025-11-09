@@ -1,4 +1,6 @@
 
+import { Suspense } from "react";
+import { Loader2 } from "lucide-react";
 import { EmployeeDashboard } from "./employee-dashboard";
 
 export const dynamic = "force-dynamic";
@@ -18,5 +20,9 @@ export default function DashboardPage({
 }) {
   const tab = searchParams.tab || "events";
 
-  return <EmployeeDashboard currentTab={tab} />;
+  return (
+    <Suspense fallback={<div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+      <EmployeeDashboard currentTab={tab} />
+    </Suspense>
+  );
 }

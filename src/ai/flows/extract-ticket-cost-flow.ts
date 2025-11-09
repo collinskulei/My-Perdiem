@@ -4,10 +4,6 @@
 import { ai } from '@/ai/genkit';
 import { ExtractTicketCostInputSchema, ExtractTicketCostOutputSchema, type ExtractTicketCostInput } from '@/ai/schemas/ticket-cost-schemas';
 import * as z from 'zod';
-import { fromPath } from 'pdf-poppler';
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
 import { fileTypeFromBuffer } from 'file-type';
 
 // Define the prompt for extracting the ticket cost
@@ -38,41 +34,10 @@ export async function extractTicketCost(input: ExtractTicketCostInput) {
     let imageToProcess = ticketImage;
 
     if (type?.mime === 'application/pdf') {
-        const tempFilePath = path.join(os.tmpdir(), `ticket-${Date.now()}.pdf`);
-        const outputDir = os.tmpdir();
-        
-        fs.writeFileSync(tempFilePath, buffer);
-
-        const options = {
-            firstPageToConvert: 1,
-            lastPageToConvert: 1,
-            pngFile: true,
-        };
-
-        await fromPath(tempFilePath, options);
-        
-        const outputPngPath = path.join(outputDir, `ticket-${Date.now()}-1.png`);
-        
-        // Find the generated PNG. pdf-poppler doesn't give a predictable name.
-        const files = fs.readdirSync(outputDir);
-        const generatedPng = files.find(f => f.startsWith(`ticket-${Date.now()}-1`) && f.endsWith('.png'));
-
-        if (!generatedPng) {
-            throw new Error('PDF conversion failed: output PNG not found.');
-        }
-
-        const pngPath = path.join(outputDir, generatedPng);
-        const pngBuffer = fs.readFileSync(pngPath);
-        imageToProcess = `data:image/png;base64,${pngBuffer.toString('base64')}`;
-
-        // Cleanup temp files
-        fs.unlinkSync(tempFilePath);
-        fs.unlinkSync(pngPath);
-
+        throw new Error('PDF files are not supported for automatic cost extraction at this time. Please upload an image (PNG, JPG).');
     } else if (type && !type.mime.startsWith('image/')) {
-        throw new Error(`Unsupported file type: ${type.mime}`);
+        throw new Error(`Unsupported file type: ${type.mime}. Please upload a PNG or JPG file.`);
     }
-
 
     const { output } = await extractCostPrompt({ ticketImage: imageToProcess });
 
