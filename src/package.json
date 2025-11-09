@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@dataconnect/generated": "file:src/dataconnect-generated",
-    "@genkit-ai/googleai": "^1.21.0",
+    "@genkit-ai/google-genai": "^1.21.0",
     "@genkit-ai/next": "^1.21.0",
     "@googlemaps/js-api-loader": "^1.16.6",
     "@hookform/resolvers": "^4.1.3",

@@ -28,6 +28,7 @@ import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, ArrowLeft, ArrowRight, Info, Upload, File as FileIcon, X } from "lucide-react";
+import { extractTicketCost } from "@/ai/flows/extract-ticket-cost-flow";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 
@@ -270,6 +271,43 @@ const Step1 = ({ event, participant, venue }: { event: AppEvent, participant: Pa
         }
     }, [mileage, setValue, transportMode]);
 
+    const handleTicketUpload = async (file: File) => {
+        if (!file) return;
+
+        setIsExtractingCost(true);
+        toast({ title: "Analyzing Ticket...", description: "Please wait while we extract the cost from your ticket." });
+
+        try {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = async () => {
+                const dataUri = reader.result as string;
+                const result = await extractTicketCost({ ticketImage: dataUri });
+                
+                if (result.cost > 0) {
+                    setValue('airTicketCost', result.cost, { shouldValidate: true });
+                    toast({ title: "Success", description: `We extracted a cost of ${formatCurrency(result.cost)}.` });
+                } else {
+                    throw new Error("Could not determine the cost from the ticket.");
+                }
+                setIsExtractingCost(false);
+            };
+            reader.onerror = () => {
+                throw new Error("Could not read the uploaded file.");
+            };
+
+        } catch (error) {
+            console.error("Error extracting ticket cost:", error);
+            toast({
+                title: "Extraction Failed",
+                description: "Could not automatically read the cost. Please enter it manually.",
+                variant: "destructive",
+            });
+            setIsExtractingCost(false);
+        }
+    };
+
+
     return (
         <div className="space-y-8">
             <div>
@@ -333,7 +371,7 @@ const Step1 = ({ event, participant, venue }: { event: AppEvent, participant: Pa
                     
                     {transportMode === 'flight' && (
                          <div className="space-y-4 p-4 border rounded-lg">
-                            <FileUpload name="airTicketFile" label="Air Ticket (PDF, PNG, JPG)" />
+                            <FileUpload name="airTicketFile" label="Air Ticket (PDF, PNG, JPG)" onFileSelect={handleTicketUpload} />
                             <div className="relative space-y-2">
                                 <Label htmlFor="airTicketCost">Air Ticket Cost (Ksh)</Label>
                                 <Input 
@@ -519,14 +557,17 @@ const Step3 = () => {
 
 // --- HELPER COMPONENTS ---
 
-const FileUpload = ({ name, label }: { name: "airTicketFile" | "groundTransferFile" | "boardingPassFile", label: string }) => {
+const FileUpload = ({ name, label, onFileSelect }: { name: "airTicketFile" | "groundTransferFile" | "boardingPassFile", label: string, onFileSelect?: (file: File) => void }) => {
     const { register, watch, setValue } = useFormContext<PerDiemFormValues>();
     const files = watch(name);
     const file = files?.[0];
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        // We still let react-hook-form handle the file input state
-        register(name).onChange(e);
+        register(name).onChange(e); // Let react-hook-form handle the file input state
+        const selectedFile = e.target.files?.[0];
+        if (selectedFile && onFileSelect) {
+            onFileSelect(selectedFile);
+        }
     };
 
 
