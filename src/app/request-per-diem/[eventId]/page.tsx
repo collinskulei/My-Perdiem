@@ -1,5 +1,4 @@
 
-
 /**
  * @file This file defines the multi-step wizard for requesting a per diem.
  * It guides the user through Event Information, Transport, Accommodation, Allowances, and a final Preview.
@@ -29,7 +28,6 @@ import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, ArrowLeft, ArrowRight, Info, Upload, File as FileIcon, X } from "lucide-react";
-import { extractTicketCost } from "@/ai/flows/extract-ticket-cost-flow";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 
@@ -271,48 +269,6 @@ const Step1 = ({ event, participant, venue }: { event: AppEvent, participant: Pa
             setValue('mileageTotal', 0);
         }
     }, [mileage, setValue, transportMode]);
-
-    const handleTicketUpload = async (file: File) => {
-        if (!file) return;
-
-        setIsExtractingCost(true);
-        toast({ title: "System Reading your ticket" });
-
-        const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("Timeout")), 15000) // 15-second timeout
-        );
-
-        try {
-            const dataUri = await new Promise<string>((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result as string);
-                reader.onerror = (error) => reject(error);
-            });
-
-            const result = await Promise.race([
-                extractTicketCost({ ticketImage: dataUri }),
-                timeoutPromise
-            ]) as { cost: number };
-            
-            if (result && result.cost > 0) {
-                setValue('airTicketCost', result.cost, { shouldValidate: true });
-                toast({ title: "Ticket scan complete", description: `The ticket cost was set to ${formatCurrency(result.cost)}.` });
-            } else {
-                toast({ title: 'Could Not Find Cost', description: 'Please enter the ticket cost manually.', variant: 'destructive' });
-            }
-        } catch (error: any) {
-            console.error("Error extracting ticket cost:", error);
-            if (error.message === "Timeout") {
-                toast({ title: 'Scan Timed Out', description: 'Please enter the cost manually.', variant: 'destructive' });
-            } else {
-                toast({ title: 'Extraction Failed', description: 'There was an error reading the ticket.', variant: 'destructive' });
-            }
-        } finally {
-            setIsExtractingCost(false);
-        }
-    };
-
 
     return (
         <div className="space-y-8">
@@ -563,16 +519,12 @@ const Step3 = () => {
 
 // --- HELPER COMPONENTS ---
 
-const FileUpload = ({ name, label, onFileSelect }: { name: "airTicketFile" | "groundTransferFile" | "boardingPassFile", label: string, onFileSelect?: (file: File) => void }) => {
+const FileUpload = ({ name, label }: { name: "airTicketFile" | "groundTransferFile" | "boardingPassFile", label: string }) => {
     const { register, watch, setValue } = useFormContext<PerDiemFormValues>();
     const files = watch(name);
     const file = files?.[0];
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const selectedFile = e.target.files?.[0];
-        if (selectedFile && onFileSelect) {
-            onFileSelect(selectedFile);
-        }
         // We still let react-hook-form handle the file input state
         register(name).onChange(e);
     };
@@ -617,7 +569,3 @@ const SummaryItem = ({ label, value }: { label: string, value: string | number }
         <p className="font-medium text-left sm:text-right">{value}</p>
     </div>
 );
-
-    
-
-
