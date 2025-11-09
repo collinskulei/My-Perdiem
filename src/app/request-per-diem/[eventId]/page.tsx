@@ -377,7 +377,7 @@ const Step1 = ({ event, participant, venue }: { event: AppEvent, participant: Pa
                     
                     {transportMode === 'flight' && (
                          <div className="space-y-4 p-4 border rounded-lg">
-                            <FileUpload name="airTicketFile" label="Air Ticket (PDF, PNG, JPG)" onFileSelect={handleTicketUpload} />
+                            <FileUpload name="airTicketFile" label="Air Ticket (PDF, PNG, JPG)" />
                             <div className="relative space-y-2">
                                 <Label htmlFor="airTicketCost">Air Ticket Cost (Ksh)</Label>
                                 <Input 
@@ -619,4 +619,5 @@ const SummaryItem = ({ label, value }: { label: string, value: string | number }
 );
 
     
+
 
