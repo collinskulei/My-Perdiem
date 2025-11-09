@@ -11,5 +11,5 @@ runConfig:
 # Grant access to secrets in Cloud Secret Manager.
 # See https://firebase.google.com/docs/app-hosting/configure#secret-parameters
 env:
-  - variable: GEMINI_API_KEY
+  - variable: NEXT_PUBLIC_GEMINI_API_KEY
     secret: GEMINI_API_KEY
