@@ -296,13 +296,22 @@ const Step1 = ({ event, participant, venue }: { event: AppEvent, participant: Pa
                 throw new Error("Could not read the uploaded file.");
             };
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error extracting ticket cost:", error);
-            toast({
-                title: "Extraction Failed",
-                description: "Could not automatically read the cost. Please enter it manually.",
-                variant: "destructive",
-            });
+            // Check for specific error message from the flow
+            if (error.message.includes('PDF files are not supported')) {
+                 toast({
+                    title: "PDF Not Supported",
+                    description: "Please upload an image file (PNG, JPG) instead of a PDF.",
+                    variant: "destructive",
+                });
+            } else {
+                toast({
+                    title: "Extraction Failed",
+                    description: "Could not automatically read the cost. Please enter it manually.",
+                    variant: "destructive",
+                });
+            }
             setIsExtractingCost(false);
         }
     };
@@ -371,7 +380,7 @@ const Step1 = ({ event, participant, venue }: { event: AppEvent, participant: Pa
                     
                     {transportMode === 'flight' && (
                          <div className="space-y-4 p-4 border rounded-lg">
-                            <FileUpload name="airTicketFile" label="Air Ticket (PDF, PNG, JPG)" onFileSelect={handleTicketUpload} />
+                            <FileUpload name="airTicketFile" label="Air Ticket (PNG, JPG only)" onFileSelect={handleTicketUpload} />
                             <div className="relative space-y-2">
                                 <Label htmlFor="airTicketCost">Air Ticket Cost (Ksh)</Label>
                                 <Input 
@@ -610,3 +619,5 @@ const SummaryItem = ({ label, value }: { label: string, value: string | number }
         <p className="font-medium text-left sm:text-right">{value}</p>
     </div>
 );
+
+    
