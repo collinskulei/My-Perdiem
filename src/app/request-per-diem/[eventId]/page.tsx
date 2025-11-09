@@ -10,6 +10,7 @@ import { useParams, useRouter } from "next/navigation";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
 import { differenceInCalendarDays, parseISO } from "date-fns";
 import { useForm, FormProvider, useFormContext, Controller } from "react-hook-form";
+import { fileTypeFromBuffer } from "file-type";
 
 import type { Participant, AppEvent, PerdiemRequest, Venue } from "@/lib/data";
 import { dutyStationCoordinates, OUT_OF_OFFICE_RATES } from "@/lib/data";
@@ -142,7 +143,7 @@ function PerDiemWizard() {
 
     const prevStep = () => {
         if (currentStep > 0) {
-            setCurrentStep(step => step - 1);
+            setCurrentStep(step => step + 1);
         }
     };
 
@@ -275,13 +276,29 @@ const Step1 = ({ event, participant, venue }: { event: AppEvent, participant: Pa
         if (!file) return;
 
         setIsExtractingCost(true);
-        toast({ title: "Analyzing Ticket...", description: "Please wait while we extract the cost from your ticket." });
 
-        try {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = async () => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = async () => {
+            try {
                 const dataUri = reader.result as string;
+
+                // Client-side file type check
+                const buffer = Buffer.from(dataUri.split(',')[1], 'base64');
+                const type = await fileTypeFromBuffer(buffer);
+
+                if (type?.mime === 'application/pdf') {
+                    toast({
+                        title: "PDF Not Supported",
+                        description: "PDF files are not supported for automatic cost extraction. Please upload an image (PNG, JPG).",
+                        variant: "destructive",
+                    });
+                    setValue('airTicketFile', null); // Clear the invalid file input
+                    setIsExtractingCost(false);
+                    return;
+                }
+
+                toast({ title: "Analyzing Ticket...", description: "Please wait while we extract the cost from your ticket." });
                 const result = await extractTicketCost({ ticketImage: dataUri });
                 
                 if (result.cost > 0) {
@@ -290,30 +307,27 @@ const Step1 = ({ event, participant, venue }: { event: AppEvent, participant: Pa
                 } else {
                     throw new Error("Could not determine the cost from the ticket.");
                 }
+            } catch (error: any) {
+                console.error("Error extracting ticket cost:", error);
+                 if (!error.message.includes('PDF')) { // Avoid double-toast for PDF
+                    toast({
+                        title: "Extraction Failed",
+                        description: "Could not automatically read the cost. Please enter it manually.",
+                        variant: "destructive",
+                    });
+                 }
+            } finally {
                 setIsExtractingCost(false);
-            };
-            reader.onerror = () => {
-                throw new Error("Could not read the uploaded file.");
-            };
-
-        } catch (error: any) {
-            console.error("Error extracting ticket cost:", error);
-            // Check for specific error message from the flow
-            if (error.message.includes('PDF files are not supported')) {
-                 toast({
-                    title: "PDF Not Supported",
-                    description: "Please upload an image file (PNG, JPG) instead of a PDF.",
-                    variant: "destructive",
-                });
-            } else {
-                toast({
-                    title: "Extraction Failed",
-                    description: "Could not automatically read the cost. Please enter it manually.",
-                    variant: "destructive",
-                });
             }
+        };
+        reader.onerror = () => {
+             toast({
+                title: "File Read Error",
+                description: "Could not read the uploaded file. Please try again.",
+                variant: "destructive",
+            });
             setIsExtractingCost(false);
-        }
+        };
     };
 
 
@@ -572,8 +586,10 @@ const FileUpload = ({ name, label, onFileSelect }: { name: "airTicketFile" | "gr
     const file = files?.[0];
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        register(name).onChange(e); // Let react-hook-form handle the file input state
         const selectedFile = e.target.files?.[0];
+        // Manually set value for react-hook-form to register the change
+        setValue(name, e.target.files);
+        
         if (selectedFile && onFileSelect) {
             onFileSelect(selectedFile);
         }
@@ -589,7 +605,7 @@ const FileUpload = ({ name, label, onFileSelect }: { name: "airTicketFile" | "gr
                         <Upload className="w-8 h-8 mb-2 text-gray-500" />
                         <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Click to upload</span> or drag and drop</p>
                     </div>
-                    <Input id={name} type="file" className="hidden" {...register(name)} onChange={handleFileChange} accept=".pdf,.png,.jpg,.jpeg" />
+                    <Input id={name} type="file" className="hidden" onChange={handleFileChange} accept=".pdf,.png,.jpg,.jpeg" />
                 </Label>
             ) : (
                 <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50 dark:bg-muted/20">

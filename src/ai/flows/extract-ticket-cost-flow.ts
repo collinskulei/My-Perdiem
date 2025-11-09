@@ -31,15 +31,14 @@ export async function extractTicketCost(input: ExtractTicketCostInput) {
     const buffer = Buffer.from(base64Data, 'base64');
     const type = await fileTypeFromBuffer(buffer);
 
-    let imageToProcess = ticketImage;
-
     if (type?.mime === 'application/pdf') {
-        throw new Error('PDF files are not supported for automatic cost extraction at this time. Please upload an image (PNG, JPG).');
+        // This is a server-side safeguard. The primary check is now on the client.
+        throw new Error('PDF files are not supported for automatic cost extraction. Please upload an image (PNG, JPG).');
     } else if (type && !type.mime.startsWith('image/')) {
         throw new Error(`Unsupported file type: ${type.mime}. Please upload a PNG or JPG file.`);
     }
 
-    const { output } = await extractCostPrompt({ ticketImage: imageToProcess });
+    const { output } = await extractCostPrompt({ ticketImage: ticketImage });
 
     if (!output) {
         throw new Error('The AI model could not process the ticket image.');
