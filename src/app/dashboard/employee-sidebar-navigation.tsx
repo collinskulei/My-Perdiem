@@ -19,29 +19,25 @@ import {
 export function EmployeeSidebarNavigation() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const activeTab = searchParams.get('tab');
+  const activeTab = searchParams.get('tab') || 'events';
 
   const isLinkActive = (path: string, tab?: string | null) => {
     const isPathMatch = pathname === path;
-    
+    if (!isPathMatch) return false;
+
     // For specific pages like /profile
     if (path !== '/dashboard') {
-        return isPathMatch;
+        return true;
     }
-
+    
     // For dashboard tabs
-    if (tab) {
-        return isPathMatch && activeTab === tab;
-    }
-
-    // For the main dashboard link (Home/Events). It should be active if we are on /dashboard and there's no tab, or if tab is 'events'.
-    return isPathMatch && (activeTab === null || activeTab === 'events');
+    return activeTab === tab;
   };
 
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <SidebarMenuButton href="/dashboard" isActive={isLinkActive('/dashboard')}>
+        <SidebarMenuButton href="/dashboard" isActive={isLinkActive('/dashboard', 'events')}>
           <Home />
           Dashboard
         </SidebarMenuButton>
