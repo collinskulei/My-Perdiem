@@ -143,7 +143,7 @@ function PerDiemWizard() {
 
     const prevStep = () => {
         if (currentStep > 0) {
-            setCurrentStep(step => step + 1);
+            setCurrentStep(step => step - 1);
         }
     };
 
@@ -276,29 +276,39 @@ const Step1 = ({ event, participant, venue }: { event: AppEvent, participant: Pa
         if (!file) return;
 
         setIsExtractingCost(true);
-        toast({ title: 'System Reading your ticket' });
+        toast({ title: "System Reading your ticket" });
+
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Timeout")), 15000) // 15-second timeout
+        );
 
         try {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = async () => {
-                const dataUri = reader.result as string;
-                const result = await extractTicketCost({ ticketImage: dataUri });
-                
-                if (result && result.cost > 0) {
-                    setValue('airTicketCost', result.cost, { shouldValidate: true });
-                    toast({ title: 'Ticket scan complete', description: `The ticket cost was set to ${formatCurrency(result.cost)}.` });
-                } else {
-                    toast({ title: 'Could Not Find Cost', description: 'Please enter the ticket cost manually.', variant: 'destructive' });
-                }
-                setIsExtractingCost(false);
-            };
-            reader.onerror = () => {
-                throw new Error("Could not read file.");
-            };
-        } catch (error) {
+            const dataUri = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = (error) => reject(error);
+            });
+
+            const result = await Promise.race([
+                extractTicketCost({ ticketImage: dataUri }),
+                timeoutPromise
+            ]) as { cost: number };
+            
+            if (result && result.cost > 0) {
+                setValue('airTicketCost', result.cost, { shouldValidate: true });
+                toast({ title: "Ticket scan complete", description: `The ticket cost was set to ${formatCurrency(result.cost)}.` });
+            } else {
+                toast({ title: 'Could Not Find Cost', description: 'Please enter the ticket cost manually.', variant: 'destructive' });
+            }
+        } catch (error: any) {
             console.error("Error extracting ticket cost:", error);
-            toast({ title: 'Extraction Failed', description: 'There was an error reading the ticket.', variant: 'destructive' });
+            if (error.message === "Timeout") {
+                toast({ title: 'Scan Timed Out', description: 'Please enter the cost manually.', variant: 'destructive' });
+            } else {
+                toast({ title: 'Extraction Failed', description: 'There was an error reading the ticket.', variant: 'destructive' });
+            }
+        } finally {
             setIsExtractingCost(false);
         }
     };
@@ -609,3 +619,4 @@ const SummaryItem = ({ label, value }: { label: string, value: string | number }
 );
 
     
+
