@@ -319,10 +319,18 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
       return { percent, color, checkedInDays, totalDays };
   }
 
-  const hasCheckedInForAllDays = (event: AppEvent): boolean => {
-    const { checkedInDays, totalDays } = getAttendanceProgress(event);
-    return totalDays > 0 && checkedInDays === totalDays;
-  }
+  const canRequestPerDiem = (event: AppEvent): boolean => {
+    if (!authUser || !event.eventDates || event.eventDates.length === 0) {
+        return false;
+    }
+    // Sort dates to ensure the last one is correct
+    const sortedDates = [...event.eventDates].sort();
+    const lastDayString = sortedDates[sortedDates.length - 1];
+
+    const hasCheckedInOnLastDay = !!event.checkedInParticipants?.[authUser.uid]?.[lastDayString];
+    
+    return hasCheckedInOnLastDay;
+  };
   
   const requestsByStatus = useMemo(() => userRequests.reduce((acc, req) => {
     acc[req.status] = (acc[req.status] || 0) + 1;
@@ -476,10 +484,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                     
                                     const isInRange = (isTestMode && bypassLocationCheck) || (distance !== -1 && distance <= 1000);
                                     
-                                    const lastEventDate = event.eventDates?.length ? parseISO(event.eventDates[event.eventDates.length - 1]) : new Date(0);
-                                    const isEventOver = isPast(endOfDay(lastEventDate));
-                                    
-                                    const canRequestPerDiem = (hasCheckedInForAllDays(event) || isEventOver) && !hasRequestedPerDiem(event.id);
+                                    const canRequest = canRequestPerDiem(event) && !hasRequestedPerDiem(event.id);
                                     
                                     const checkInToday = eventDays.find(day => isToday(day));
                                     const isCheckedInForToday = checkInToday ? !!event.checkedInParticipants?.[authUser?.uid ?? '']?.[format(checkInToday, 'yyyy-MM-dd')] : false;
@@ -504,7 +509,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                             </TableCell>
                                             <TableCell className="text-right">
                                                <div className="flex gap-2 justify-end">
-                                                   {canRequestPerDiem ? (
+                                                   {canRequest ? (
                                                      <Button size="sm" onClick={() => handleRequestPerDiem(event)} className="whitespace-nowrap">Request Per Diem</Button>
                                                    ) : hasRequestedPerDiem(event.id) ? (
                                                      <Badge variant="secondary">Requested</Badge>
@@ -804,6 +809,7 @@ export function PerDiemBalanceCard({ participant, events, requests, venues }: { 
 }
 
     
+
 
 
 
