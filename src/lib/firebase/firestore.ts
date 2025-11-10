@@ -117,13 +117,12 @@ export type ParticipantData = Omit<Participant, 'id' | 'avatarUrl'>;
  * @param {string} uid - The user's unique ID from Firebase Auth.
  * @returns {Promise<void>} A promise that resolves when the document is successfully created.
  */
-export const addParticipant = async (userData: any, uid: string): Promise<void> => {
+export const addParticipant = async (userData: ParticipantData, uid: string): Promise<void> => {
     const participantsCol = collection(db, 'participants');
-    // Add avatarUrl placeholder and default role
+    // Add avatarUrl placeholder
     const userWithDefaults = {
         ...userData,
         avatarUrl: `https://picsum.photos/seed/${uid}/100/100`,
-        role: userData.role || 'Participant' // Ensure role is set
     };
     // Use the uid from Auth as the document ID
     await setDoc(doc(participantsCol, uid), userWithDefaults);
@@ -383,3 +382,4 @@ export const markEventAsPaid = async (eventId: string, transactionCode: string):
     
 
     
+

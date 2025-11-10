@@ -1,3 +1,4 @@
+
 /**
  * @file This file defines the new user registration page.
  * It features a dynamic form that adapts based on whether the user is registering as an Participant or an Admin.
@@ -408,6 +409,7 @@ export default function RegistrationPage() {
     
 
     
+
 
 
 
