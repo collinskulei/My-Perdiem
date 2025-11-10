@@ -67,6 +67,7 @@
   },
   "devDependencies": {
     "@types/google.maps": "^3.55.11",
+    "@types/handlebars": "^4.0.40",
     "@types/jspdf": "^2.0.0",
     "@types/node": "^20",
     "@types/react": "^18",
