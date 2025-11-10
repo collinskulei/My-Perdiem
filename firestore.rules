@@ -2,21 +2,61 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /participants/{userId} {
-      // Allow a user to create their own profile during sign-up.
-      // The new document's ID must match the user's UID.
-      // Crucially, this rule does not allow setting admin privileges during creation.
-      allow create: if request.auth.uid == userId 
-                    && !('isAdmin' in request.resource.data)
-                    && request.resource.data.role != "Admin";
-
-      // Once created, only the authenticated owner can read, update, or delete their profile.
-      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
+    
+    // Helper function to check if a user is an admin
+    function isAdmin() {
+      // An admin is a user whose own participant document has the role 'Admin'.
+      return get(/databases/$(database)/documents/participants/$(request.auth.uid)).data.role == 'Admin';
     }
 
-    // For all other collections, the user must be authenticated.
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+    // Rules for the 'participants' collection
+    match /participants/{userId} {
+      // Anyone authenticated can create their own user document, but they cannot make themselves an admin.
+      allow create: if request.auth != null
+                    && request.auth.uid == userId
+                    && request.resource.data.role != 'Admin';
+
+      // Only the user themselves or an admin can read or update a user's profile.
+      allow read, update: if request.auth != null 
+                          && (request.auth.uid == userId || isAdmin());
+
+      // Only the user can delete their own account.
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Rules for the 'events' collection
+    match /events/{eventId} {
+      // Any authenticated user can read event details.
+      allow read: if request.auth != null;
+
+      // Only admins can create, update, or delete events.
+      // The 'checkInToEvent' logic is handled via 'update' permissions.
+      // Participants need to be able to update an event to add their check-in.
+      allow create, delete: if isAdmin();
+      allow update: if request.auth != null; // Allow update for any user for check-ins
+    }
+
+    // Rules for the 'venues' collection
+    match /venues/{venueId} {
+      // Any authenticated user can read venue details.
+      allow read: if request.auth != null;
+      
+      // Only admins can create, update, or delete venues.
+      allow write: if isAdmin();
+    }
+
+    // Rules for the 'perdiemRequests' collection
+    match /perdiemRequests/{requestId} {
+      // A user can create a request only for themselves.
+      allow create: if request.auth != null 
+                    && request.resource.data.participantId == request.auth.uid;
+      
+      // Users can only read their own requests. Admins can read any request.
+      allow read: if request.auth != null 
+                  && (resource.data.participantId == request.auth.uid || isAdmin());
+                  
+      // Only admins can update (approve, reject) or delete requests.
+      allow update, delete: if isAdmin();
     }
   }
 }
