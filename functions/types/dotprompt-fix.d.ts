@@ -1,3 +1,4 @@
+
 // types/dotprompt-fix.d.ts
 
 declare namespace Handlebars {
