@@ -1342,12 +1342,17 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                   <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="venue-name" className="text-right">Name</Label>
-                         <div className="col-span-3">
-                           <PlacesAutocomplete
-                                onPlaceSelect={handlePlaceSelect}
-                                initialValue={newVenue.name}
-                            />
-                         </div>
+                         <Popover>
+                            <PopoverTrigger asChild>
+                                <div className="col-span-3">
+                                   <PlacesAutocomplete
+                                        onPlaceSelect={handlePlaceSelect}
+                                        initialValue={newVenue.name}
+                                    />
+                                 </div>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" style={{ zIndex: 9999 }}></PopoverContent>
+                         </Popover>
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="venue-county" className="text-right">County</Label><Select value={newVenue.county} onValueChange={(value) => setNewVenue({ ...newVenue, county: value })}><SelectTrigger className="col-span-3"><SelectValue placeholder="Select a county" /></SelectTrigger><SelectContent>{kenyanCounties.map(county => (<SelectItem key={county} value={county}>{county}</SelectItem>))}</SelectContent></Select></div>
                     <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="venue-city" className="text-right">City</Label><Input id="venue-city" value={newVenue.city} onChange={(e) => setNewVenue({ ...newVenue, city: e.target.value })} className="col-span-3"/></div>
