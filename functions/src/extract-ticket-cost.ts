@@ -4,7 +4,8 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { genkit, z } from "genkit";
 import { googleAI } from "@genkit-ai/googleai";
-import { fileTypeFromBuffer } from "file-type";
+import fileType from "file-type";
+
 import { defineSecret } from "firebase-functions/params";
 
 // Define the secret for the Gemini API Key
@@ -16,9 +17,9 @@ const ai = genkit({
 });
 
 // Define Zod schemas for input and output validation
-const ExtractTicketCostInputSchema = z.object({
-    ticketImage: z.string().describe("A base64 encoded string of the ticket image."),
-});
+///const ExtractTicketCostInputSchema = z.object({
+    ///ticketImage: z.string().describe("A base64 encoded string of the ticket image."),
+///});
 
 const ExtractTicketCostOutputSchema = z.object({
     cost: z.number().describe("The extracted total cost from the ticket. Returns 0 if no cost is found."),
@@ -59,8 +60,7 @@ export const extractTicketCost = onCall({ secrets: [geminiApiKey] }, async (requ
   try {
     const base64Data = ticketImage.split(',')[1];
     const buffer = Buffer.from(base64Data, 'base64');
-    const type = await fileTypeFromBuffer(buffer);
-
+    const type = await fileType.fromBuffer(buffer);
     if (type?.mime === 'application/pdf') {
        throw new HttpsError('invalid-argument', 'PDF files are not supported for automatic cost extraction. Please upload an image (PNG, JPG).');
     } else if (type && !type.mime.startsWith('image/')) {
