@@ -26,9 +26,9 @@ service cloud.firestore {
 
     // Rules for the 'events' collection
     match /events/{eventId} {
-      // Participants can read events they are allocated to. Admins can read all events.
-      allow read: if request.auth != null 
-                  && (request.auth.uid in resource.data.allocatedParticipants || isAdmin());
+      // Admins can read all events. Participants can read events if their UID is in the allocatedParticipants list.
+      // This rule is structured to support the 'array-contains' query used by the application.
+      allow read: if request.auth != null && (isAdmin() || request.auth.uid in resource.data.allocatedParticipants);
 
       // Only admins can create or delete events.
       allow create, delete: if isAdmin();
