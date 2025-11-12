@@ -4,23 +4,23 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { genkit, z } from "genkit";
 import { googleAI } from "@genkit-ai/googleai";
-import fileType from "file-type";
+import * as fileType from "file-type";
+import * as admin from "firebase-admin";
 
 import { defineSecret } from "firebase-functions/params";
 
-// Define the secret for the Gemini API Key
+// Initialize Firebase Admin SDK
+admin.initializeApp();
+
+// Define the secret for the Gemini API Key. This must be set in Google Cloud Secret Manager.
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
 
-// Initialize Genkit with the Google AI plugin
+// Initialize Genkit with the Google AI plugin, configured to use the secret.
 const ai = genkit({
-  plugins: [googleAI()],
+  plugins: [googleAI({ apiKey: geminiApiKey as string })],
 });
 
-// Define Zod schemas for input and output validation
-///const ExtractTicketCostInputSchema = z.object({
-    ///ticketImage: z.string().describe("A base64 encoded string of the ticket image."),
-///});
-
+// Define Zod schema for output validation
 const ExtractTicketCostOutputSchema = z.object({
     cost: z.number().describe("The extracted total cost from the ticket. Returns 0 if no cost is found."),
 });
@@ -43,10 +43,9 @@ const extractCostPrompt = ai.definePrompt(
   }
 );
 
-
 // Define the callable Cloud Function
 export const extractTicketCost = onCall({ secrets: [geminiApiKey] }, async (request) => {
-  // Validate authentication context
+  // Validate authentication context - This is a crucial security check for production.
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "The function must be called while authenticated.");
   }
@@ -61,6 +60,7 @@ export const extractTicketCost = onCall({ secrets: [geminiApiKey] }, async (requ
     const base64Data = ticketImage.split(',')[1];
     const buffer = Buffer.from(base64Data, 'base64');
     const type = await fileType.fromBuffer(buffer);
+
     if (type?.mime === 'application/pdf') {
        throw new HttpsError('invalid-argument', 'PDF files are not supported for automatic cost extraction. Please upload an image (PNG, JPG).');
     } else if (type && !type.mime.startsWith('image/')) {
