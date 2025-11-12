@@ -26,14 +26,15 @@ service cloud.firestore {
 
     // Rules for the 'events' collection
     match /events/{eventId} {
-      // Any authenticated user can read event details.
-      allow read: if request.auth != null;
+      // Participants can read events they are allocated to. Admins can read all events.
+      allow read: if request.auth != null 
+                  && (request.auth.uid in resource.data.allocatedParticipants || isAdmin());
 
-      // Only admins can create, update, or delete events.
-      // The 'checkInToEvent' logic is handled via 'update' permissions.
-      // Participants need to be able to update an event to add their check-in.
+      // Only admins can create or delete events.
       allow create, delete: if isAdmin();
-      allow update: if request.auth != null; // Allow update for any user for check-ins
+      
+      // Any authenticated user can update an event to check-in.
+      allow update: if request.auth != null;
     }
 
     // Rules for the 'venues' collection
