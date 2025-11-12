@@ -8,6 +8,7 @@
 import { useState, useEffect, useMemo, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { differenceInCalendarDays, parseISO } from "date-fns";
 import { useForm, FormProvider, useFormContext, Controller } from "react-hook-form";
 import { fileTypeFromBuffer } from "file-type";
@@ -29,12 +30,12 @@ import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, ArrowLeft, ArrowRight, Info, Upload, File as FileIcon, X } from "lucide-react";
-import { extractTicketCost } from "@/ai/flows/extract-ticket-cost-flow";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 
 const dataProvider = isTestMode() ? mock : firestore;
 const auth = getAuth(app);
+const functions = getFunctions(app);
 const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
 
 // Constants for calculations
@@ -143,7 +144,7 @@ function PerDiemWizard() {
 
     const prevStep = () => {
         if (currentStep > 0) {
-            setCurrentStep(step => step + 1);
+            setCurrentStep(step => step - 1);
         }
     };
 
@@ -276,15 +277,15 @@ const Step1 = ({ event, participant, venue }: { event: AppEvent, participant: Pa
         if (!file) return;
 
         setIsExtractingCost(true);
-
         const reader = new FileReader();
         reader.readAsDataURL(file);
+
         reader.onload = async () => {
             try {
-                const dataUri = reader.result as string;
-
-                // Client-side file type check
-                const buffer = Buffer.from(dataUri.split(',')[1], 'base64');
+                const ticketImage = reader.result as string;
+                
+                // Client-side file type check before calling the function
+                const buffer = Buffer.from(ticketImage.split(',')[1], 'base64');
                 const type = await fileTypeFromBuffer(buffer);
 
                 if (type?.mime === 'application/pdf') {
@@ -293,33 +294,41 @@ const Step1 = ({ event, participant, venue }: { event: AppEvent, participant: Pa
                         description: "PDF files are not supported for automatic cost extraction. Please upload an image (PNG, JPG).",
                         variant: "destructive",
                     });
-                    setValue('airTicketFile', null); // Clear the invalid file input
+                    setValue('airTicketFile', null);
                     setIsExtractingCost(false);
                     return;
                 }
 
-                toast({ title: "Analyzing Ticket...", description: "Please wait while we extract the cost from your ticket." });
-                const result = await extractTicketCost({ ticketImage: dataUri });
+                toast({ title: "Analyzing Ticket...", description: "Please wait while we extract the cost from your ticket. This may take a moment." });
+
+                // Get a reference to the callable function
+                const extractTicketCostFunction = httpsCallable(functions, 'extractTicketCost');
                 
-                if (result.cost > 0) {
-                    setValue('airTicketCost', result.cost, { shouldValidate: true });
-                    toast({ title: "Success", description: `We extracted a cost of ${formatCurrency(result.cost)}.` });
+                // Call the function
+                const result = await extractTicketCostFunction({ ticketImage });
+
+                const data = result.data as { cost: number; };
+
+                if (data && data.cost > 0) {
+                    setValue('airTicketCost', data.cost, { shouldValidate: true });
+                    toast({ title: "Success", description: `We extracted a cost of ${formatCurrency(data.cost)}.` });
                 } else {
-                    throw new Error("Could not determine the cost from the ticket.");
+                     throw new Error("Could not determine the cost from the ticket.");
                 }
+
             } catch (error: any) {
-                console.error("Error extracting ticket cost:", error);
-                 if (!error.message.includes('PDF')) { // Avoid double-toast for PDF
-                    toast({
-                        title: "Extraction Failed",
-                        description: "Could not automatically read the cost. Please enter it manually.",
-                        variant: "destructive",
-                    });
-                 }
+                console.error("Error calling extractTicketCost function:", error);
+                const errorMessage = error.message || "Could not automatically read the cost. Please enter it manually.";
+                toast({
+                    title: "Extraction Failed",
+                    description: errorMessage,
+                    variant: "destructive",
+                });
             } finally {
                 setIsExtractingCost(false);
             }
         };
+
         reader.onerror = () => {
              toast({
                 title: "File Read Error",
@@ -637,3 +646,4 @@ const SummaryItem = ({ label, value }: { label: string, value: string | number }
 );
 
     
+
