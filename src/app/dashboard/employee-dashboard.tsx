@@ -55,7 +55,6 @@ import { ClientOnly } from "@/components/client-only";
 import { Input } from "@/components/ui/input";
 
 
-const dataProvider = getIsTestMode() ? mock : firestore;
 const auth = getAuth(app);
 const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
 
@@ -119,15 +118,13 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
       if (!authUser) return;
 
       setLoading(true);
+      const dataProvider = getIsTestMode() ? mock : firestore;
+      
       try {
-        const eventsPromise = isTestMode
-            ? dataProvider.getEventsByParticipant(authUser.uid)
-            : dataProvider.getEventsByParticipant(authUser.uid);
-
         const [userData, requests, eventsData, venuesData] = await Promise.all([
           dataProvider.getParticipantById(authUser.uid),
           dataProvider.getPerDiemRequestsByParticipant(authUser.uid),
-          eventsPromise,
+          dataProvider.getEventsByParticipant(authUser.uid),
           dataProvider.getVenues()
         ]);
         
@@ -141,7 +138,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
       } finally {
         setLoading(false);
       }
-    }, [authUser, toast, isTestMode]);
+    }, [authUser, toast]);
 
   useEffect(() => {
     fetchData();
@@ -197,6 +194,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
   };
   
   const proceedWithCheckIn = useCallback(async (eventId: string, userId: string, dateString: string) => {
+     const dataProvider = getIsTestMode() ? mock : firestore;
      try {
         await dataProvider.checkInToEvent(eventId, userId, dateString);
         setSuccessMessage({ title: "Check-in Successful!", description: `Your check-in for ${dateString} has been recorded.` });
@@ -358,6 +356,8 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
         toast({ title: "Incorrect Code", description: "The transaction code does not match.", variant: "destructive" });
         return;
     }
+    
+    const dataProvider = getIsTestMode() ? mock : firestore;
 
     try {
       await dataProvider.updatePerDiemRequest(confirmingRequest.id, { status: 'Confirmed' });
@@ -380,6 +380,17 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
         default: return 'outline';
     }
    };
+   
+   const acknowledgeAmendment = async (requestId: string) => {
+        const dataProvider = getIsTestMode() ? mock : firestore;
+        try {
+            await dataProvider.updatePerDiemRequest(requestId, { status: 'Pending' });
+            fetchData();
+            toast({ title: 'Acknowledged', description: 'The amended request has been moved to Pending.' });
+        } catch (error) {
+            toast({ title: 'Error', description: 'Failed to acknowledge amendment.', variant: 'destructive' });
+        }
+    };
 
 
   return (
@@ -635,7 +646,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                         <Button size="sm" onClick={() => handleOpenConfirmDialog(request)}>Confirm Payment</Button>
                                     )}
                                      {request.status === 'Amended' && (
-                                        <Button size="sm" onClick={() => dataProvider.updatePerDiemRequest(request.id, { status: 'Pending' }).then(fetchData)}>Acknowledge</Button>
+                                        <Button size="sm" onClick={() => acknowledgeAmendment(request.id)}>Acknowledge</Button>
                                     )}
                                 </TableCell>
                             </TableRow>
@@ -809,6 +820,7 @@ export function PerDiemBalanceCard({ participant, events, requests, venues }: { 
 }
 
     
+
 
 
 
