@@ -276,6 +276,14 @@ const Step1 = ({ event, participant, venue }: { event: AppEvent, participant: Pa
     const handleTicketUpload = async (file: File) => {
         if (!file) return;
 
+        if (isTestMode()) {
+            toast({
+                title: "Test Mode",
+                description: "AI cost extraction is disabled in Test Mode. Please enter the cost manually.",
+            });
+            return;
+        }
+
         setIsExtractingCost(true);
         const reader = new FileReader();
         reader.readAsDataURL(file);
@@ -646,5 +654,6 @@ const SummaryItem = ({ label, value }: { label: string, value: string | number }
 );
 
     
+
 
 
