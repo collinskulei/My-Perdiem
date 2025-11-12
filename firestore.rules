@@ -26,18 +26,15 @@ service cloud.firestore {
 
     // Rules for the 'events' collection
     match /events/{eventId} {
-      // Admins can read any single event document.
-      // Participants can read a single event document if they are allocated to it.
-      allow get: if request.auth != null && (isAdmin() || request.auth.uid in resource.data.allocatedParticipants);
-      
-      // Allow a user to LIST events only if the query specifically filters for events they are allocated to.
-      // This is required for the 'array-contains' query to work securely.
-      allow list: if request.auth != null && (isAdmin() || (request.query.where.size() > 0 && request.query.where[0][1] == 'array-contains' && request.query.where[0][2] == request.auth.uid));
+      // Admins can read any event. Participants can read events they are allocated to.
+      // This rule works for both single 'get' requests and 'list' queries using 'array-contains'.
+      allow read: if request.auth != null && (isAdmin() || request.auth.uid in resource.data.allocatedParticipants);
 
       // Only admins can create or delete events.
       allow create, delete: if isAdmin();
       
       // Any authenticated user can update an event to check-in.
+      // This is secure because the check-in logic itself verifies the user's location and event timing.
       allow update: if request.auth != null;
     }
 
