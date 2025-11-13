@@ -170,9 +170,9 @@ function PerDiemWizard() {
                 accommodationTotal: data.accommodationTotal || 0,
                 outOfOfficeAllowance: data.outOfOfficeAllowance || 0,
                 totalPerdiem: data.totalPerdiem || 0,
-                boardingPassFilename: data.boardingPassFile?.[0]?.name,
-                airTicketFilename: data.airTicketFile?.[0]?.name,
-                groundTransferFilename: data.groundTransferFile?.[0]?.name,
+                boardingPassFilename: data.boardingPassFile?.[0]?.name || null,
+                airTicketFilename: data.airTicketFile?.[0]?.name || null,
+                groundTransferFilename: data.groundTransferFile?.[0]?.name || null,
             };
 
             await dataProvider.addPerDiemRequest(requestData);
@@ -654,6 +654,7 @@ const SummaryItem = ({ label, value }: { label: string, value: string | number }
 );
 
     
+
 
 
 
