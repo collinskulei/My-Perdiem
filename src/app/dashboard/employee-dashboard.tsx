@@ -198,7 +198,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
         await dataProvider.checkInToEvent(eventId, userId, dateString);
         setSuccessMessage({ title: "Check-in Successful!", description: `Your check-in for ${dateString} has been recorded.` });
         setIsSuccess(true);
-        // Optimistically update UI
+        // Optimistically update UI to trigger re-evaluation of buttons
         setMyEvents(prevEvents => prevEvents.map(evt => {
             if (evt.id === eventId) {
                 const newCheckedIn = { ...(evt.checkedInParticipants || {}) };
@@ -320,13 +320,8 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
     if (!authUser || !event.eventDates || event.eventDates.length === 0) {
         return false;
     }
-    // Sort dates to ensure the last one is correct
-    const sortedDates = [...event.eventDates].sort();
-    const lastDayString = sortedDates[sortedDates.length - 1];
-
-    const hasCheckedInOnLastDay = !!event.checkedInParticipants?.[authUser.uid]?.[lastDayString];
-    
-    return hasCheckedInOnLastDay;
+    const { checkedInDays, totalDays } = getAttendanceProgress(event);
+    return totalDays > 0 && checkedInDays === totalDays;
   };
   
   const requestsByStatus = useMemo(() => userRequests.reduce((acc, req) => {
@@ -827,5 +822,7 @@ export function PerDiemBalanceCard({ participant, events, requests, venues }: { 
 
 
 
+
+    
 
     
