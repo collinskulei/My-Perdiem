@@ -3,7 +3,7 @@
  */
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { genkit, z } from "genkit";
-import { googleAI } from "@genkit-ai/googleai";
+import { googleAI } from "@genkit-ai/google-genai";
 import * as fileType from "file-type";
 import * as admin from "firebase-admin";
 
@@ -15,9 +15,11 @@ admin.initializeApp();
 // Define the secret for the Gemini API Key. This must be set in Google Cloud Secret Manager.
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
 
-// Initialize Genkit with the Google AI plugin, configured to use the secret.
+// Initialize Genkit with the Google AI plugin.
+// When deployed, the `secrets` option in onCall makes the GEMINI_API_KEY secret
+// available as a process.env variable, which the googleAI() plugin finds automatically.
 const ai = genkit({
-  plugins: [googleAI({ apiKey: geminiApiKey as unknown as string })],
+  plugins: [googleAI()],
 });
 
 // Define Zod schema for output validation
