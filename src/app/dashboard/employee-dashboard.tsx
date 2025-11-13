@@ -1,10 +1,9 @@
 
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
-import { isToday, parse, format, isFuture, startOfDay, isPast, endOfDay, parseISO } from "date-fns";
+import { isToday, parse, format, isFuture, startOfDay, isPast, endOfDay, parseISO, isValid } from "date-fns";
 import { useRouter } from "next/navigation";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -569,6 +568,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                         <TableRow><TableCell colSpan={3} className="h-24 text-center">Loading check-in data...</TableCell></TableRow>
                                     ) : myEvents.flatMap(event => 
                                         Object.entries(event.checkedInParticipants?.[authUser?.uid ?? ''] || {})
+                                        .filter(([date]) => isValid(parse(date, 'yyyy-MM-dd', new Date())))
                                         .map(([date, timestamp]) => (
                                             <TableRow key={`${event.id}-${date}`}>
                                                 <TableCell>{event.name}</TableCell>
@@ -582,6 +582,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                     ) : (
                                         myEvents.flatMap(event => 
                                             Object.entries(event.checkedInParticipants?.[authUser?.uid ?? ''] || {})
+                                                .filter(([date]) => isValid(parse(date, 'yyyy-MM-dd', new Date())))
                                                 .sort(([dateA], [dateB]) => parse(dateB, 'yyyy-MM-dd', new Date()).getTime() - parse(dateA, 'yyyy-MM-dd', new Date()).getTime())
                                                 .map(([date, timestamp]) => (
                                                     <TableRow key={`${event.id}-${date}`}>
@@ -825,3 +826,6 @@ export function PerDiemBalanceCard({ participant, events, requests, venues }: { 
 
 
 
+
+
+    
