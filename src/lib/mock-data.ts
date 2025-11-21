@@ -309,7 +309,9 @@ export const addParticipant = async (userData: any, uid: string): Promise<void> 
   const dbInstance = getDb();
   dbInstance.events.forEach(event => {
     if (event.unregisteredParticipants && event.unregisteredParticipants.length > 0) {
-      const matchIndex = event.unregisteredParticipants.findIndex(up => up.phoneNumber === newParticipant.phoneNumber.slice(-9));
+      const shortPhoneNumber = newParticipant.phoneNumber.slice(-9);
+      const matchIndex = event.unregisteredParticipants.findIndex(up => up.phoneNumber === shortPhoneNumber);
+      
       if (matchIndex > -1) {
         // Add to allocated
         if (!event.allocatedParticipants.includes(uid)) {

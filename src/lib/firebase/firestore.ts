@@ -4,7 +4,7 @@
  * @file This file contains helper functions for interacting with Cloud Firestore.
  * It abstracts the logic for common database operations like getting and adding documents.
  */
-import { getFirestore, collection, getDocs, addDoc, query, where, doc, setDoc, getDoc, updateDoc, writeBatch, limit, deleteDoc } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, addDoc, query, where, doc, setDoc, getDoc, updateDoc, writeBatch, limit, deleteDoc, arrayRemove, arrayUnion } from 'firebase/firestore';
 import app from './config';
 import type { Venue, PerdiemRequest, Participant, AppEvent } from '../data';
 
@@ -113,19 +113,48 @@ export type ParticipantData = Omit<Participant, 'id' | 'avatarUrl'>;
 /**
  * Adds a new participant or admin document to the 'participants' collection.
  * The document ID is set to the user's UID from Firebase Authentication.
+ * After creation, it retroactively allocates the user to events they were pre-assigned to.
  * @param {object} userData - The user data to add.
  * @param {string} uid - The user's unique ID from Firebase Auth.
  * @returns {Promise<void>} A promise that resolves when the document is successfully created.
  */
 export const addParticipant = async (userData: ParticipantData, uid: string): Promise<void> => {
     const participantsCol = collection(db, 'participants');
-    // Add avatarUrl placeholder
     const userWithDefaults = {
         ...userData,
         avatarUrl: `https://picsum.photos/seed/${uid}/100/100`,
     };
-    // Use the uid from Auth as the document ID
+    
+    // 1. Save the new participant's data
     await setDoc(doc(participantsCol, uid), userWithDefaults);
+
+    // 2. Retroactively allocate to events
+    try {
+        const shortPhoneNumber = userData.phoneNumber.slice(-9); // e.g., 712345678
+        const eventsRef = collection(db, 'events');
+        // Query for events where this person was listed as unregistered
+        const q = query(eventsRef, where("unregisteredParticipants", "array-contains", { name: userData.name, phoneNumber: shortPhoneNumber }));
+        
+        const querySnapshot = await getDocs(q);
+        const batch = writeBatch(db);
+
+        querySnapshot.forEach(document => {
+            const eventRef = doc(db, 'events', document.id);
+            // Atomically add the new UID to `allocatedParticipants` and remove the entry from `unregisteredParticipants`
+            batch.update(eventRef, {
+                allocatedParticipants: arrayUnion(uid),
+                unregisteredParticipants: arrayRemove({ name: userData.name, phoneNumber: shortPhoneNumber })
+            });
+        });
+
+        // Commit all the updates
+        await batch.commit();
+
+    } catch (error) {
+        console.error("Error during retroactive event allocation: ", error);
+        // We don't re-throw the error, as the main registration was successful.
+        // This process can be considered a best-effort enhancement.
+    }
 };
 
 
