@@ -1,10 +1,9 @@
 
-
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2, QrCode, Upload, File as FileIcon, X, Wallet, Paperclip, Info, Trash2 } from "lucide-react";
+import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2, QrCode, Upload, File as FileIcon, X, Wallet, Paperclip, Info, Trash2, Search } from "lucide-react";
 import Image from "next/image";
 import { DateRange } from "react-day-picker";
 import { format, isWithinInterval, parseISO, isPast, endOfDay, subDays } from "date-fns";
@@ -207,6 +206,9 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   // State for delete confirmation
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<AppEvent | null>(null);
+
+  // State for participant search
+  const [participantSearch, setParticipantSearch] = useState("");
 
 
   // QR Code Success Dialog
@@ -693,6 +695,17 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
 
 
   const nonAdminParticipants = useMemo(() => participants.filter(p => p.role !== 'Admin'), [participants]);
+
+  const filteredParticipants = useMemo(() => {
+    if (!participantSearch) {
+      return participants;
+    }
+    const searchTerm = participantSearch.toLowerCase();
+    return participants.filter(p => 
+      p.name.toLowerCase().includes(searchTerm) || 
+      p.idNumber.includes(searchTerm)
+    );
+  }, [participants, participantSearch]);
 
   const handleSelectParticipant = useCallback((participantId: string) => {
     setEventFormData(prev => {
@@ -1302,13 +1315,27 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
 
         <TabsContent value="participants">
           <Card>
-            <CardHeader><CardTitle>Participants</CardTitle><CardDescription>A list of all registered participants.</CardDescription></CardHeader>
+            <CardHeader>
+                <CardTitle>Participants</CardTitle>
+                <CardDescription>A list of all registered participants.</CardDescription>
+            </CardHeader>
             <CardContent>
+              <div className="mb-4">
+                  <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input 
+                          placeholder="Search by name or ID number..." 
+                          className="pl-10"
+                          value={participantSearch}
+                          onChange={(e) => setParticipantSearch(e.target.value)}
+                      />
+                  </div>
+              </div>
               <div className="overflow-x-auto">
                 <Table>
                     <TableHeader><TableRow><TableHead className="w-[64px]"><span className="sr-only">Image</span></TableHead><TableHead>Name</TableHead><TableHead>ID Number</TableHead><TableHead>Role</TableHead><TableHead>Duty Station</TableHead><TableHead>Job Group</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
                     <TableBody>
-                    {loading ? <TableRow><TableCell colSpan={7} className="h-24 text-center">Loading participants...</TableCell></TableRow> : participants.map(participant => (
+                    {loading ? <TableRow><TableCell colSpan={7} className="h-24 text-center">Loading participants...</TableCell></TableRow> : filteredParticipants.map(participant => (
                         <TableRow key={participant.id}>
                         <TableCell><Image alt="Participant avatar" className="aspect-square rounded-full object-cover" height="40" src={participant.avatarUrl} width="40" data-ai-hint="person portrait"/></TableCell>
                         <TableCell className="font-medium whitespace-nowrap">{participant.name}</TableCell>
