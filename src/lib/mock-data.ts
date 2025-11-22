@@ -44,60 +44,6 @@ const initialParticipants: Participant[] = [
         idNumber: "00000000",
         organizationName: "PerdiemPro Inc."
     },
-    {
-        id: "auth-uid-admin2",
-        name: "Admin Two",
-        email: "admin2@example.com",
-        role: "Admin",
-        avatarUrl: `https://picsum.photos/seed/auth-uid-admin2/100/100`,
-        phoneNumber: "+254700000002",
-        idNumber: "00000002",
-        organizationName: "HealthOrg LLC"
-    },
-    {
-        id: "auth-uid-participant-1",
-        name: "Test Mode Participant",
-        email: "participant1@example.com",
-        role: "Registered Nurse",
-        avatarUrl: `https://picsum.photos/seed/auth-uid-participant-1/100/100`,
-        phoneNumber: "+254711111111",
-        idNumber: "11111111",
-        dutyStation: "Nairobi",
-        jobGroup: "C3"
-    },
-    {
-        id: "auth-uid-participant-2",
-        name: "Jane Smith",
-        email: "participant2@example.com",
-        role: "Clinical Officer",
-        avatarUrl: `https://picsum.photos/seed/auth-uid-participant-2/100/100`,
-        phoneNumber: "+254722222222",
-        idNumber: "22222222",
-        dutyStation: "Mombasa",
-        jobGroup: "D1"
-    },
-    {
-        id: "auth-uid-participant-3",
-        name: "Peter Jones",
-        email: "participant3@example.com",
-        role: "Laboratory Technologist",
-        avatarUrl: `https://picsum.photos/seed/auth-uid-participant-3/100/100`,
-        phoneNumber: "+254733333333",
-        idNumber: "33333333",
-        dutyStation: "Kisumu",
-        jobGroup: "B5"
-    },
-     {
-        id: "auth-uid-participant-4",
-        name: "Maryanne Wangari",
-        email: "participant4@example.com",
-        role: "Pharmacist",
-        avatarUrl: `https://picsum.photos/seed/auth-uid-participant-4/100/100`,
-        phoneNumber: "+254744444444",
-        idNumber: "44444444",
-        dutyStation: "Nairobi",
-        jobGroup: "K"
-    },
 ];
 
 const today = new Date();
@@ -118,16 +64,10 @@ const initialEvents: AppEvent[] = [
         venueCity: 'Nairobi',
         facilitator: 'Dr. Emily Carter',
         jobGroupAllowances: OUT_OF_OFFICE_RATES,
-        allocatedParticipants: ['auth-uid-participant-1', 'auth-uid-participant-4'],
+        allocatedParticipants: [],
         checkinStartTime: '09:00',
         checkinEndTime: '18:00',
-        checkedInParticipants: { 
-            'auth-uid-participant-1': { 
-                [formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 10))]: Date.now(),
-                [formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 9))]: Date.now(),
-                [formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 8))]: Date.now(),
-            } 
-        },
+        checkedInParticipants: {},
         letterFilename: 'event-001-letter.pdf',
         programFilename: 'event-001-program.pdf'
     },
@@ -146,67 +86,12 @@ const initialEvents: AppEvent[] = [
         jobGroupAllowances: OUT_OF_OFFICE_RATES,
         checkinStartTime: '08:30',
         checkinEndTime: '16:00',
-        allocatedParticipants: ['auth-uid-participant-2', 'auth-uid-participant-1'],
-        checkedInParticipants: {
-             'auth-uid-participant-2': { 
-                [formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1))]: Date.now(),
-            } 
-        },
+        allocatedParticipants: [],
+        checkedInParticipants: {},
         letterFilename: 'event-002-letter.pdf'
     },
-    {
-        id: 'event-003',
-        name: 'Lab Technology Symposium (Active Event)',
-        createdAt: new Date(today.getFullYear(), today.getMonth(), today.getDate() - 2).toISOString(),
-        eventDates: [
-            formatDate(today),
-            formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 3)),
-        ],
-        venueId: 'venue-ksm-001',
-        venueName: 'Acacia Premier Hotel',
-        venueCity: 'Kisumu',
-        facilitator: 'Aisha Khan',
-        jobGroupAllowances: OUT_OF_OFFICE_RATES,
-        allocatedParticipants: ['auth-uid-participant-3'],
-        checkedInParticipants: {},
-        letterFilename: 'event-003-letter.pdf',
-        programFilename: 'event-003-program.pdf'
-    },
 ];
-const initialPerDiemRequests: PerdiemRequest[] = [
-    {
-        id: 'req-001',
-        participantId: 'auth-uid-participant-1',
-        participantName: 'Test Mode Participant',
-        eventId: 'event-001',
-        eventName: 'Annual Health Conference (Past Event)',
-        location: 'Nairobi',
-        date: formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7)),
-        status: 'Approved',
-        accommodationNights: 3,
-        accommodationTotal: 12000,
-        outOfOfficeAllowance: 12000,
-        mileageKm: 50,
-        mileageTotal: 2250,
-        totalPerdiem: 26250,
-    },
-    {
-        id: 'req-002',
-        participantId: 'auth-uid-participant-2',
-        participantName: 'Jane Smith',
-        eventId: 'event-002',
-        eventName: 'Maternal Health Workshop (Active Event)',
-        location: 'Mombasa',
-        date: formatDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1)),
-        status: 'Pending',
-        accommodationNights: 2,
-        accommodationTotal: 10000,
-        outOfOfficeAllowance: 10000,
-        mileageKm: 970,
-        mileageTotal: 43650,
-        totalPerdiem: 63650,
-    }
-];
+const initialPerDiemRequests: PerdiemRequest[] = [];
 
 
 // --- Database Initialization and Management ---
@@ -466,7 +351,3 @@ export const markEventAsPaid = async (eventId: string, transactionCode: string):
         saveDb();
     }
 };
-
-    
-
-    
