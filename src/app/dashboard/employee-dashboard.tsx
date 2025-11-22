@@ -19,13 +19,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Table,
@@ -91,7 +93,6 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
   // State for Confirm Payment dialog
   const [isConfirmingPayment, setIsConfirmingPayment] = useState(false);
   const [confirmingRequest, setConfirmingRequest] = useState<PerdiemRequest | null>(null);
-  const [confirmTransactionCode, setConfirmTransactionCode] = useState("");
 
   const { latitude, longitude, error: geoError, getPosition, loading: geoLoading } = useGeolocation();
 
@@ -337,19 +338,11 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
 
   const handleOpenConfirmDialog = (request: PerdiemRequest) => {
     setConfirmingRequest(request);
-    setConfirmTransactionCode("");
     setIsConfirmingPayment(true);
   };
 
   const handleConfirmPayment = async () => {
-    if (!confirmingRequest || !confirmTransactionCode) {
-      toast({ title: "Missing Code", description: "Please enter the transaction code.", variant: "destructive" });
-      return;
-    }
-    if (confirmingRequest.transactionCode !== confirmTransactionCode) {
-        toast({ title: "Incorrect Code", description: "The transaction code does not match.", variant: "destructive" });
-        return;
-    }
+    if (!confirmingRequest) return;
     
     const dataProvider = getIsTestMode() ? mock : firestore;
 
@@ -357,9 +350,11 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
       await dataProvider.updatePerDiemRequest(confirmingRequest.id, { status: 'Confirmed' });
       setUserRequests(prev => prev.map(req => req.id === confirmingRequest.id ? { ...req, status: 'Confirmed' } : req));
       toast({ title: "Payment Confirmed", description: "Thank you for confirming receipt of payment." });
-      setIsConfirmingPayment(false);
     } catch (error) {
       toast({ title: "Error", description: "Could not confirm payment.", variant: "destructive" });
+    } finally {
+      setIsConfirmingPayment(false);
+      setConfirmingRequest(null);
     }
   };
 
@@ -710,34 +705,24 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
         </ClientOnly>
       </div>
 
-       <Dialog open={isConfirmingPayment} onOpenChange={setIsConfirmingPayment}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Confirm Payment Received</DialogTitle>
-                <DialogDescription>
-                    Please enter the transaction code to confirm you have received this payment.
-                </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="confirm-transaction-code" className="text-right">
-                    Transaction Code
-                    </Label>
-                    <Input
-                    id="confirm-transaction-code"
-                    value={confirmTransactionCode}
-                    onChange={(e) => setConfirmTransactionCode(e.target.value.toUpperCase())}
-                    className="col-span-3"
-                    placeholder="e.g., SDE8A4D2F1"
-                    />
-                </div>
-            </div>
-            <DialogFooter>
-                <Button variant="outline" onClick={() => setIsConfirmingPayment(false)}>Cancel</Button>
-                <Button onClick={handleConfirmPayment}>Confirm</Button>
-            </DialogFooter>
-        </DialogContent>
-        </Dialog>
+        <AlertDialog open={isConfirmingPayment} onOpenChange={setIsConfirmingPayment}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Confirm Payment Received?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This will confirm that you have received payment for the request:
+                        <span className="font-semibold block mt-2">
+                            {confirmingRequest?.eventName} - {formatCurrency(confirmingRequest?.totalPerdiem ?? 0)}
+                        </span>
+                         This action cannot be undone.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleConfirmPayment}>Yes, I've Received It</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </>
   );
 }
