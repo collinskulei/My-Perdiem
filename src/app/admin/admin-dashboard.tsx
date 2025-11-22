@@ -373,14 +373,17 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   }
 
   const handleSaveEvent = async () => {
+    setIsSaving(true);
     const selectedVenue = venues.find(v => v.id === eventFormData.venueId);
     if (!eventFormData.name || !eventDates || eventDates.length === 0 || !eventFormData.venueId || !selectedVenue || !eventFormData.facilitator ) {
         toast({ title: "Missing fields", description: "Please fill all event details, including at least one date.", variant: "destructive" });
+        setIsSaving(false);
         return;
     }
 
     if (!letterFile && !editingEvent?.letterFilename) {
         toast({ title: "Missing Document", description: "The Event Letter is required to create or update an event.", variant: "destructive" });
+        setIsSaving(false);
         return;
     }
 
@@ -441,6 +444,8 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
     } catch (error) {
       console.error("Error saving event: ", error);
       toast({ title: "Error", description: `Failed to save event.`, variant: "destructive" });
+    } finally {
+        setIsSaving(false);
     }
   };
 
@@ -1140,7 +1145,9 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                         </div>
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => setIsEventDialogOpen(false)}>Cancel</Button>
-                            <Button type="button" onClick={handleSaveEvent}>Save Event</Button>
+                            <Button type="button" onClick={handleSaveEvent} disabled={isSaving}>
+                                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Save Event"}
+                            </Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
