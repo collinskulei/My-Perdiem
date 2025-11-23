@@ -340,7 +340,7 @@ function LoginCard() {
          <CardFooter className="flex flex-col gap-4">
             {isMobile && (
                 <Button variant="outline" className="w-full" asChild>
-                    <Link href="https://firebasestorage.googleapis.com/v0/b/studio-4535556312-b9752.firebasestorage.app/o/my%20perdiem%201.1.3.apk?alt=media&token=77612811-a3d0-4248-aaff-542a2f0ab0bd">
+                    <Link href="https://firebasestorage.googleapis.com/v0/b/studio-4535556312-b9752.firebasestorage.app/o/my%20perdiem%201.0.4.apk?alt=media&token=13ce8c0c-c254-450b-a34c-70c0f16549c9">
                         <Download className="mr-2 h-4 w-4" />
                         Download Android App
                     </Link>
