@@ -31,7 +31,7 @@ export default function CheckinRedirectPage() {
             if (testUserId) {
                 // In test mode and a test user is "logged in"
                 setStatus("Redirecting to dashboard...");
-                router.replace(`/dashboard?tab=checkins&eventId=${eventId}`);
+                router.replace(`/dashboard?tab=events&eventId=${eventId}`);
             } else {
                 // In test mode, but no user session
                 setStatus("Redirecting to registration...");
@@ -45,7 +45,7 @@ export default function CheckinRedirectPage() {
             if (user) {
                 // User is logged in
                 setStatus("User authenticated. Redirecting to dashboard...");
-                router.replace(`/dashboard?tab=checkins&eventId=${eventId}`);
+                router.replace(`/dashboard?tab=events&eventId=${eventId}`);
             } else {
                 // User is not logged in
                 setStatus("User not authenticated. Redirecting to registration...");
