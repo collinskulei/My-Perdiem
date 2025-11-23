@@ -394,8 +394,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
 
     const formattedDates = eventDates.map(date => format(date, 'yyyy-MM-dd')).sort();
 
-    const allDbParticipants = await dataProvider.getParticipants();
-    const phoneToIdMap = new Map(allDbParticipants.map(p => [p.phoneNumber, p.id]));
+    const phoneToIdMap = new Map(participants.map(p => [p.phoneNumber, p.id]));
 
     const manuallySelectedIds = eventFormData.allocatedParticipants;
     const uploadedRegisteredIds = uploadedParticipants
