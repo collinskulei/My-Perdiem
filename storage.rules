@@ -2,15 +2,13 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Rules for files within the 'events' directory.
-    match /events/{eventId}/{allPaths=**} {
-      
-      // Allow anyone with the URL to read (view/download) the file.
-      // This is required for the download links in the UI to work for everyone.
+    // Match any file within the 'events' folder.
+    match /events/{allPaths=**} {
+      // Allow anyone with the link to view/download files.
       allow read: if true;
-
-      // Allow any authenticated user to write (create, update, delete).
-      // This is less secure but will resolve the permission errors.
+      
+      // Allow any authenticated user to upload, update, or delete files.
+      // This is a broader rule to ensure admin uploads are not blocked.
       allow write: if request.auth != null;
     }
   }
