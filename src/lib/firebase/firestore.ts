@@ -227,6 +227,19 @@ export const addEvent = async (event: Partial<AppEvent>): Promise<string> => {
     return docRef.id;
 };
 
+
+/**
+ * Adds a new event document to the 'events' collection with a specific ID.
+ * @param {string} eventId - The custom ID for the event document.
+ * @param {Partial<AppEvent>} event - The event data to add.
+ * @returns {Promise<void>}
+ */
+export const addEventWithId = async (eventId: string, event: Partial<AppEvent>): Promise<void> => {
+    const eventsCol = collection(db, 'events');
+    await setDoc(doc(eventsCol, eventId), event);
+};
+
+
 /**
  * Fetches all events from the 'events' collection.
  * @returns {Promise<AppEvent[]>}
@@ -411,4 +424,3 @@ export const markEventAsPaid = async (eventId: string, transactionCode: string):
     
 
     
-

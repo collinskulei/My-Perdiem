@@ -68,8 +68,8 @@ const initialEvents: AppEvent[] = [
         checkinStartTime: '09:00',
         checkinEndTime: '18:00',
         checkedInParticipants: {},
-        letterFilename: 'event-001-letter.pdf',
-        programFilename: 'event-001-program.pdf'
+        letterUrl: 'https://example.com/letter.pdf',
+        programUrl: 'https://example.com/program.pdf'
     },
     {
         id: 'event-002',
@@ -88,7 +88,7 @@ const initialEvents: AppEvent[] = [
         checkinEndTime: '16:00',
         allocatedParticipants: [],
         checkedInParticipants: {},
-        letterFilename: 'event-002-letter.pdf'
+        letterUrl: 'https://example.com/letter.pdf'
     },
 ];
 const initialPerDiemRequests: PerdiemRequest[] = [];
@@ -246,6 +246,15 @@ export const addEvent = async (event: Partial<AppEvent>): Promise<string> => {
     return newEvent.id;
 };
 
+export const addEventWithId = async (eventId: string, event: Partial<AppEvent>): Promise<void> => {
+    const newEvent: AppEvent = {
+        id: eventId,
+        ...event,
+    } as AppEvent;
+    getDb().events.push(newEvent);
+    saveDb();
+};
+
 export const getEvents = async (): Promise<AppEvent[]> => {
     return [...getDb().events];
 };
@@ -351,3 +360,4 @@ export const markEventAsPaid = async (eventId: string, transactionCode: string):
         saveDb();
     }
 };
+

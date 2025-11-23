@@ -52,8 +52,8 @@ export type AppEvent = {
   allocatedParticipants: string[]; // Array of participant IDs for registered users
   unregisteredParticipants?: { name: string, phoneNumber: string }[]; // For bulk uploads
   checkedInParticipants?: { [participantId: string]: { [date: string]: number } }; // participantId: { date: checkInTimestamp }
-  programFilename?: string;
-  letterFilename?: string;
+  programUrl?: string; // URL to the program file in Firebase Storage
+  letterUrl?: string; // URL to the letter file in Firebase Storage
 };
 
 

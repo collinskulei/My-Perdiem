@@ -1,8 +1,10 @@
 
+
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2, QrCode, Upload, File as FileIcon, X, Wallet, Paperclip, Info, Trash2, Search } from "lucide-react";
 import Image from "next/image";
 import { DateRange } from "react-day-picker";
@@ -89,6 +91,7 @@ import type { PerdiemRequest, Venue, Participant, AppEvent } from "@/lib/data";
 import { OUT_OF_OFFICE_RATES, dutyStationCoordinates } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import * as firestore from '@/lib/firebase/firestore';
+import * as storage from '@/lib/firebase/storage';
 import * as mock from '@/lib/mock-data';
 import { isTestMode } from '@/lib/test-mode';
 import { cn, formatCurrency, getHaversineDistance } from "@/lib/utils";
@@ -353,9 +356,9 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
       });
       setEventDates((eventToEdit.eventDates || []).map(dateStr => parseISO(dateStr)));
       setUploadedParticipants(eventToEdit.unregisteredParticipants || []);
-      // Note: We don't re-populate file inputs for security reasons, but show existing file names.
-      if (eventToEdit.programFilename) setProgramFile({ name: eventToEdit.programFilename } as File);
-      if (eventToEdit.letterFilename) setLetterFile({ name: eventToEdit.letterFilename } as File);
+      // We can't re-populate file inputs, but we can check if URLs exist to know files were uploaded.
+      if (eventToEdit.programUrl) setProgramFile(new File([], "program.pdf"));
+      if (eventToEdit.letterUrl) setLetterFile(new File([], "letter.pdf"));
 
     } else {
       setEditingEvent(null);
@@ -383,7 +386,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         return;
     }
 
-    if (!letterFile && !editingEvent?.letterFilename) {
+    if (!letterFile && !editingEvent?.letterUrl) {
         toast({ title: "Missing Document", description: "The Event Letter is required to create or update an event.", variant: "destructive" });
         setIsSaving(false);
         return;
@@ -415,12 +418,26 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         checkinStartTime: eventFormData.checkinStartTime,
         checkinEndTime: eventFormData.checkinEndTime,
         jobGroupAllowances: eventFormData.jobGroupAllowances,
-        programFilename: programFile?.name,
-        letterFilename: letterFile?.name,
     };
     
     try {
-      let eventId = editingEvent?.id;
+        let eventId = editingEvent?.id;
+        if (!eventId) {
+            // It's a new event, create an ID first to use for storage paths
+            eventId = `evt_${Date.now()}`;
+        }
+        
+        // Upload files to Firebase Storage
+        if (programFile && programFile.size > 0) {
+            const path = `events/${eventId}/program.pdf`;
+            eventData.programUrl = await storage.uploadFile(path, programFile);
+        }
+        if (letterFile && letterFile.size > 0) {
+            const path = `events/${eventId}/letter.pdf`;
+            eventData.letterUrl = await storage.uploadFile(path, letterFile);
+        }
+        
+
       let finalEvent: AppEvent;
       if (editingEvent) {
         // Update existing event
@@ -428,20 +445,18 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         finalEvent = { ...editingEvent, ...eventData, checkedInParticipants: editingEvent.checkedInParticipants || {} };
         toast({ title: "Success", description: "Event updated successfully." });
       } else {
-        // Add new event
-        const newEventData = { ...eventData, createdAt: new Date().toISOString() };
-        eventId = await dataProvider.addEvent(newEventData);
-        finalEvent = { id: eventId, ...newEventData, checkedInParticipants: {} } as AppEvent;
+        // Add new event using the pre-generated ID
+        await dataProvider.addEventWithId(eventId, { ...eventData, createdAt: new Date().toISOString() });
+        finalEvent = { id: eventId, ...eventData, createdAt: new Date().toISOString(), checkedInParticipants: {} } as AppEvent;
         toast({ title: "Success", description: "Event created successfully." });
       }
+
       setIsEventDialogOpen(false);
       await fetchAllData(); // Refresh all data
 
       // Open success dialog with QR code
-      if(eventId) {
-        setSuccessDialogData({ event: finalEvent });
-        setIsSuccessDialogOpen(true);
-      }
+      setSuccessDialogData({ event: finalEvent });
+      setIsSuccessDialogOpen(true);
 
     } catch (error) {
       console.error("Error saving event: ", error);
@@ -809,7 +824,18 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         return manualIds.size + uploadedNewCount;
     }, [eventFormData.allocatedParticipants, uploadedParticipants, participants]);
     
-    const FileUploadDisplay = ({ file, onClear, label }: { file: File | null; onClear: () => void; label: string; }) => {
+    const FileUploadDisplay = ({ file, onClear, label, url }: { file: File | null; onClear: () => void; label: string; url?: string; }) => {
+        let fileName = file?.name;
+        if (!fileName && url) {
+            try {
+                const urlObj = new URL(url);
+                const pathParts = urlObj.pathname.split('/');
+                fileName = decodeURIComponent(pathParts[pathParts.length - 1]);
+            } catch {
+                fileName = "Attached File";
+            }
+        }
+        
         return (
             <div>
                 <Label>{label}</Label>
@@ -817,7 +843,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                     <div className="flex items-center gap-3 overflow-hidden">
                         <FileIcon className="h-6 w-6 text-gray-600 flex-shrink-0"/>
                         <div className="truncate">
-                           <span className="text-sm font-medium">{file?.name}</span>
+                           <span className="text-sm font-medium">{fileName}</span>
                         </div>
                     </div>
                     <Button type="button" variant="ghost" size="icon" onClick={onClear}>
@@ -1061,7 +1087,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                                 <Input id="program-upload" type="file" className="mt-1" onChange={(e) => setProgramFile(e.target.files?.[0] || null)} accept=".pdf" />
                                             </div>
                                         ) : (
-                                            <FileUploadDisplay file={programFile} onClear={() => setProgramFile(null)} label="Event Program (PDF)" />
+                                            <FileUploadDisplay file={programFile} onClear={() => setProgramFile(null)} label="Event Program (PDF)" url={editingEvent?.programUrl}/>
                                         )}
                                          {!letterFile ? (
                                             <div>
@@ -1069,7 +1095,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                                 <Input id="letter-upload" type="file" className="mt-1" onChange={(e) => setLetterFile(e.target.files?.[0] || null)} accept=".pdf" />
                                             </div>
                                         ) : (
-                                            <FileUploadDisplay file={letterFile} onClear={() => setLetterFile(null)} label="Event Letter (PDF)" />
+                                            <FileUploadDisplay file={letterFile} onClear={() => setLetterFile(null)} label="Event Letter (PDF)" url={editingEvent?.letterUrl} />
                                         )}
                                     </div>
                                 </div>
@@ -1196,8 +1222,17 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                         <TableCell className="whitespace-nowrap">{format(parseISO(event.createdAt || event.eventDates[0]), 'PPP')}</TableCell>
                                         <TableCell>
                                             <div className="flex items-center gap-2">
-                                                {event.programFilename && <Paperclip className="h-4 w-4 text-muted-foreground" title="Program attached" />}
-                                                {event.letterFilename && <FileIcon className="h-4 w-4 text-muted-foreground" title="Letter attached" />}
+                                                {event.programUrl ? (
+                                                    <Link href={event.programUrl} target="_blank" rel="noopener noreferrer">
+                                                        <Paperclip className="h-4 w-4 text-primary hover:underline" title="View Program" />
+                                                    </Link>
+                                                ) : <Paperclip className="h-4 w-4 text-muted-foreground opacity-50" title="No program attached" />}
+                                                
+                                                {event.letterUrl ? (
+                                                    <Link href={event.letterUrl} target="_blank" rel="noopener noreferrer">
+                                                        <FileIcon className="h-4 w-4 text-primary hover:underline" title="View Letter" />
+                                                    </Link>
+                                                ) : <FileIcon className="h-4 w-4 text-muted-foreground opacity-50" title="No letter attached" />}
                                             </div>
                                         </TableCell>
                                         <TableCell>{totalAssigned}</TableCell>
