@@ -38,48 +38,48 @@ export function EmployeeSidebarNavigation() {
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <Link href="/dashboard" passHref legacyBehavior>
-          <SidebarMenuButton as="a" isActive={isLinkActive('/dashboard', 'events')}>
+        <Link href="/dashboard">
+          <SidebarMenuButton isActive={isLinkActive('/dashboard', 'events')}>
             <Home />
             Dashboard
           </SidebarMenuButton>
         </Link>
       </SidebarMenuItem>
         <SidebarMenuItem>
-        <Link href="/dashboard?tab=events" passHref legacyBehavior>
-          <SidebarMenuButton as="a" isActive={isLinkActive('/dashboard', 'events')}>
+        <Link href="/dashboard?tab=events">
+          <SidebarMenuButton isActive={isLinkActive('/dashboard', 'events')}>
             <CalendarDays />
             My Events
           </SidebarMenuButton>
         </Link>
       </SidebarMenuItem>
       <SidebarMenuItem>
-        <Link href="/dashboard?tab=checkins" passHref legacyBehavior>
-          <SidebarMenuButton as="a" isActive={isLinkActive('/dashboard', 'checkins')}>
+        <Link href="/dashboard?tab=checkins">
+          <SidebarMenuButton isActive={isLinkActive('/dashboard', 'checkins')}>
             <ClipboardCheck />
             My Check-ins
           </SidebarMenuButton>
         </Link>
       </SidebarMenuItem>
       <SidebarMenuItem>
-        <Link href="/dashboard?tab=requests" passHref legacyBehavior>
-          <SidebarMenuButton as="a" isActive={isLinkActive('/dashboard', 'requests')}>
+        <Link href="/dashboard?tab=requests">
+          <SidebarMenuButton isActive={isLinkActive('/dashboard', 'requests')}>
             <ClipboardList />
             My Per Diem Requests
           </SidebarMenuButton>
         </Link>
       </SidebarMenuItem>
       <SidebarMenuItem>
-        <Link href="/dashboard?tab=analytics" passHref legacyBehavior>
-          <SidebarMenuButton as="a" isActive={isLinkActive('/dashboard', 'analytics')}>
+        <Link href="/dashboard?tab=analytics">
+          <SidebarMenuButton isActive={isLinkActive('/dashboard', 'analytics')}>
             <BarChart />
             My Analytics
           </SidebarMenuButton>
         </Link>
       </SidebarMenuItem>
       <SidebarMenuItem>
-        <Link href="/profile" passHref legacyBehavior>
-          <SidebarMenuButton as="a" isActive={isLinkActive('/profile')}>
+        <Link href="/profile">
+          <SidebarMenuButton isActive={isLinkActive('/profile')}>
             <User />
             Profile
           </SidebarMenuButton>
