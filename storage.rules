@@ -4,19 +4,23 @@ service firebase.storage {
   match /b/{bucket}/o {
     
     // Helper function to check if a user is an admin by looking up their role in Firestore.
+    // This is the secure way to grant admin-only privileges.
     function isAdmin() {
+      // get() retrieves a document from Firestore.
+      // We check the 'role' field on the user's own participant document.
       return request.auth != null && 
              get(/databases/(default)/documents/participants/$(request.auth.uid)).data.role == 'Admin';
     }
     
-    // Rules for files within the 'events' directory
+    // Rules for files within the 'events' directory.
     match /events/{eventId}/{allPaths=**} {
       
       // Allow anyone with the URL to read (view/download) the file.
-      // This is necessary for the download links to work for all users.
+      // This is required for the download links in the UI to work for everyone.
       allow read: if true;
 
       // Allow write operations (create, update, delete) only if the user is an admin.
+      // This rule secures uploads, ensuring only admins can add or change event documents.
       allow write: if isAdmin();
     }
   }
