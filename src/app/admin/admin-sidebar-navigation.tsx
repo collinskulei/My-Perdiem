@@ -2,6 +2,7 @@
 'use client';
 
 import { usePathname, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import {
   Home,
   User,
@@ -39,58 +40,76 @@ export function AdminSidebarNavigation() {
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <SidebarMenuButton href="/admin" isActive={isLinkActive('/admin', null)}>
-          <Home />
-          Dashboard
-        </SidebarMenuButton>
+        <Link href="/admin" passHref legacyBehavior>
+          <SidebarMenuButton as="a" isActive={isLinkActive('/admin', null)}>
+            <Home />
+            Dashboard
+          </SidebarMenuButton>
+        </Link>
       </SidebarMenuItem>
         <SidebarMenuItem>
-        <SidebarMenuButton href="/admin?tab=analytics" isActive={isLinkActive('/admin', 'analytics')}>
-          <BarChart />
-          Analytics
-        </SidebarMenuButton>
+        <Link href="/admin?tab=analytics" passHref legacyBehavior>
+          <SidebarMenuButton as="a" isActive={isLinkActive('/admin', 'analytics')}>
+            <BarChart />
+            Analytics
+          </SidebarMenuButton>
+        </Link>
       </SidebarMenuItem>
         <SidebarMenuItem>
-        <SidebarMenuButton href="/admin?tab=requests" isActive={isLinkActive('/admin', 'requests')}>
-          <ClipboardList />
-          Per Diem Requests
-        </SidebarMenuButton>
+        <Link href="/admin?tab=requests" passHref legacyBehavior>
+          <SidebarMenuButton as="a" isActive={isLinkActive('/admin', 'requests')}>
+            <ClipboardList />
+            Per Diem Requests
+          </SidebarMenuButton>
+        </Link>
       </SidebarMenuItem>
         <SidebarMenuItem>
-        <SidebarMenuButton href="/admin?tab=events" isActive={isLinkActive('/admin', 'events')}>
-          <CalendarDays />
-          Events
-        </SidebarMenuButton>
+        <Link href="/admin?tab=events" passHref legacyBehavior>
+          <SidebarMenuButton as="a" isActive={isLinkActive('/admin', 'events')}>
+            <CalendarDays />
+            Events
+          </SidebarMenuButton>
+        </Link>
       </SidebarMenuItem>
         <SidebarMenuItem>
-        <SidebarMenuButton href="/admin?tab=checkins" isActive={isLinkActive('/admin', 'checkins')}>
-          <ClipboardCheck />
-          Event Check-ins
-        </SidebarMenuButton>
+        <Link href="/admin?tab=checkins" passHref legacyBehavior>
+          <SidebarMenuButton as="a" isActive={isLinkActive('/admin', 'checkins')}>
+            <ClipboardCheck />
+            Event Check-ins
+          </SidebarMenuButton>
+        </Link>
       </SidebarMenuItem>
         <SidebarMenuItem>
-        <SidebarMenuButton href="/admin?tab=participants" isActive={isLinkActive('/admin', 'participants')}>
-          <Users />
-          Participants
-        </SidebarMenuButton>
+        <Link href="/admin?tab=participants" passHref legacyBehavior>
+          <SidebarMenuButton as="a" isActive={isLinkActive('/admin', 'participants')}>
+            <Users />
+            Participants
+          </SidebarMenuButton>
+        </Link>
       </SidebarMenuItem>
         <SidebarMenuItem>
-        <SidebarMenuButton href="/admin?tab=venues" isActive={isLinkActive('/admin', 'venues')}>
-          <MapPin />
-          Venues
-        </SidebarMenuButton>
+        <Link href="/admin?tab=venues" passHref legacyBehavior>
+          <SidebarMenuButton as="a" isActive={isLinkActive('/admin', 'venues')}>
+            <MapPin />
+            Venues
+          </SidebarMenuButton>
+        </Link>
       </SidebarMenuItem>
       <SidebarMenuItem>
-        <SidebarMenuButton href="/admin?tab=reports" isActive={isLinkActive('/admin', 'reports')}>
-          <FileText />
-          Reports
-        </SidebarMenuButton>
+        <Link href="/admin?tab=reports" passHref legacyBehavior>
+          <SidebarMenuButton as="a" isActive={isLinkActive('/admin', 'reports')}>
+            <FileText />
+            Reports
+          </SidebarMenuButton>
+        </Link>
       </SidebarMenuItem>
         <SidebarMenuItem>
-        <SidebarMenuButton href="/profile" isActive={isLinkActive('/profile', null)}>
-          <User />
-          Profile
-        </SidebarMenuButton>
+        <Link href="/profile" passHref legacyBehavior>
+          <SidebarMenuButton as="a" isActive={isLinkActive('/profile', null)}>
+            <User />
+            Profile
+          </SidebarMenuButton>
+        </Link>
       </SidebarMenuItem>
     </SidebarMenu>
   );
