@@ -35,7 +35,9 @@ import * as firestore from '@/lib/firebase/firestore';
 import * as mock from "@/lib/mock-data";
 import { Switch } from "@/components/ui/switch";
 import { isTestMode as getIsTestMode, setTestMode } from "@/lib/test-mode";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, Download } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import Link from "next/link";
 
 const auth = getAuth(app);
 const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
@@ -59,6 +61,8 @@ function LoginCard() {
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [isSendingReset, setIsSendingReset] = useState(false);
+  const isMobile = useIsMobile();
+
 
   const dataProvider = getIsTestMode() ? mock : firestore;
 
@@ -334,6 +338,14 @@ function LoginCard() {
           </Tabs>
         </CardContent>
          <CardFooter className="flex flex-col gap-4">
+            {isMobile && (
+                <Button variant="outline" className="w-full" asChild>
+                    <Link href="https://firebasestorage.googleapis.com/v0/b/studio-4535556312-b9752.firebasestorage.app/o/my%20perdiem%201.1.3.apk?alt=media&token=77612811-a3d0-4248-aaff-542a2f0ab0bd">
+                        <Download className="mr-2 h-4 w-4" />
+                        Download Android App
+                    </Link>
+                </Button>
+            )}
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
               <Switch id="test-mode" checked={testMode} onCheckedChange={handleTestModeChange} />
               <Label htmlFor="test-mode">Test Mode</Label>
