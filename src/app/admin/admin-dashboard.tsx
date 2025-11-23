@@ -1199,14 +1199,13 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                 <TableHead>Venue</TableHead>
                                 <TableHead>Dates</TableHead>
                                 <TableHead>Date Created</TableHead>
-                                <TableHead>Attachments</TableHead>
                                 <TableHead>Assigned</TableHead>
                                 <TableHead>Attendance</TableHead>
                                 <TableHead><span className="sr-only">Actions</span></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {loading ? <TableRow><TableCell colSpan={8} className="h-24 text-center">Loading events...</TableCell></TableRow> 
+                            {loading ? <TableRow><TableCell colSpan={7} className="h-24 text-center">Loading events...</TableCell></TableRow> 
                             : events.map((event) => {
                                 const lastEventDate = event.eventDates?.length ? parseISO(event.eventDates[event.eventDates.length - 1]) : new Date(0);
                                 const isEventPast = isPast(endOfDay(lastEventDate));
@@ -1219,21 +1218,6 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                         <TableCell>{event.venueName}</TableCell>
                                         <TableCell className="whitespace-nowrap">{(event.eventDates || []).join(', ')}</TableCell>
                                         <TableCell className="whitespace-nowrap">{format(parseISO(event.createdAt || event.eventDates[0]), 'PPP')}</TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-2">
-                                                {event.programUrl ? (
-                                                    <Link href={event.programUrl} target="_blank" rel="noopener noreferrer">
-                                                        <Paperclip className="h-4 w-4 text-primary hover:underline" title="View Program" />
-                                                    </Link>
-                                                ) : <Paperclip className="h-4 w-4 text-muted-foreground opacity-50" title="No program attached" />}
-                                                
-                                                {event.letterUrl ? (
-                                                    <Link href={event.letterUrl} target="_blank" rel="noopener noreferrer">
-                                                        <FileIcon className="h-4 w-4 text-primary hover:underline" title="View Letter" />
-                                                    </Link>
-                                                ) : <FileIcon className="h-4 w-4 text-muted-foreground opacity-50" title="No letter attached" />}
-                                            </div>
-                                        </TableCell>
                                         <TableCell>{totalAssigned}</TableCell>
                                         <TableCell>{getTotalCheckinsForEvent(event)}</TableCell>
                                         <TableCell>
@@ -1249,12 +1233,21 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                                     <DropdownMenuItem onSelect={() => handleOpenEventDialog(event)} disabled={isEventPast}>
                                                         Edit
                                                     </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem onSelect={() => window.open(event.programUrl, '_blank')} disabled={!event.programUrl}>
+                                                      View Program
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => window.open(event.letterUrl, '_blank')} disabled={!event.letterUrl}>
+                                                      View Letter
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
                                                     <DropdownMenuItem onSelect={() => handleOpenQrDialog(event)}>
                                                         Generate QR Code
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem onSelect={() => handleOpenBulkPaidDialog(event)} disabled={!hasApprovedRequests}>
                                                         Mark Event Paid
                                                     </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
                                                     <DropdownMenuItem onSelect={() => handleOpenDeleteDialog(event)} className="text-destructive">
                                                         <Trash2 className="mr-2 h-4 w-4" />
                                                         Delete
@@ -2189,3 +2182,4 @@ const AmendInputField = ({ label, value, onChange }: { label: string, value: num
     
 
     
+
