@@ -10,7 +10,7 @@ import { useState, Suspense, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, ChevronsUpDown, Check, Eye, EyeOff } from "lucide-react";
-import { getAuth, createUserWithEmailAndPassword, FirebaseError } from "firebase/auth";
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -190,7 +190,7 @@ function RegistrationWizard() {
 
     } catch (error: any) {
         console.error("Registration failed:", error);
-        if (error instanceof FirebaseError && error.code === 'auth/email-already-in-use') {
+        if (error.code === 'auth/email-already-in-use') {
             toast({
                 title: "Email Already Registered",
                 description: "This email address is already in use. Please try logging in or use a different email.",
@@ -418,6 +418,7 @@ export default function RegistrationPage() {
     
 
     
+
 
 
 
