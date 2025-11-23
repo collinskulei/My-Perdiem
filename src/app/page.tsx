@@ -6,7 +6,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -16,6 +16,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -45,6 +54,11 @@ function LoginCard() {
   const [testMode, setTestModeState] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  
+  // State for password reset
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [isSendingReset, setIsSendingReset] = useState(false);
 
   const dataProvider = getIsTestMode() ? mock : firestore;
 
@@ -143,6 +157,31 @@ function LoginCard() {
       });
     }
   };
+
+    const handlePasswordReset = async () => {
+        if (!resetEmail) {
+            toast({ title: "Email Required", description: "Please enter your email address.", variant: "destructive" });
+            return;
+        }
+        setIsSendingReset(true);
+        try {
+            await sendPasswordResetEmail(auth, resetEmail);
+            toast({
+                title: "Password Reset Email Sent",
+                description: "Please check your inbox for instructions to reset your password.",
+            });
+            setIsResetDialogOpen(false);
+            setResetEmail("");
+        } catch (error: any) {
+            toast({
+                title: "Error Sending Email",
+                description: error.message,
+                variant: "destructive",
+            });
+        } finally {
+            setIsSendingReset(false);
+        }
+    };
   
   if (!hasMounted) {
     return (
@@ -172,6 +211,7 @@ function LoginCard() {
 
 
   return (
+    <>
       <Card className="w-full max-w-sm mx-auto">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Welcome Back</CardTitle>
@@ -202,7 +242,12 @@ function LoginCard() {
                         />
                       </div>
                       <div className="space-y-2 relative">
-                        <Label htmlFor="password">Password</Label>
+                        <div className="flex items-center justify-between">
+                            <Label htmlFor="password">Password</Label>
+                             <button type="button" onClick={() => { setResetEmail(participantEmail); setIsResetDialogOpen(true); }} className="text-xs text-primary underline-offset-4 hover:underline">
+                                Forgot Password?
+                             </button>
+                        </div>
                         <Input
                           id="password"
                           type={showPassword ? "text" : "password"}
@@ -250,7 +295,12 @@ function LoginCard() {
                         />
                       </div>
                       <div className="space-y-2 relative">
-                        <Label htmlFor="admin-password">Password</Label>
+                         <div className="flex items-center justify-between">
+                            <Label htmlFor="admin-password">Password</Label>
+                             <button type="button" onClick={() => { setResetEmail(adminEmail); setIsResetDialogOpen(true); }} className="text-xs text-primary underline-offset-4 hover:underline">
+                                Forgot Password?
+                             </button>
+                        </div>
                         <Input
                           id="admin-password"
                           type={showPassword ? "text" : "password"}
@@ -298,6 +348,38 @@ function LoginCard() {
             </div>
         </CardFooter>
       </Card>
+      
+      <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              Enter your email address and we will send you a link to reset your password.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="reset-email">Email</Label>
+              <Input
+                id="reset-email"
+                type="email"
+                placeholder="your.email@example.com"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsResetDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handlePasswordReset} disabled={isSendingReset}>
+              {isSendingReset && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Send Reset Link
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
