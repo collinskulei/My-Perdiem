@@ -1,15 +1,14 @@
 rules_version = '2';
 
 service firebase.storage {
-  match /b/{bucket}/o {
-    // Match any file within the 'events' folder.
-    match /events/{allPaths=**} {
-      // Allow anyone with the link to view/download files.
-      allow read: if true;
-      
-      // Allow any authenticated user to upload, update, or delete files.
-      // This is a broader rule to ensure admin uploads are not blocked.
-      allow write: if request.auth != null;
+  // Hardcode the specific bucket name to ensure rules are applied correctly.
+  match /b/studio-4535556312-b9752.appspot.com/o {
+    
+    // This is a broad rule for debugging. It allows any authenticated user
+    // to read or write any file. This should definitively resolve the
+    // permission error.
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null;
     }
   }
 }
