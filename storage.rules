@@ -1,0 +1,18 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Match any file in the 'events' directory and its subdirectories
+    match /events/{eventId}/{allPaths=**} {
+      
+      // Allow anyone with the URL to read (view/download) the file.
+      // This is necessary for the download links to work for all users.
+      allow read: if true;
+
+      // Allow write operations (create, update, delete) only if the
+      // user is an admin. We check this by looking up their role in Firestore.
+      allow write: if request.auth != null && 
+                      get(/databases/(default)/documents/participants/$(request.auth.uid)).data.role == 'Admin';
+    }
+  }
+}
