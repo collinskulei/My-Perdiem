@@ -1,4 +1,5 @@
 
+
 /**
  * @file This file defines the new user registration page.
  * It features a dynamic form that adapts based on whether the user is registering as an Participant or an Admin.
@@ -9,7 +10,7 @@ import { useState, Suspense, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, ChevronsUpDown, Check, Eye, EyeOff } from "lucide-react";
-import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
+import { getAuth, createUserWithEmailAndPassword, FirebaseError } from "firebase/auth";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -189,11 +190,19 @@ function RegistrationWizard() {
 
     } catch (error: any) {
         console.error("Registration failed:", error);
-        toast({
-            title: "Registration Failed",
-            description: error.message || `Could not create your participant account. Please try again.`,
-            variant: "destructive",
-        });
+        if (error instanceof FirebaseError && error.code === 'auth/email-already-in-use') {
+            toast({
+                title: "Email Already Registered",
+                description: "This email address is already in use. Please try logging in or use a different email.",
+                variant: "destructive",
+            });
+        } else {
+            toast({
+                title: "Registration Failed",
+                description: error.message || `Could not create your participant account. Please try again.`,
+                variant: "destructive",
+            });
+        }
     }
   };
 
@@ -409,6 +418,7 @@ export default function RegistrationPage() {
     
 
     
+
 
 
 
