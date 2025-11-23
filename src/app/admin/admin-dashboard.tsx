@@ -2015,7 +2015,7 @@ function SuccessDialog({ isOpen, onClose, event }: { isOpen: boolean; onClose: (
     if (!event) return null;
 
     const { name: eventName, id: eventId, eventDates } = event;
-    const checkinUrl = typeof window !== 'undefined' ? `${window.location.origin}/dashboard?tab=checkins&eventId=${eventId}` : '';
+    const checkinUrl = typeof window !== 'undefined' ? `${window.location.origin}/checkin/${eventId}` : '';
     const dateString = (eventDates || []).join(', ');
 
     const downloadQRCode = () => {
@@ -2182,4 +2182,3 @@ const AmendInputField = ({ label, value, onChange }: { label: string, value: num
     
 
     
-
