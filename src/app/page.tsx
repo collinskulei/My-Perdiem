@@ -397,7 +397,7 @@ function LoginCard() {
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+    <div className="flex flex-col min-h-screen items-center justify-center bg-background p-4">
       <Suspense fallback={
         <div className="w-full max-w-sm h-[480px] flex items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -405,8 +405,9 @@ export default function LoginPage() {
       }>
         <LoginCard />
       </Suspense>
+      <footer className="py-4 text-center text-xs text-muted-foreground">
+        Myperdiem provided by <Link href="https://www.tuque.africa" target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">Tuque Consulting</Link>
+      </footer>
     </div>
   );
 }
-
-    

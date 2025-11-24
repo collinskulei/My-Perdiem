@@ -140,22 +140,27 @@ function RegistrationWizard() {
     const fullPhoneNumber = `+254${formData.phone}`;
 
     // --- Uniqueness Validation ---
-    const isEmailTaken = !(await dataProvider.isEmailUnique(formData.email!));
-    if (isEmailTaken) {
-      toast({ title: "Registration Failed", description: "This email address is already registered.", variant: "destructive" });
-      return;
-    }
+    try {
+        const isEmailTaken = !(await dataProvider.isEmailUnique(formData.email!));
+        if (isEmailTaken) {
+          toast({ title: "Registration Failed", description: "This email address is already registered.", variant: "destructive" });
+          return;
+        }
 
-    const isIdNumberTaken = !(await dataProvider.isIdNumberUnique(formData.idNumber!));
-    if (isIdNumberTaken) {
-      toast({ title: "Registration Failed", description: "This ID number is already registered.", variant: "destructive" });
-      return;
-    }
+        const isIdNumberTaken = !(await dataProvider.isIdNumberUnique(formData.idNumber!));
+        if (isIdNumberTaken) {
+          toast({ title: "Registration Failed", description: "This ID number is already registered.", variant: "destructive" });
+          return;
+        }
 
-    const isPhoneTaken = !(await dataProvider.isPhoneNumberUnique(fullPhoneNumber));
-    if (isPhoneTaken) {
-      toast({ title: "Registration Failed", description: "This phone number is already registered.", variant: "destructive" });
-      return;
+        const isPhoneTaken = !(await dataProvider.isPhoneNumberUnique(fullPhoneNumber));
+        if (isPhoneTaken) {
+          toast({ title: "Registration Failed", description: "This phone number is already registered.", variant: "destructive" });
+          return;
+        }
+    } catch (error: any) {
+        toast({ title: "Validation Error", description: error.message, variant: "destructive" });
+        return;
     }
     
     try {
@@ -222,7 +227,7 @@ function RegistrationWizard() {
   const jobGroups = ["A", "B1", "B2", "B3", "B4", "B5", "C1", "C2", "C3", "C4", "C5", "D1", "D2", "D3", "D4", "D5", "E1", "E2", "E4", "H", "J", "K", "L", "M", "N", "P", "Q", "R", "S"];
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+    <div className="flex flex-col min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-2xl mx-auto">
         <CardHeader>
           <CardTitle className="text-2xl">Create a Participant Account</CardTitle>
@@ -404,6 +409,9 @@ function RegistrationWizard() {
           </CardFooter>
         </form>
       </Card>
+      <footer className="py-4 text-center text-xs text-muted-foreground">
+          Myperdiem provided by <Link href="https://www.tuque.africa" target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">Tuque Consulting</Link>
+      </footer>
     </div>
   );
 }
@@ -415,14 +423,3 @@ export default function RegistrationPage() {
         </Suspense>
     );
 }
-    
-
-    
-
-
-
-
-
-
-
-

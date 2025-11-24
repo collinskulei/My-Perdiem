@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useMemo, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { differenceInCalendarDays, parseISO } from "date-fns";
@@ -229,6 +230,9 @@ function PerDiemWizard() {
                     </form>
                 </FormProvider>
             </Card>
+             <footer className="py-4 text-center text-xs text-muted-foreground">
+                Myperdiem provided by <Link href="https://www.tuque.africa" target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">Tuque Consulting</Link>
+            </footer>
         </div>
     );
 }
@@ -652,11 +656,3 @@ const SummaryItem = ({ label, value }: { label: string, value: string | number }
         <p className="font-medium text-left sm:text-right">{value}</p>
     </div>
 );
-
-    
-
-
-
-
-
-

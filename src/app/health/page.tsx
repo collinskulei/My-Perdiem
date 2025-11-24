@@ -82,7 +82,7 @@ function HealthCheck() {
   }, [testMode, dataProvider]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+    <div className="flex flex-col min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-2xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -172,6 +172,9 @@ function HealthCheck() {
            </div>
         </CardContent>
       </Card>
+      <footer className="py-4 text-center text-xs text-muted-foreground">
+          Myperdiem provided by <Link href="https://www.tuque.africa" target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">Tuque Consulting</Link>
+      </footer>
     </div>
   );
 }
@@ -183,6 +186,3 @@ export default function HealthCheckPage() {
         </Suspense>
     );
 }
-
-
-    
