@@ -18,6 +18,7 @@ import { LogOut } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { EmployeeHeader } from './employee-header';
 import { EmployeeSidebarNavigation } from './employee-sidebar-navigation';
+import Link from "next/link";
 
 /**
  * The client-side wrapper for the employee layout, containing all interactive UI.
@@ -46,6 +47,9 @@ export function EmployeeLayoutClient({ children }: { children: React.ReactNode }
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
+           <div className="text-center text-xs text-sidebar-foreground/60 p-2 mt-2">
+            <p>Myperdiem provided by <Link href="https://www.tuque.africa" target="_blank" rel="noopener noreferrer" className="underline hover:text-sidebar-foreground">Tuque Consulting</Link></p>
+          </div>
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
