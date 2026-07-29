@@ -124,7 +124,8 @@ create policy "Participants can read own row, admins read all" on public.partici
 
 create policy "Participants can update own row, admins update all" on public.participants
   for update
-  using (auth.uid() = id or public.is_admin());
+  using (auth.uid() = id or public.is_admin())
+  with check (public.is_admin() or (auth.uid() = id and role <> 'Admin'));
 
 create policy "Participants can delete own row" on public.participants
   for delete
