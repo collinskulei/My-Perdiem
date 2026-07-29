@@ -6,10 +6,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-<<<<<<< HEAD
-=======
-import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
->>>>>>> c43235ab843758ba3ff227906571271ee9c11862
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -63,10 +59,7 @@ function LoginCard() {
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [isSendingReset, setIsSendingReset] = useState(false);
-<<<<<<< HEAD
   const isMobile = useIsMobile();
-=======
->>>>>>> c43235ab843758ba3ff227906571271ee9c11862
 
 
   const dataProvider = getIsTestMode() ? mock : supabaseDb;
@@ -176,14 +169,10 @@ function LoginCard() {
         }
         setIsSendingReset(true);
         try {
-<<<<<<< HEAD
             const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
                 redirectTo: `${window.location.origin}/reset-password`,
             });
             if (error) throw error;
-=======
-            await sendPasswordResetEmail(auth, resetEmail);
->>>>>>> c43235ab843758ba3ff227906571271ee9c11862
             toast({
                 title: "Password Reset Email Sent",
                 description: "Please check your inbox for instructions to reset your password.",
