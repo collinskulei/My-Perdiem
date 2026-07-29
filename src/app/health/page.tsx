@@ -1,7 +1,8 @@
 
+
 /**
- * @file This file defines a health check page to verify Firebase connectivity.
- * It attempts to fetch data from Firestore and displays the connection status.
+ * @file This file defines a health check page to verify Supabase connectivity.
+ * It attempts to fetch data from the Supabase database and displays the connection status.
  */
 "use client";
 
@@ -12,33 +13,32 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { getAuth, onAuthStateChanged, User } from "firebase/auth";
-import app from "@/lib/firebase/config";
+import type { User } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase/client";
 import { isTestMode } from "@/lib/test-mode";
-import * as firestore from '@/lib/firebase/firestore';
+import * as supabaseDb from '@/lib/supabase/database';
 import * as mock from '@/lib/mock-data';
 
-const auth = getAuth(app);
 const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
 
-// Mock User shape that is compatible with Firebase User
+// Mock User shape that is compatible with Supabase's User
 type MockUser = {
-    uid: string;
+    id: string;
 }
 
 
 /**
- * The main component for the Firebase health check page.
+ * The main component for the Supabase health check page.
  * @returns {JSX.Element} The rendered health check page.
  */
 function HealthCheck() {
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [error, setError] = useState<Error | null>(null);
-  const [projectId, setProjectId] = useState<string | null>(null);
+  const [projectUrl, setProjectUrl] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<User | MockUser | null>(null);
   const [testMode, setTestMode] = useState(false);
-  
-  const dataProvider = mock;
+
+  const dataProvider = testMode ? mock : supabaseDb;
 
 
   useEffect(() => {
@@ -47,28 +47,28 @@ function HealthCheck() {
     if (isTestMode()) {
         const testUserId = localStorage.getItem(TEST_USER_ID_KEY);
         if (testUserId) {
-            setCurrentUser({ uid: testUserId });
+            setCurrentUser({ id: testUserId });
         }
     } else {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            setCurrentUser(user);
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setCurrentUser(session?.user ?? null);
         });
-        return () => unsubscribe();
+        return () => subscription.unsubscribe();
     }
   }, []);
 
   useEffect(() => {
-    async function checkFirebase() {
+    async function checkSupabase() {
       setStatus("loading");
       try {
-        // Set project ID from environment variable for display
-        const configuredProjectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-        if (!testMode && !configuredProjectId) {
-            throw new Error("NEXT_PUBLIC_FIREBASE_PROJECT_ID is not set in your environment variables.");
+        // Set project URL from environment variable for display
+        const configuredUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        if (!testMode && !configuredUrl) {
+            throw new Error("NEXT_PUBLIC_SUPABASE_URL is not set in your environment variables.");
         }
-        setProjectId(configuredProjectId ?? "N/A (Test Mode)");
+        setProjectUrl(configuredUrl ?? "N/A (Test Mode)");
 
-        // Attempt to fetch data 
+        // Attempt to fetch data
         await dataProvider.getVenues();
 
         setStatus("success");
@@ -78,7 +78,7 @@ function HealthCheck() {
       }
     }
 
-    checkFirebase();
+    checkSupabase();
   }, [testMode, dataProvider]);
 
   return (
@@ -107,13 +107,13 @@ function HealthCheck() {
              </div>
              <div className="flex items-center justify-between rounded-lg border p-4">
                 <div className="space-y-1">
-                    <p className="font-medium">Project ID</p>
+                    <p className="font-medium">Supabase Project URL</p>
                     <p className="text-sm text-muted-foreground">
-                        The Firebase Project ID configured in your environment.
+                        The Supabase project URL configured in your environment.
                     </p>
                 </div>
-                {projectId ? (
-                     <Badge variant={projectId.startsWith("Not") ? "outline" : "secondary"}>{projectId}</Badge>
+                {projectUrl ? (
+                     <Badge variant={projectUrl.startsWith("N/A") ? "outline" : "secondary"}>{projectUrl}</Badge>
                 ) : (
                     <Badge variant="destructive">Not Found</Badge>
                 )}
@@ -122,7 +122,7 @@ function HealthCheck() {
                 <div className="space-y-1">
                     <p className="font-medium">Authentication</p>
                      <p className="text-sm text-muted-foreground">
-                        Checks if a user is currently signed in. UID: {currentUser?.uid ?? 'None'}
+                        Checks if a user is currently signed in. UID: {currentUser?.id ?? 'None'}
                     </p>
                 </div>
                 {currentUser ? (
@@ -135,7 +135,7 @@ function HealthCheck() {
                 <div className="space-y-1">
                     <p className="font-medium">Data Store Connectivity</p>
                      <p className="text-sm text-muted-foreground">
-                        Tests reading from the primary data source ({testMode ? 'localStorage' : 'Firestore'}).
+                        Tests reading from the primary data source ({testMode ? 'localStorage' : 'Supabase'}).
                     </p>
                 </div>
                 {status === "loading" && <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />}
@@ -149,7 +149,7 @@ function HealthCheck() {
                 <CheckCircle2 className="h-4 w-4 !text-green-600" />
               <AlertTitle className="text-green-800 dark:text-green-300">Connection Successful!</AlertTitle>
               <AlertDescription className="text-green-700 dark:text-green-400">
-                The application is successfully connected to the data source ({testMode ? 'localStorage' : 'Firestore'}).
+                The application is successfully connected to the data source ({testMode ? 'localStorage' : 'Supabase'}).
               </AlertDescription>
             </Alert>
           )}
@@ -159,9 +159,9 @@ function HealthCheck() {
               <XCircle className="h-4 w-4" />
               <AlertTitle>Connection Failed</AlertTitle>
               <AlertDescription>
-                <p className="mb-2">The application could not connect to {testMode ? 'localStorage' : 'Firestore'}. {testMode ? 'There might be an issue with your browser.' : 'This is often due to Firestore security rules.'}</p>
+                <p className="mb-2">The application could not connect to {testMode ? 'localStorage' : 'Supabase'}. {testMode ? 'There might be an issue with your browser.' : 'This is often due to Supabase Row Level Security policies or missing environment variables.'}</p>
                 <p className="font-mono bg-muted p-2 rounded-md text-xs">{error.message}</p>
-                {!testMode && <p className="mt-2">Please ensure your security rules allow authenticated users to read from the collections.</p>}
+                {!testMode && <p className="mt-2">Please ensure your Row Level Security policies allow authenticated users to read from the tables.</p>}
               </AlertDescription>
             </Alert>
           )}

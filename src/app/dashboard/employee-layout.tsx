@@ -19,6 +19,8 @@ import { Logo } from "@/components/logo";
 import { EmployeeHeader } from './employee-header';
 import { EmployeeSidebarNavigation } from './employee-sidebar-navigation';
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { signOutEverywhere } from "@/lib/supabase/auth";
 
 /**
  * The client-side wrapper for the employee layout, containing all interactive UI.
@@ -27,6 +29,12 @@ import Link from "next/link";
  * @returns {JSX.Element} The rendered client-side layout.
  */
 export function EmployeeLayoutClient({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const handleLogout = async () => {
+    await signOutEverywhere();
+    router.push("/");
+  };
+
   return (
      <SidebarProvider>
       <Sidebar>
@@ -41,7 +49,7 @@ export function EmployeeLayoutClient({ children }: { children: React.ReactNode }
         <SidebarFooter>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/">
+              <SidebarMenuButton onClick={handleLogout}>
                 <LogOut />
                 Logout
               </SidebarMenuButton>

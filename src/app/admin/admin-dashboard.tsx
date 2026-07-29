@@ -90,8 +90,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { PerdiemRequest, Venue, Participant, AppEvent } from "@/lib/data";
 import { OUT_OF_OFFICE_RATES, dutyStationCoordinates } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
-import * as firestore from '@/lib/firebase/firestore';
-import * as storage from '@/lib/firebase/storage';
+import * as supabaseDb from '@/lib/supabase/database';
+import * as storage from '@/lib/supabase/storage';
 import * as mock from '@/lib/mock-data';
 import { isTestMode } from '@/lib/test-mode';
 import { cn, formatCurrency, getHaversineDistance } from "@/lib/utils";
@@ -101,7 +101,7 @@ import { Separator } from "@/components/ui/separator";
 import { PlacesAutocomplete, type Place } from "@/components/places-autocomplete";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-const dataProvider = isTestMode() ? mock : firestore;
+const dataProvider = isTestMode() ? mock : supabaseDb;
 
 const kenyanCounties = [
     "Mombasa", "Kwale", "Kilifi", "Tana River", "Lamu", "Taita-Taveta", "Garissa", "Wajir",
@@ -426,7 +426,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
             eventId = `evt_${Date.now()}`;
         }
         
-        // Upload files to Firebase Storage
+        // Upload files to Supabase Storage
         if (programFile && programFile.size > 0) {
             const path = `events/${eventId}/program.pdf`;
             eventData.programUrl = await storage.uploadFile(path, programFile);

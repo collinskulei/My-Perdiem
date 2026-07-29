@@ -2,14 +2,22 @@
 'use client';
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ClientOnly } from "@/components/client-only";
+import { signOutEverywhere } from "@/lib/supabase/auth";
 
 export function EmployeeHeader() {
+  const router = useRouter();
+  const handleLogout = async () => {
+    await signOutEverywhere();
+    router.push("/");
+  };
+
   return (
     <header className="flex h-14 items-center justify-between border-b bg-card px-4 lg:px-6">
       <SidebarTrigger className="md:hidden" />
@@ -34,7 +42,7 @@ export function EmployeeHeader() {
               <DropdownMenuItem asChild><Link href="/profile">Profile</Link></DropdownMenuItem>
               <DropdownMenuItem>Settings</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild><Link href="/">Logout</Link></DropdownMenuItem>
+              <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </ClientOnly>

@@ -8,18 +8,18 @@
 import { useState, useEffect, useMemo, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { getAuth, onAuthStateChanged, User } from "firebase/auth";
-import { getFunctions, httpsCallable } from "firebase/functions";
+import type { User } from "@supabase/supabase-js";
 import { differenceInCalendarDays, parseISO } from "date-fns";
 import { useForm, FormProvider, useFormContext, Controller } from "react-hook-form";
 import { fileTypeFromBuffer } from "file-type";
 
 import type { Participant, AppEvent, PerdiemRequest, Venue } from "@/lib/data";
 import { dutyStationCoordinates, OUT_OF_OFFICE_RATES } from "@/lib/data";
-import * as firestore from '@/lib/firebase/firestore';
+import * as supabaseDb from '@/lib/supabase/database';
 import * as mock from '@/lib/mock-data';
 import { isTestMode } from '@/lib/test-mode';
-import app from "@/lib/firebase/config";
+import { supabase } from "@/lib/supabase/client";
+import { extractTicketCost } from "@/ai/flows/extract-ticket-cost-flow";
 import { useToast } from "@/hooks/use-toast";
 import { getHaversineDistance, formatCurrency, cn } from "@/lib/utils";
 
@@ -34,15 +34,13 @@ import { Loader2, ArrowLeft, ArrowRight, Info, Upload, File as FileIcon, X } fro
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 
-const dataProvider = isTestMode() ? mock : firestore;
-const auth = getAuth(app);
-const functions = getFunctions(app);
+const dataProvider = isTestMode() ? mock : supabaseDb;
 const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
 
 // Constants for calculations
 const MILEAGE_RATE_KSH = 45;
 
-type MockUser = { uid: string };
+type MockUser = { id: string };
 type PerDiemFormValues = Partial<PerdiemRequest> & {
     airTicketFile: FileList | null;
     boardingPassFile: FileList | null;
@@ -87,14 +85,14 @@ function PerDiemWizard() {
     useEffect(() => {
         if (isTestMode()) {
             const testUserId = localStorage.getItem(TEST_USER_ID_KEY);
-            if (testUserId) setAuthUser({ uid: testUserId });
+            if (testUserId) setAuthUser({ id: testUserId });
             else router.push('/');
         } else {
-            const unsubscribe = onAuthStateChanged(auth, user => {
-                if (user) setAuthUser(user);
+            const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+                if (session?.user) setAuthUser(session.user);
                 else router.push('/');
             });
-            return () => unsubscribe();
+            return () => subscription.unsubscribe();
         }
     }, [router]);
 
@@ -105,7 +103,7 @@ function PerDiemWizard() {
             setLoading(true);
             try {
                 const [participantData, eventData] = await Promise.all([
-                    dataProvider.getParticipantById(authUser.uid),
+                    dataProvider.getParticipantById(authUser.id),
                     dataProvider.getEventById(eventId),
                 ]);
 
@@ -156,7 +154,7 @@ function PerDiemWizard() {
         setIsSubmitting(true);
         try {
             const requestData = {
-                participantId: authUser.uid,
+                participantId: authUser.id,
                 participantName: participant.name,
                 eventId: event.id,
                 eventName: event.name,
@@ -313,13 +311,8 @@ const Step1 = ({ event, participant, venue }: { event: AppEvent, participant: Pa
 
                 toast({ title: "Analyzing Ticket...", description: "Please wait while we extract the cost from your ticket. This may take a moment." });
 
-                // Get a reference to the callable function
-                const extractTicketCostFunction = httpsCallable(functions, 'extractTicketCost');
-                
-                // Call the function
-                const result = await extractTicketCostFunction({ ticketImage });
-
-                const data = result.data as { cost: number; };
+                // Call the AI extraction flow directly (Next.js Server Action)
+                const data = await extractTicketCost({ ticketImage });
 
                 if (data && data.cost > 0) {
                     setValue('airTicketCost', data.cost, { shouldValidate: true });

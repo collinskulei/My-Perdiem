@@ -10,7 +10,6 @@ import { useState, Suspense, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, ChevronsUpDown, Check, Eye, EyeOff } from "lucide-react";
-import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -31,17 +30,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import * as firestore from '@/lib/firebase/firestore';
+import * as supabaseDb from '@/lib/supabase/database';
 import * as mock from '@/lib/mock-data';
 import { isTestMode as checkIsTestMode } from '@/lib/test-mode';
-import type { ParticipantData } from "@/lib/firebase/firestore";
+import type { ParticipantData } from "@/lib/supabase/database";
 import { useToast } from "@/hooks/use-toast";
-import app from "@/lib/firebase/config";
+import { supabase } from "@/lib/supabase/client";
 import { PlacesAutocomplete, type Place } from "@/components/places-autocomplete";
 
 
-const dataProvider = checkIsTestMode() ? mock : firestore;
-const auth = getAuth(app);
+const dataProvider = checkIsTestMode() ? mock : supabaseDb;
 
 
 /**
@@ -90,7 +88,7 @@ function RegistrationWizard() {
   
   /**
    * Handles the final form submission.
-   * Creates a user in Firebase Auth and then saves their profile to Firestore.
+   * Creates a user in Supabase Auth and then saves their profile to the participants table.
    * @param {React.FormEvent} e - The form submission event.
    */
   const handleSubmit = async (e: React.FormEvent) => {
@@ -164,11 +162,18 @@ function RegistrationWizard() {
     }
     
     try {
-      // 1. Create user in Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(auth, formData.email!, formData.password!);
-      const user = userCredential.user;
+      // 1. Create user in Supabase Auth
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: formData.email!,
+        password: formData.password!,
+      });
+      if (signUpError) throw signUpError;
+      const user = signUpData.user;
+      if (!user) {
+        throw new Error("Could not create your account. Please try again.");
+      }
 
-      // 2. Save additional participant details to Firestore
+      // 2. Save additional participant details to the participants table
       const participantData: ParticipantData = {
           name: formData.name!,
           phoneNumber: fullPhoneNumber,
@@ -180,22 +185,22 @@ function RegistrationWizard() {
       };
 
 
-      await dataProvider.addParticipant(participantData, user.uid);
-      
+      await dataProvider.addParticipant(participantData, user.id);
+
       toast({
           title: "Registration Successful",
           description: `Your participant account has been created.`,
       });
 
       if (isTestMode) {
-          localStorage.setItem('perdiem-pro-test-user-id', user.uid);
+          localStorage.setItem('perdiem-pro-test-user-id', user.id);
       }
 
       router.push("/dashboard");
 
     } catch (error: any) {
         console.error("Registration failed:", error);
-        if (error.code === 'auth/email-already-in-use') {
+        if (error.message?.toLowerCase().includes('already registered')) {
             toast({
                 title: "Email Already Registered",
                 description: "This email address is already in use. Please try logging in or use a different email.",

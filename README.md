@@ -93,6 +93,32 @@ On the login page, simply toggle the **"Test Mode"** switch. The page will reloa
 
 ---
 
+## Development & Deployment
+
+This app runs on [Supabase](https://supabase.com) (Postgres database, Auth, and Storage) and deploys to [Vercel](https://vercel.com).
+
+### Set up Supabase
+
+1.  Create a new project at [supabase.com](https://supabase.com).
+2.  Run the SQL in [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) in the Supabase SQL Editor to create the tables, `is_admin()` helper, and Row Level Security policies. Optionally also run [`supabase/seed.sql`](supabase/seed.sql) to seed a few sample venues.
+3.  Create a public Storage bucket named `event-files` (Storage -> New bucket -> toggle "Public bucket"). This is where admin-uploaded event program/letter files are stored.
+4.  Under Authentication -> Providers -> Email, turn **off** "Confirm email". Registration in this app creates the account and logs the user in immediately (matching the previous Firebase Auth behavior), so email confirmation must stay disabled.
+5.  Copy your Project URL and `anon` public key from Settings -> API into `.env`:
+    ```
+    NEXT_PUBLIC_SUPABASE_URL="https://YOUR_PROJECT_REF.supabase.co"
+    NEXT_PUBLIC_SUPABASE_ANON_KEY="YOUR_SUPABASE_ANON_KEY"
+    ```
+
+### Deploy to Vercel
+
+This is a standard Next.js app, so Vercel needs no special configuration:
+
+1.  Import the repository into Vercel.
+2.  Add the environment variables from your `.env` file (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_GEMINI_API_KEY`, `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`) in the Vercel project settings.
+3.  Deploy. Vercel auto-detects the Next.js build (`next build`) and run (`next start`) commands.
+
+---
+
 ## Getting Started
 
 1.  **Register an Account**: New users can navigate to the registration page from the login screen. The form dynamically adapts based on whether you are registering as a Participant or an Admin.

@@ -3,12 +3,10 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getAuth, onAuthStateChanged, User } from "firebase/auth";
-import app from "@/lib/firebase/config";
+import { supabase } from "@/lib/supabase/client";
 import { Loader2 } from "lucide-react";
 import { isTestMode } from "@/lib/test-mode";
 
-const auth = getAuth(app);
 const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
 
 export default function CheckinRedirectPage() {
@@ -41,8 +39,8 @@ export default function CheckinRedirectPage() {
         }
 
         // Handle Live Mode
-        const unsubscribe = onAuthStateChanged(auth, (user: User | null) => {
-            if (user) {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (session?.user) {
                 // User is logged in
                 setStatus("User authenticated. Redirecting to dashboard...");
                 router.replace(`/dashboard?tab=events&eventId=${eventId}`);
@@ -54,7 +52,7 @@ export default function CheckinRedirectPage() {
         });
 
         // Cleanup subscription on unmount
-        return () => unsubscribe();
+        return () => subscription.unsubscribe();
 
     }, [router, eventId]);
 

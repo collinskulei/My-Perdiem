@@ -52,8 +52,8 @@ export type AppEvent = {
   allocatedParticipants: string[]; // Array of participant IDs for registered users
   unregisteredParticipants?: { name: string, phoneNumber: string }[]; // For bulk uploads
   checkedInParticipants?: { [participantId: string]: { [date: string]: number } }; // participantId: { date: checkInTimestamp }
-  programUrl?: string; // URL to the program file in Firebase Storage
-  letterUrl?: string; // URL to the letter file in Firebase Storage
+  programUrl?: string; // URL to the program file in Supabase Storage
+  letterUrl?: string; // URL to the letter file in Supabase Storage
 };
 
 
@@ -105,7 +105,7 @@ export const dutyStationCoordinates: { [key: string]: { latitude: number, longit
 
 /**
  * Mock data for venues. Includes a special "Test Venue" for easy check-in during development.
- * This data should be seeded into the Firestore 'venues' collection.
+ * This data should be seeded into the Supabase 'venues' table.
  */
 export const venues: Venue[] = [
   { id: "venue-test-001", name: "Test Venue (for Check-in)", city: "Test City", county: "Test County", latitude: 0, longitude: 0 },

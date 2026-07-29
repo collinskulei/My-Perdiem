@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { getAuth, onAuthStateChanged, User } from "firebase/auth";
+import type { User } from "@supabase/supabase-js";
 import { isToday, parse, format, isFuture, startOfDay, isPast, endOfDay, parseISO, isValid } from "date-fns";
 import { useRouter } from "next/navigation";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -41,10 +41,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import type { PerdiemRequest, Participant, AppEvent, Venue } from "@/lib/data";
 import { dutyStationCoordinates, MILEAGE_RATE_KSH, OUT_OF_OFFICE_RATES } from "@/lib/data";
-import * as firestore from '@/lib/firebase/firestore';
+import * as supabaseDb from '@/lib/supabase/database';
 import * as mock from '@/lib/mock-data';
 import { isTestMode as getIsTestMode } from '@/lib/test-mode';
-import app from "@/lib/firebase/config";
+import { supabase } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { SuccessDialog } from "@/components/success-dialog";
 import { MapPin, Loader2, Check, LocateFixed, Wallet, Clock, AlertTriangle, Info } from "lucide-react";
@@ -56,12 +56,11 @@ import { ClientOnly } from "@/components/client-only";
 import { Input } from "@/components/ui/input";
 
 
-const auth = getAuth(app);
 const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
 
-// Mock User shape that is compatible with Firebase User
+// Mock User shape that is compatible with Supabase's User
 type MockUser = {
-    uid: string;
+    id: string;
 }
 
 const ANALYTICS_COLORS = {
@@ -102,15 +101,15 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
     if (testMode) {
         const testUserId = localStorage.getItem(TEST_USER_ID_KEY);
         if (testUserId) {
-            setAuthUser({ uid: testUserId });
+            setAuthUser({ id: testUserId });
         } else {
             setLoading(false);
         }
     } else {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            setAuthUser(user);
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setAuthUser(session?.user ?? null);
         });
-        return () => unsubscribe();
+        return () => subscription.unsubscribe();
     }
   }, []);
 
@@ -118,13 +117,13 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
       if (!authUser) return;
 
       setLoading(true);
-      const dataProvider = getIsTestMode() ? mock : firestore;
+      const dataProvider = getIsTestMode() ? mock : supabaseDb;
       
       try {
         const [userData, requests, eventsData, venuesData] = await Promise.all([
-          dataProvider.getParticipantById(authUser.uid),
-          dataProvider.getPerDiemRequestsByParticipant(authUser.uid),
-          dataProvider.getEventsByParticipant(authUser.uid),
+          dataProvider.getParticipantById(authUser.id),
+          dataProvider.getPerDiemRequestsByParticipant(authUser.id),
+          dataProvider.getEventsByParticipant(authUser.id),
           dataProvider.getVenues()
         ]);
         
@@ -184,7 +183,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
     
     // In test mode with bypass on, or if location is already verified, proceed directly.
     if (isTestMode && bypassLocationCheck) {
-      proceedWithCheckIn(event.id, authUser.uid, dateString);
+      proceedWithCheckIn(event.id, authUser.id, dateString);
       return;
     }
 
@@ -194,7 +193,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
   };
   
   const proceedWithCheckIn = useCallback(async (eventId: string, userId: string, dateString: string) => {
-     const dataProvider = getIsTestMode() ? mock : firestore;
+     const dataProvider = getIsTestMode() ? mock : supabaseDb;
      try {
         await dataProvider.checkInToEvent(eventId, userId, dateString);
         setSuccessMessage({ title: "Check-in Successful!", description: `Your check-in for ${dateString} has been recorded.` });
@@ -225,7 +224,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
     
     const [eventId, dateString] = activeSubmission.split('-');
     
-    if (!authUser?.uid || !eventId || !dateString) {
+    if (!authUser?.id || !eventId || !dateString) {
       setIsSubmitting(null);
       return;
     }
@@ -251,7 +250,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
         
         if (distance <= 1000) { // 1000 meters = 1 km
             toast({ title: "Location Verified", description: "You are in the correct check-in spot. Proceeding..." });
-            proceedWithCheckIn(event.id, authUser.uid, dateString);
+            proceedWithCheckIn(event.id, authUser.id, dateString);
         } else {
             toast({
                 title: "Check-in Failed",
@@ -297,8 +296,8 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
       const totalDays = getEventDays(event).length;
       if (totalDays === 0) return { percent: 0, color: 'bg-red-500', checkedInDays: 0, totalDays: 0 };
 
-      const checkedInDays = event.checkedInParticipants?.[authUser?.uid ?? ''] 
-          ? Object.keys(event.checkedInParticipants[authUser?.uid ?? '']).length
+      const checkedInDays = event.checkedInParticipants?.[authUser?.id ?? ''] 
+          ? Object.keys(event.checkedInParticipants[authUser?.id ?? '']).length
           : 0;
       
       const percent = (checkedInDays / totalDays) * 100;
@@ -344,7 +343,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
   const handleConfirmPayment = async () => {
     if (!confirmingRequest) return;
     
-    const dataProvider = getIsTestMode() ? mock : firestore;
+    const dataProvider = getIsTestMode() ? mock : supabaseDb;
 
     try {
       await dataProvider.updatePerDiemRequest(confirmingRequest.id, { status: 'Confirmed' });
@@ -371,7 +370,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
    };
    
    const acknowledgeAmendment = async (requestId: string) => {
-        const dataProvider = getIsTestMode() ? mock : firestore;
+        const dataProvider = getIsTestMode() ? mock : supabaseDb;
         try {
             await dataProvider.updatePerDiemRequest(requestId, { status: 'Pending' });
             fetchData();
@@ -487,7 +486,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                     const canRequest = canRequestPerDiem(event) && !hasRequestedPerDiem(event.id);
                                     
                                     const checkInToday = eventDays.find(day => isToday(day));
-                                    const isCheckedInForToday = checkInToday ? !!event.checkedInParticipants?.[authUser?.uid ?? '']?.[format(checkInToday, 'yyyy-MM-dd')] : false;
+                                    const isCheckedInForToday = checkInToday ? !!event.checkedInParticipants?.[authUser?.id ?? '']?.[format(checkInToday, 'yyyy-MM-dd')] : false;
                                     const canCheckInToday = checkInToday && !isCheckedInForToday;
 
                                     const { isOpen: isCheckinOpen, window: checkinWindow } = isCheckinOpenForEvent(event);
@@ -557,7 +556,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                     {loading ? (
                                         <TableRow><TableCell colSpan={3} className="h-24 text-center">Loading check-in data...</TableCell></TableRow>
                                     ) : myEvents.flatMap(event => 
-                                        Object.entries(event.checkedInParticipants?.[authUser?.uid ?? ''] || {})
+                                        Object.entries(event.checkedInParticipants?.[authUser?.id ?? ''] || {})
                                         .filter(([date]) => isValid(parse(date, 'yyyy-MM-dd', new Date())))
                                         .map(([date, timestamp]) => (
                                             <TableRow key={`${event.id}-${date}`}>
@@ -571,7 +570,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                         <TableRow><TableCell colSpan={3} className="h-24 text-center">You have no check-ins yet.</TableCell></TableRow>
                                     ) : (
                                         myEvents.flatMap(event => 
-                                            Object.entries(event.checkedInParticipants?.[authUser?.uid ?? ''] || {})
+                                            Object.entries(event.checkedInParticipants?.[authUser?.id ?? ''] || {})
                                                 .filter(([date]) => isValid(parse(date, 'yyyy-MM-dd', new Date())))
                                                 .sort(([dateA], [dateB]) => parse(dateB, 'yyyy-MM-dd', new Date()).getTime() - parse(dateA, 'yyyy-MM-dd', new Date()).getTime())
                                                 .map(([date, timestamp]) => (

@@ -7,7 +7,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { getAuth, onAuthStateChanged, User } from "firebase/auth";
+import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 
@@ -23,21 +23,20 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import * as firestore from '@/lib/firebase/firestore';
+import * as supabaseDb from '@/lib/supabase/database';
 import * as mock from '@/lib/mock-data';
 import { isTestMode } from '@/lib/test-mode';
 import type { Participant } from "@/lib/data";
-import app from "@/lib/firebase/config";
+import { supabase } from "@/lib/supabase/client";
 import { Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-const dataProvider = isTestMode() ? mock : firestore;
-const auth = getAuth(app);
+const dataProvider = isTestMode() ? mock : supabaseDb;
 const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
 
-// Mock User shape that is compatible with Firebase User
+// Mock User shape that is compatible with Supabase's User
 type MockUser = {
-    uid: string;
+    id: string;
 }
 
 // Form values type, making some fields optional for the form state
@@ -68,19 +67,19 @@ function Profile() {
     if (isTestMode()) {
         const testUserId = localStorage.getItem(TEST_USER_ID_KEY);
         if (testUserId) {
-            setAuthUser({ uid: testUserId });
+            setAuthUser({ id: testUserId });
         } else {
             router.push("/");
         }
     } else {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            if (user) {
-                setAuthUser(user);
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (session?.user) {
+                setAuthUser(session.user);
             } else {
                 router.push("/"); // Redirect to login if not authenticated
             }
         });
-        return () => unsubscribe();
+        return () => subscription.unsubscribe();
     }
   }, [router]);
 
@@ -89,7 +88,7 @@ function Profile() {
     async function fetchParticipantData() {
       if (authUser) {
         setLoading(true);
-        const participantData = await dataProvider.getParticipantById(authUser.uid);
+        const participantData = await dataProvider.getParticipantById(authUser.id);
         setParticipant(participantData);
         if (participantData) {
           // Once data is fetched, reset the form with the participant's details
@@ -110,7 +109,7 @@ function Profile() {
 
     setIsSaving(true);
     try {
-      await dataProvider.updateParticipant(authUser.uid, data);
+      await dataProvider.updateParticipant(authUser.id, data);
       setParticipant(prev => prev ? { ...prev, ...data } : null);
       reset(data); // Resets the form's dirty state
       toast({

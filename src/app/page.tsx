@@ -6,7 +6,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -28,10 +27,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import app from "@/lib/firebase/config";
+import { supabase } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, Suspense } from "react";
-import * as firestore from '@/lib/firebase/firestore';
+import * as supabaseDb from '@/lib/supabase/database';
 import * as mock from "@/lib/mock-data";
 import { Switch } from "@/components/ui/switch";
 import { isTestMode as getIsTestMode, setTestMode } from "@/lib/test-mode";
@@ -39,7 +38,6 @@ import { Eye, EyeOff, Loader2, Download } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import Link from "next/link";
 
-const auth = getAuth(app);
 const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
 
 /**
@@ -64,7 +62,7 @@ function LoginCard() {
   const isMobile = useIsMobile();
 
 
-  const dataProvider = getIsTestMode() ? mock : firestore;
+  const dataProvider = getIsTestMode() ? mock : supabaseDb;
 
   useEffect(() => {
     setHasMounted(true);
@@ -107,7 +105,8 @@ function LoginCard() {
         return;
     }
     try {
-      await signInWithEmailAndPassword(auth, participantEmail, participantPassword);
+      const { error } = await supabase.auth.signInWithPassword({ email: participantEmail, password: participantPassword });
+      if (error) throw error;
       router.push("/dashboard");
     } catch (error: any) {
       toast({
@@ -142,15 +141,16 @@ function LoginCard() {
         return;
     }
      try {
-      const userCredential = await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
-      const user = userCredential.user;
+      const { data, error } = await supabase.auth.signInWithPassword({ email: adminEmail, password: adminPassword });
+      if (error) throw error;
+      const user = data.user;
 
       // Check if the user has an 'Admin' role
-      const participant = await dataProvider.getParticipantById(user.uid);
+      const participant = await dataProvider.getParticipantById(user.id);
       if (participant && participant.role === 'Admin') {
         router.push("/admin");
       } else {
-        await auth.signOut(); // Sign out the user if they are not an admin
+        await supabase.auth.signOut(); // Sign out the user if they are not an admin
         throw new Error("You do not have administrative privileges.");
       }
     } catch (error: any) {
@@ -169,7 +169,10 @@ function LoginCard() {
         }
         setIsSendingReset(true);
         try {
-            await sendPasswordResetEmail(auth, resetEmail);
+            const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+                redirectTo: `${window.location.origin}/reset-password`,
+            });
+            if (error) throw error;
             toast({
                 title: "Password Reset Email Sent",
                 description: "Please check your inbox for instructions to reset your password.",

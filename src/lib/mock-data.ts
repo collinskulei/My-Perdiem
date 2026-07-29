@@ -8,7 +8,7 @@
 
 import type { Venue, PerdiemRequest, Participant, AppEvent } from './data';
 import { OUT_OF_OFFICE_RATES } from './data';
-import type { VenueData, ParticipantData, EventData, PerDiemRequestData } from './firebase/firestore';
+import type { VenueData, ParticipantData, EventData, PerDiemRequestData } from './supabase/database';
 
 const MOCK_DATA_KEY = 'perdiem-pro-mock-data';
 const TIMESTAMP_KEY = 'perdiem-pro-mock-timestamp';
