@@ -16,8 +16,6 @@ import { fileTypeFromBuffer } from "file-type";
 import type { Participant, AppEvent, PerdiemRequest, Venue } from "@/lib/data";
 import { dutyStationCoordinates, OUT_OF_OFFICE_RATES } from "@/lib/data";
 import * as supabaseDb from '@/lib/supabase/database';
-import * as mock from '@/lib/mock-data';
-import { isTestMode } from '@/lib/test-mode';
 import { supabase } from "@/lib/supabase/client";
 import { extractTicketCost } from "@/ai/flows/extract-ticket-cost-flow";
 import { useToast } from "@/hooks/use-toast";
@@ -34,13 +32,11 @@ import { Loader2, ArrowLeft, ArrowRight, Info, Upload, File as FileIcon, X } fro
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 
-const dataProvider = isTestMode() ? mock : supabaseDb;
-const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
+const dataProvider = supabaseDb;
 
 // Constants for calculations
 const MILEAGE_RATE_KSH = 45;
 
-type MockUser = { id: string };
 type PerDiemFormValues = Partial<PerdiemRequest> & {
     airTicketFile: FileList | null;
     boardingPassFile: FileList | null;
@@ -60,7 +56,7 @@ function PerDiemWizard() {
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     
-    const [authUser, setAuthUser] = useState<User | MockUser | null>(null);
+    const [authUser, setAuthUser] = useState<User | null>(null);
     const [participant, setParticipant] = useState<Participant | null>(null);
     const [event, setEvent] = useState<AppEvent | null>(null);
     const [venue, setVenue] = useState<Venue | null>(null);
@@ -83,17 +79,11 @@ function PerDiemWizard() {
 
     // --- DATA FETCHING ---
     useEffect(() => {
-        if (isTestMode()) {
-            const testUserId = localStorage.getItem(TEST_USER_ID_KEY);
-            if (testUserId) setAuthUser({ id: testUserId });
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (session?.user) setAuthUser(session.user);
             else router.push('/');
-        } else {
-            const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-                if (session?.user) setAuthUser(session.user);
-                else router.push('/');
-            });
-            return () => subscription.unsubscribe();
-        }
+        });
+        return () => subscription.unsubscribe();
     }, [router]);
 
     useEffect(() => {
@@ -277,14 +267,6 @@ const Step1 = ({ event, participant, venue }: { event: AppEvent, participant: Pa
 
     const handleTicketUpload = async (file: File) => {
         if (!file) return;
-
-        if (isTestMode()) {
-            toast({
-                title: "Test Mode",
-                description: "AI cost extraction is disabled in Test Mode. Please enter the cost manually.",
-            });
-            return;
-        }
 
         setIsExtractingCost(true);
         const reader = new FileReader();

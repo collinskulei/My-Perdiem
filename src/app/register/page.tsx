@@ -31,15 +31,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import * as supabaseDb from '@/lib/supabase/database';
-import * as mock from '@/lib/mock-data';
-import { isTestMode as checkIsTestMode } from '@/lib/test-mode';
 import type { ParticipantData } from "@/lib/supabase/database";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase/client";
 import { PlacesAutocomplete, type Place } from "@/components/places-autocomplete";
 
 
-const dataProvider = checkIsTestMode() ? mock : supabaseDb;
+const dataProvider = supabaseDb;
 
 
 /**
@@ -55,8 +53,6 @@ function RegistrationWizard() {
   const [otherDesignation, setOtherDesignation] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const isTestMode = checkIsTestMode();
-
 
   /**
    * Handles input changes and updates the form data state.
@@ -191,10 +187,6 @@ function RegistrationWizard() {
           title: "Registration Successful",
           description: `Your participant account has been created.`,
       });
-
-      if (isTestMode) {
-          localStorage.setItem('perdiem-pro-test-user-id', user.id);
-      }
 
       router.push("/dashboard");
 

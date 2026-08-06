@@ -1,9 +1,9 @@
 /**
- * @file This file handles the initialization of the Supabase client.
- * It reads Supabase configuration from environment variables and ensures that
- * only a single client instance is created (singleton pattern).
+ * @file This file handles the initialization of the browser-side Supabase client.
+ * It uses the cookie-backed @supabase/ssr client (rather than localStorage) so that
+ * the session is also visible to Server Components and middleware.
  */
-import { createClient } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr';
 
 if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
   console.error(
@@ -11,7 +11,7 @@ if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_A
   );
 }
 
-export const supabase = createClient(
+export const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
 );

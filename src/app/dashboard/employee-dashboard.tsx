@@ -42,26 +42,16 @@ import { Progress } from "@/components/ui/progress";
 import type { PerdiemRequest, Participant, AppEvent, Venue } from "@/lib/data";
 import { dutyStationCoordinates, MILEAGE_RATE_KSH, OUT_OF_OFFICE_RATES } from "@/lib/data";
 import * as supabaseDb from '@/lib/supabase/database';
-import * as mock from '@/lib/mock-data';
-import { isTestMode as getIsTestMode } from '@/lib/test-mode';
 import { supabase } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { SuccessDialog } from "@/components/success-dialog";
-import { MapPin, Loader2, Check, LocateFixed, Wallet, Clock, AlertTriangle, Info } from "lucide-react";
+import { MapPin, Loader2, Check, Wallet, Clock, AlertTriangle, Info } from "lucide-react";
 import { cn, formatCurrency, getHaversineDistance } from "@/lib/utils";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
-import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ClientOnly } from "@/components/client-only";
 import { Input } from "@/components/ui/input";
 
-
-const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
-
-// Mock User shape that is compatible with Supabase's User
-type MockUser = {
-    id: string;
-}
 
 const ANALYTICS_COLORS = {
   Pending: '#f97316', // orange-500
@@ -78,17 +68,14 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<Participant | null>(null);
-  const [authUser, setAuthUser] = useState<User | MockUser | null>(null);
+  const [authUser, setAuthUser] = useState<User | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<string | null>(null); // Tracks eventId-date string
   const [isSuccess, setIsSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState({ title: "", description: "" });
   const { toast, dismiss } = useToast();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState(currentTab);
-  const [isTestMode, setIsTestMode] = useState(false);
-  const [bypassLocationCheck, setBypassLocationCheck] = useState(true);
-  const [bypassTimeCheck, setBypassTimeCheck] = useState(true);
-  
+
   // State for Confirm Payment dialog
   const [isConfirmingPayment, setIsConfirmingPayment] = useState(false);
   const [confirmingRequest, setConfirmingRequest] = useState<PerdiemRequest | null>(null);
@@ -96,29 +83,18 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
   const { latitude, longitude, error: geoError, getPosition, loading: geoLoading } = useGeolocation();
 
   useEffect(() => {
-    const testMode = getIsTestMode();
-    setIsTestMode(testMode);
-    if (testMode) {
-        const testUserId = localStorage.getItem(TEST_USER_ID_KEY);
-        if (testUserId) {
-            setAuthUser({ id: testUserId });
-        } else {
-            setLoading(false);
-        }
-    } else {
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setAuthUser(session?.user ?? null);
-        });
-        return () => subscription.unsubscribe();
-    }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        setAuthUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
   const fetchData = useCallback(async () => {
       if (!authUser) return;
 
       setLoading(true);
-      const dataProvider = getIsTestMode() ? mock : supabaseDb;
-      
+      const dataProvider = supabaseDb;
+
       try {
         const [userData, requests, eventsData, venuesData] = await Promise.all([
           dataProvider.getParticipantById(authUser.id),
@@ -158,10 +134,6 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
   }, [currentTab]);
   
   const isCheckinOpenForEvent = (event: AppEvent): { isOpen: boolean, window: string } => {
-    if (isTestMode && bypassTimeCheck) {
-        return { isOpen: true, window: 'Bypassed' };
-    }
-
     const now = new Date();
     const startTimeStr = event.checkinStartTime || '10:00';
     const endTimeStr = event.checkinEndTime || '17:00';
@@ -180,20 +152,14 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
     if (!authUser) return;
     const dateString = format(date, 'yyyy-MM-dd');
     setIsSubmitting(`${event.id}-${dateString}`);
-    
-    // In test mode with bypass on, or if location is already verified, proceed directly.
-    if (isTestMode && bypassLocationCheck) {
-      proceedWithCheckIn(event.id, authUser.id, dateString);
-      return;
-    }
 
     toast({ title: "Verifying Location", description: "Please wait while we check your location..." });
     // Trigger a fresh position check
-    getPosition(); 
+    getPosition();
   };
-  
+
   const proceedWithCheckIn = useCallback(async (eventId: string, userId: string, dateString: string) => {
-     const dataProvider = getIsTestMode() ? mock : supabaseDb;
+     const dataProvider = supabaseDb;
      try {
         await dataProvider.checkInToEvent(eventId, userId, dateString);
         setSuccessMessage({ title: "Check-in Successful!", description: `Your check-in for ${dateString} has been recorded.` });
@@ -220,7 +186,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
 
   useEffect(() => {
     const activeSubmission = isSubmitting;
-    if (!activeSubmission || (isTestMode && bypassLocationCheck) || latitude === null || longitude === null) return;
+    if (!activeSubmission || latitude === null || longitude === null) return;
     
     const [eventId, dateString] = activeSubmission.split('-');
     
@@ -263,7 +229,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
     
     checkLocationAndProceed();
 
-  }, [latitude, longitude, geoError, isSubmitting, myEvents, authUser, toast, proceedWithCheckIn, isTestMode, venues, bypassLocationCheck]);
+  }, [latitude, longitude, geoError, isSubmitting, myEvents, authUser, toast, proceedWithCheckIn, venues]);
 
 
   const handleRequestPerDiem = (event: AppEvent) => {
@@ -342,8 +308,8 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
 
   const handleConfirmPayment = async () => {
     if (!confirmingRequest) return;
-    
-    const dataProvider = getIsTestMode() ? mock : supabaseDb;
+
+    const dataProvider = supabaseDb;
 
     try {
       await dataProvider.updatePerDiemRequest(confirmingRequest.id, { status: 'Confirmed' });
@@ -370,7 +336,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
    };
    
    const acknowledgeAmendment = async (requestId: string) => {
-        const dataProvider = getIsTestMode() ? mock : supabaseDb;
+        const dataProvider = supabaseDb;
         try {
             await dataProvider.updatePerDiemRequest(requestId, { status: 'Pending' });
             fetchData();
@@ -395,31 +361,9 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                 <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Welcome Back, {getFirstName(currentUser?.name)}!</h1>
                 <p className="text-muted-foreground">Here's an overview of your events and requests.</p>
             </div>
-             {isTestMode && (
-                <div className="flex items-center space-x-4 rounded-lg border p-3 bg-card self-start sm:self-center">
-                    <div className="flex items-center space-x-2">
-                        <Clock className="h-5 w-5 text-muted-foreground" />
-                        <Label htmlFor="time-bypass" className="text-sm font-medium">Bypass Time</Label>
-                        <Switch
-                            id="time-bypass"
-                            checked={bypassTimeCheck}
-                            onCheckedChange={setBypassTimeCheck}
-                        />
-                    </div>
-                     <div className="flex items-center space-x-2">
-                        <LocateFixed className="h-5 w-5 text-muted-foreground" />
-                        <Label htmlFor="location-bypass" className="text-sm font-medium">Bypass Location</Label>
-                        <Switch
-                            id="location-bypass"
-                            checked={bypassLocationCheck}
-                            onCheckedChange={setBypassLocationCheck}
-                        />
-                    </div>
-                </div>
-            )}
         </div>
-        
-        {geoError && !isTestMode && (
+
+        {geoError && (
             <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>Location Services Required</AlertTitle>
@@ -481,7 +425,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                       distance = getHaversineDistance(latitude, longitude, eventVenue.latitude, eventVenue.longitude);
                                     }
                                     
-                                    const isInRange = (isTestMode && bypassLocationCheck) || (distance !== -1 && distance <= 1000);
+                                    const isInRange = distance !== -1 && distance <= 1000;
                                     
                                     const canRequest = canRequestPerDiem(event) && !hasRequestedPerDiem(event.id);
                                     
@@ -498,7 +442,6 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                             <TableCell className="whitespace-nowrap">{(event.eventDates || []).join(', ')}</TableCell>
                                             <TableCell>
                                               {geoLoading ? ( <Badge variant="outline">Checking...</Badge>
-                                              ) : isTestMode && bypassLocationCheck ? ( <Badge className="bg-blue-500 hover:bg-blue-600">Bypassed</Badge>
                                               ) : distance === -1 ? ( <Badge variant="outline">Unknown</Badge>
                                               ) : isInRange ? ( <Badge className="bg-green-500 hover:bg-green-600">In Range</Badge>
                                               ) : ( <Badge variant="destructive">{(distance / 1000).toFixed(1)} km away</Badge> )}
@@ -514,7 +457,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                                      <Badge variant="secondary">Requested</Badge>
                                                    ) : canCheckInToday ? (
                                                         isCheckinOpen ? (
-                                                            <Button size="sm" onClick={() => handleCheckIn(event, checkInToday)} disabled={!isInRange || !!isSubmitting || (geoError && !isTestMode)} className="whitespace-nowrap">
+                                                            <Button size="sm" onClick={() => handleCheckIn(event, checkInToday)} disabled={!isInRange || !!isSubmitting || !!geoError} className="whitespace-nowrap">
                                                                 {isSubmitting === `${event.id}-${format(checkInToday, 'yyyy-MM-dd')}` ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <MapPin className="mr-2 h-4 w-4" />}
                                                                 Check-in Today
                                                             </Button>

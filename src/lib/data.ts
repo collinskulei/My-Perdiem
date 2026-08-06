@@ -1,9 +1,24 @@
 
 
 /**
- * @file This file contains mock data and type definitions for the application.
- * It serves as a temporary in-memory database for participants, venues, and per diem requests.
+ * @file This file contains type definitions for the application's core domain objects.
  */
+
+/**
+ * The 4-tier access hierarchy: master_admin (the firm's developer) > super_admin
+ * (firm staff) > client_admin (scoped to one client) > client_user (a client's
+ * end participant, unaffected by the admin hierarchy).
+ */
+export type AccessTier = 'master_admin' | 'super_admin' | 'client_admin' | 'client_user';
+
+/**
+ * Represents a client organization the firm serves. Master/Super Admins are
+ * firm-wide (clientId is null); Client Admins/Users belong to exactly one client.
+ */
+export type Client = {
+  id: string;
+  name: string;
+};
 
 /**
  * Represents an participant in the system.
@@ -14,7 +29,9 @@ export type Participant = {
   phoneNumber: string;
   idNumber: string;
   participantNumber?: string;
-  role: string; // This corresponds to 'designation' in the registration form
+  designation: string; // Job title, set at registration; distinct from accessTier
+  accessTier: AccessTier;
+  clientId: string | null; // null for master_admin/super_admin, set for client_admin/client_user
   dutyStation?: string;
   avatarUrl: string;
   email: string;
@@ -39,6 +56,7 @@ export type Venue = {
  */
 export type AppEvent = {
   id: string;
+  clientId: string;
   name: string;
   createdAt: string; // ISO date string
   eventDates: string[]; // Array of 'yyyy-MM-dd' strings
@@ -62,6 +80,7 @@ export type AppEvent = {
  */
 export type PerdiemRequest = {
   id: string;
+  clientId: string;
   participantId: string;
   participantName: string;
   eventId: string;
@@ -102,19 +121,6 @@ export const dutyStationCoordinates: { [key: string]: { latitude: number, longit
   "Kisumu": { latitude: -0.091702, longitude: 34.767956 },
   "Nakuru": { latitude: -0.303099, longitude: 36.080025 },
 };
-
-/**
- * Mock data for venues. Includes a special "Test Venue" for easy check-in during development.
- * This data should be seeded into the Supabase 'venues' table.
- */
-export const venues: Venue[] = [
-  { id: "venue-test-001", name: "Test Venue (for Check-in)", city: "Test City", county: "Test County", latitude: 0, longitude: 0 },
-  { id: "venue-nrb-001", name: "Sarova Stanley", city: "Nairobi", county: "Nairobi", latitude: -1.2833, longitude: 36.8219 },
-  { id: "venue-nrb-002", name: "Villa Rosa Kempinski", city: "Nairobi", county: "Nairobi", latitude: -1.2721, longitude: 36.8095 },
-  { id: "venue-nrb-003", name: "Nairobi Serena Hotel", city: "Nairobi", county: "Nairobi", latitude: -1.2882, longitude: 36.8166 },
-  { id: "venue-nrb-004", name: "Sankara Nairobi, Autograph Collection", city: "Nairobi", county: "Nairobi", latitude: -1.2652, longitude: 36.8078 },
-];
-
 
 // Constants for calculations
 export const MILEAGE_RATE_KSH = 45;

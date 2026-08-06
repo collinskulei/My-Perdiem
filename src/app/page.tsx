@@ -31,14 +31,9 @@ import { supabase } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, Suspense } from "react";
 import * as supabaseDb from '@/lib/supabase/database';
-import * as mock from "@/lib/mock-data";
-import { Switch } from "@/components/ui/switch";
-import { isTestMode as getIsTestMode, setTestMode } from "@/lib/test-mode";
 import { Eye, EyeOff, Loader2, Download } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import Link from "next/link";
-
-const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
 
 /**
  * The main interactive component for the login page, featuring separate tabs for participant and admin login.
@@ -51,35 +46,20 @@ function LoginCard() {
   const [participantPassword, setParticipantPassword] = useState("");
   const [adminEmail, setAdminEmail] = useState("admin@example.com");
   const [adminPassword, setAdminPassword] = useState("password");
-  const [testMode, setTestModeState] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  
+
   // State for password reset
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [isSendingReset, setIsSendingReset] = useState(false);
   const isMobile = useIsMobile();
 
-
-  const dataProvider = getIsTestMode() ? mock : supabaseDb;
+  const dataProvider = supabaseDb;
 
   useEffect(() => {
     setHasMounted(true);
-    const currentTestMode = getIsTestMode();
-    setTestModeState(currentTestMode);
-    if (currentTestMode) {
-      // Clear any previous test session on login page load
-      localStorage.removeItem(TEST_USER_ID_KEY);
-    }
   }, []);
-
-  const handleTestModeChange = (checked: boolean) => {
-    setTestMode(checked);
-    setTestModeState(checked);
-    window.location.reload(); 
-  };
-
 
   /**
    * Handles the participant login form submission.
@@ -88,22 +68,6 @@ function LoginCard() {
    */
   const handleParticipantLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (getIsTestMode()) {
-        const mockUsers = await mock.getParticipants();
-        // In test mode, log in as the first available non-admin user
-        const user = mockUsers.find(u => u.role !== 'Admin');
-        if (user) {
-            localStorage.setItem(TEST_USER_ID_KEY, user.id);
-            router.push("/dashboard");
-        } else {
-            toast({
-                title: "Login Failed",
-                description: "No mock participant found.",
-                variant: "destructive",
-            });
-        }
-        return;
-    }
     try {
       const { error } = await supabase.auth.signInWithPassword({ email: participantEmail, password: participantPassword });
       if (error) throw error;
@@ -124,22 +88,6 @@ function LoginCard() {
    */
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (getIsTestMode()) {
-        const mockUsers = await mock.getParticipants();
-        // In test mode, log in as the first available admin user
-        const user = mockUsers.find(u => u.role === 'Admin');
-        if (user) {
-            localStorage.setItem(TEST_USER_ID_KEY, user.id);
-            router.push("/admin");
-        } else {
-            toast({
-                title: "Login Failed",
-                description: "No mock admin found.",
-                variant: "destructive",
-            });
-        }
-        return;
-    }
      try {
       const { data, error } = await supabase.auth.signInWithPassword({ email: adminEmail, password: adminPassword });
       if (error) throw error;
@@ -235,50 +183,42 @@ function LoginCard() {
             <TabsContent value="participant">
               <form onSubmit={handleParticipantLogin}>
                 <div className="space-y-4 py-4">
-                  {!testMode ? (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="participant-email">Email</Label>
-                        <Input
-                          id="participant-email"
-                          type="email"
-                          placeholder="email@example.com"
-                          required
-                          value={participantEmail}
-                          onChange={(e) => setParticipantEmail(e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2 relative">
-                        <div className="flex items-center justify-between">
-                            <Label htmlFor="password">Password</Label>
-                             <button type="button" onClick={() => { setResetEmail(participantEmail); setIsResetDialogOpen(true); }} className="text-xs text-primary underline-offset-4 hover:underline">
-                                Forgot Password?
-                             </button>
-                        </div>
-                        <Input
-                          id="password"
-                          type={showPassword ? "text" : "password"}
-                          required
-                          value={participantPassword}
-                          onChange={(e) => setParticipantPassword(e.target.value)}
-                        />
-                         <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="absolute right-1 top-7 h-7 w-7"
-                          onClick={() => setShowPassword(!showPassword)}
-                        >
-                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          <span className="sr-only">{showPassword ? 'Hide password' : 'Show password'}</span>
-                        </Button>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-center text-sm text-muted-foreground py-8">
-                      Click below to log in as a test participant.
+                  <div className="space-y-2">
+                    <Label htmlFor="participant-email">Email</Label>
+                    <Input
+                      id="participant-email"
+                      type="email"
+                      placeholder="email@example.com"
+                      required
+                      value={participantEmail}
+                      onChange={(e) => setParticipantEmail(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2 relative">
+                    <div className="flex items-center justify-between">
+                        <Label htmlFor="password">Password</Label>
+                         <button type="button" onClick={() => { setResetEmail(participantEmail); setIsResetDialogOpen(true); }} className="text-xs text-primary underline-offset-4 hover:underline">
+                            Forgot Password?
+                         </button>
                     </div>
-                  )}
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      required
+                      value={participantPassword}
+                      onChange={(e) => setParticipantPassword(e.target.value)}
+                    />
+                     <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-1 top-7 h-7 w-7"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      <span className="sr-only">{showPassword ? 'Hide password' : 'Show password'}</span>
+                    </Button>
+                  </div>
                 </div>
                 <Button type="submit" className="w-full">
                   Login as Participant
@@ -288,50 +228,42 @@ function LoginCard() {
             <TabsContent value="admin">
               <form onSubmit={handleAdminLogin}>
                 <div className="space-y-4 py-4">
-                   {!testMode ? (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="admin-email">Email</Label>
-                        <Input
-                          id="admin-email"
-                          type="email"
-                          placeholder="admin@example.com"
-                          required
-                          value={adminEmail}
-                          onChange={(e) => setAdminEmail(e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2 relative">
-                         <div className="flex items-center justify-between">
-                            <Label htmlFor="admin-password">Password</Label>
-                             <button type="button" onClick={() => { setResetEmail(adminEmail); setIsResetDialogOpen(true); }} className="text-xs text-primary underline-offset-4 hover:underline">
-                                Forgot Password?
-                             </button>
-                        </div>
-                        <Input
-                          id="admin-password"
-                          type={showPassword ? "text" : "password"}
-                          required
-                          value={adminPassword}
-                          onChange={(e) => setAdminPassword(e.target.value)}
-                        />
-                         <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="absolute right-1 top-7 h-7 w-7"
-                          onClick={() => setShowPassword(!showPassword)}
-                        >
-                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          <span className="sr-only">{showPassword ? 'Hide password' : 'Show password'}</span>
-                        </Button>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-center text-sm text-muted-foreground py-8">
-                      Click below to log in as a test admin.
+                  <div className="space-y-2">
+                    <Label htmlFor="admin-email">Email</Label>
+                    <Input
+                      id="admin-email"
+                      type="email"
+                      placeholder="admin@example.com"
+                      required
+                      value={adminEmail}
+                      onChange={(e) => setAdminEmail(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2 relative">
+                     <div className="flex items-center justify-between">
+                        <Label htmlFor="admin-password">Password</Label>
+                         <button type="button" onClick={() => { setResetEmail(adminEmail); setIsResetDialogOpen(true); }} className="text-xs text-primary underline-offset-4 hover:underline">
+                            Forgot Password?
+                         </button>
                     </div>
-                  )}
+                    <Input
+                      id="admin-password"
+                      type={showPassword ? "text" : "password"}
+                      required
+                      value={adminPassword}
+                      onChange={(e) => setAdminPassword(e.target.value)}
+                    />
+                     <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-1 top-7 h-7 w-7"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      <span className="sr-only">{showPassword ? 'Hide password' : 'Show password'}</span>
+                    </Button>
+                  </div>
                 </div>
                 <Button type="submit" className="w-full">
                   Login as Admin
@@ -349,10 +281,6 @@ function LoginCard() {
                     </Link>
                 </Button>
             )}
-            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-              <Switch id="test-mode" checked={testMode} onCheckedChange={handleTestModeChange} />
-              <Label htmlFor="test-mode">Test Mode</Label>
-            </div>
             <div className="text-sm text-muted-foreground">
               <p>
                 Don't have an account?&nbsp;

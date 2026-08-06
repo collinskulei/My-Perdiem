@@ -5,7 +5,7 @@
  * (see ../data.ts) and the database's snake_case columns.
  */
 import { supabase } from './client';
-import type { Venue, PerdiemRequest, Participant, AppEvent } from '../data';
+import type { Venue, PerdiemRequest, Participant, AppEvent, AccessTier, Client } from '../data';
 
 // --- Generic camelCase <-> snake_case row mapping ---
 
@@ -35,7 +35,9 @@ const PARTICIPANT_FIELDS: FieldMap = {
   phoneNumber: 'phone_number',
   idNumber: 'id_number',
   participantNumber: 'participant_number',
-  role: 'role',
+  designation: 'designation',
+  accessTier: 'access_tier',
+  clientId: 'client_id',
   dutyStation: 'duty_station',
   avatarUrl: 'avatar_url',
   email: 'email',
@@ -45,6 +47,7 @@ const PARTICIPANT_FIELDS: FieldMap = {
 
 const EVENT_FIELDS: FieldMap = {
   id: 'id',
+  clientId: 'client_id',
   name: 'name',
   createdAt: 'created_at',
   eventDates: 'event_dates',
@@ -64,6 +67,7 @@ const EVENT_FIELDS: FieldMap = {
 
 const REQUEST_FIELDS: FieldMap = {
   id: 'id',
+  clientId: 'client_id',
   participantId: 'participant_id',
   participantName: 'participant_name',
   eventId: 'event_id',
@@ -170,8 +174,12 @@ export const getParticipantById = async (uid: string): Promise<Participant | nul
 
 /**
  * The data required to create a new participant, excluding the auto-generated ID.
+ * `accessTier` is optional - self-registration always creates a `client_user` (the
+ * database default and the only value the insert policy allows for a self-signup).
  */
-export type ParticipantData = Omit<Participant, 'id' | 'avatarUrl'>;
+export type ParticipantData = Omit<Participant, 'id' | 'avatarUrl' | 'accessTier'> & {
+  accessTier?: AccessTier;
+};
 
 /**
  * Adds a new participant or admin row to the 'participants' table.
@@ -491,6 +499,65 @@ export const markEventAsPaid = async (eventId: string, transactionCode: string):
     .update({ status: 'Paid', transaction_code: transactionCode })
     .eq('event_id', eventId)
     .eq('status', 'Approved');
+  if (error) {
+    throw error;
+  }
+};
+
+// --- CLIENTS TABLE ---
+
+/**
+ * Fetches all clients visible to the caller (Master/Super Admins see all;
+ * RLS returns nothing for Client Admins/Users, who don't need this list).
+ * @returns {Promise<Client[]>}
+ */
+export const getClients = async (): Promise<Client[]> => {
+  const { data, error } = await supabase.from('clients').select('id, name').order('name');
+  if (error) {
+    console.error("Error fetching clients: ", error);
+    return [];
+  }
+  return (data ?? []) as Client[];
+};
+
+/**
+ * Looks up a client's display name by ID without requiring an authenticated
+ * session or client-membership - used to validate a registration invite link
+ * before the user has signed up. Backed by a SECURITY DEFINER RPC.
+ * @param {string} clientId - The client ID from the registration link.
+ * @returns {Promise<string | null>} The client's name, or null if the ID is invalid/archived.
+ */
+export const getPublicClientName = async (clientId: string): Promise<string | null> => {
+  const { data, error } = await supabase.rpc('get_public_client_name', { target_client: clientId });
+  if (error) {
+    console.error("Error looking up client: ", error);
+    return null;
+  }
+  return data ?? null;
+};
+
+// --- ACCESS TIER RPC ---
+
+/**
+ * Changes a participant's access tier (and, for client-scoped tiers, their
+ * client). This is the only legal way to change either column - direct
+ * INSERT/UPDATE of `access_tier`/`client_id` is blocked by a database trigger.
+ * The database RPC itself enforces who can assign what (see 0003_tenancy_and_tiers.sql).
+ * @param {string} targetParticipantId - The participant whose tier is changing.
+ * @param {AccessTier} newTier - The tier to assign.
+ * @param {string} [newClientId] - Required when assigning client_admin/client_user.
+ * @returns {Promise<void>}
+ */
+export const setAccessTier = async (
+  targetParticipantId: string,
+  newTier: AccessTier,
+  newClientId?: string
+): Promise<void> => {
+  const { error } = await supabase.rpc('set_access_tier', {
+    target_participant: targetParticipantId,
+    new_tier: newTier,
+    new_client_id: newClientId ?? null,
+  });
   if (error) {
     throw error;
   }

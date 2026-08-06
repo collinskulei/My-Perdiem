@@ -5,9 +5,6 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { Loader2 } from "lucide-react";
-import { isTestMode } from "@/lib/test-mode";
-
-const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
 
 export default function CheckinRedirectPage() {
     const router = useRouter();
@@ -23,22 +20,6 @@ export default function CheckinRedirectPage() {
             return;
         }
         
-        // Handle Test Mode
-        if (isTestMode()) {
-            const testUserId = localStorage.getItem(TEST_USER_ID_KEY);
-            if (testUserId) {
-                // In test mode and a test user is "logged in"
-                setStatus("Redirecting to dashboard...");
-                router.replace(`/dashboard?tab=events&eventId=${eventId}`);
-            } else {
-                // In test mode, but no user session
-                setStatus("Redirecting to registration...");
-                router.replace('/register');
-            }
-            return;
-        }
-
-        // Handle Live Mode
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             if (session?.user) {
                 // User is logged in

@@ -91,8 +91,6 @@ import { OUT_OF_OFFICE_RATES, dutyStationCoordinates } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import * as supabaseDb from '@/lib/supabase/database';
 import * as storage from '@/lib/supabase/storage';
-import * as mock from '@/lib/mock-data';
-import { isTestMode } from '@/lib/test-mode';
 import { cn, formatCurrency, getHaversineDistance } from "@/lib/utils";
 import { ClientOnly } from "@/components/client-only";
 import { PerDiemBalanceCard } from "@/app/dashboard/employee-dashboard";
@@ -100,7 +98,7 @@ import { Separator } from "@/components/ui/separator";
 import { PlacesAutocomplete, type Place } from "@/components/places-autocomplete";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-const dataProvider = isTestMode() ? mock : supabaseDb;
+const dataProvider = supabaseDb;
 
 const kenyanCounties = [
     "Mombasa", "Kwale", "Kilifi", "Tana River", "Lamu", "Taita-Taveta", "Garissa", "Wajir",

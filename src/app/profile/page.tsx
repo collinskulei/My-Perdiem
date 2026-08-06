@@ -24,20 +24,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import * as supabaseDb from '@/lib/supabase/database';
-import * as mock from '@/lib/mock-data';
-import { isTestMode } from '@/lib/test-mode';
 import type { Participant } from "@/lib/data";
 import { supabase } from "@/lib/supabase/client";
 import { Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-const dataProvider = isTestMode() ? mock : supabaseDb;
-const TEST_USER_ID_KEY = 'perdiem-pro-test-user-id';
-
-// Mock User shape that is compatible with Supabase's User
-type MockUser = {
-    id: string;
-}
+const dataProvider = supabaseDb;
 
 // Form values type, making some fields optional for the form state
 type ProfileFormValues = Omit<Participant, "id" | "avatarUrl" | "email">;
@@ -48,7 +40,7 @@ type ProfileFormValues = Omit<Participant, "id" | "avatarUrl" | "email">;
  * @returns {JSX.Element} The rendered profile page.
  */
 function Profile() {
-  const [authUser, setAuthUser] = useState<User | MockUser | null>(null);
+  const [authUser, setAuthUser] = useState<User | null>(null);
   const [participant, setParticipant] = useState<Participant | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -64,23 +56,14 @@ function Profile() {
 
   // Authenticate user
   useEffect(() => {
-    if (isTestMode()) {
-        const testUserId = localStorage.getItem(TEST_USER_ID_KEY);
-        if (testUserId) {
-            setAuthUser({ id: testUserId });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (session?.user) {
+            setAuthUser(session.user);
         } else {
-            router.push("/");
+            router.push("/"); // Redirect to login if not authenticated
         }
-    } else {
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            if (session?.user) {
-                setAuthUser(session.user);
-            } else {
-                router.push("/"); // Redirect to login if not authenticated
-            }
-        });
-        return () => subscription.unsubscribe();
-    }
+    });
+    return () => subscription.unsubscribe();
   }, [router]);
 
   // Fetch participant data once authenticated
