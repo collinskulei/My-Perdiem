@@ -1,0 +1,34 @@
+{
+  "placeholderImages": [
+    {
+      "id": "user-avatar-1",
+      "description": "User avatar for John Doe",
+      "imageUrl": "https://picsum.photos/seed/10/100/100",
+      "imageHint": "man portrait"
+    },
+    {
+      "id": "user-avatar-2",
+      "description": "User avatar for Jane Smith",
+      "imageUrl": "https://picsum.photos/seed/11/100/100",
+      "imageHint": "woman portrait"
+    },
+    {
+      "id": "user-avatar-3",
+      "description": "User avatar for Alex Johnson",
+      "imageUrl": "https://picsum.photos/seed/12/100/100",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "user-avatar-4",
+      "description": "User avatar for Emily White",
+      "imageUrl": "https://picsum.photos/seed/13/100/100",
+      "imageHint": "woman face"
+    },
+    {
+      "id": "user-avatar-5",
+      "description": "User avatar for Michael Brown",
+      "imageUrl": "https://picsum.photos/seed/14/100/100",
+      "imageHint": "man face"
+    }
+  ]
+}
