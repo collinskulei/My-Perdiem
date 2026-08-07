@@ -29,7 +29,7 @@ Repurposed `health/page.tsx` into a plain Supabase diagnostics page (no more
 Test/Live mode toggle). Verified no `testmode|mock-data|TEST_USER_ID` strings
 remain anywhere in `src/` or `supabase/`.
 
-## Milestone 2 — Multi-tenant schema, 4-tier roles, self-promotion hardening — 🟡 MOSTLY DONE, two things left
+## Milestone 2 — Multi-tenant schema, 4-tier roles, self-promotion hardening — ✅ DONE
 
 **Locked-in decisions (don't re-litigate):**
 - 4 tiers: `master_admin` > `super_admin` > `client_admin` > `client_user`.
@@ -83,38 +83,52 @@ remain anywhere in `src/` or `supabase/`.
 - Confirmed via grep: zero remaining `.role`/`role === 'Admin'` references
   anywhere in `src/`.
 
-**What's NOT done — pick up here:**
+**Both remaining items closed out on 2026-08-08:**
 
-1. **The migration has not been confirmed applied to the live Supabase
-   project.** No `supabase/config.toml` exists (project isn't linked via
-   CLI), and `.env` has no service-role key, so there's no artifact proving
-   `0003_tenancy_and_tiers.sql` ran against the real database. Before
-   touching anything else: open the Supabase SQL Editor for this project
-   (`https://wazhmieccntaoqiumchp.supabase.co`) and check whether
-   `public.access_tier` (enum) and `public.clients` already exist. If not,
-   run `0003_tenancy_and_tiers.sql` there (or `npx supabase link --project-ref
-   wazhmieccntaoqiumchp` then `npx supabase db push`, logging in first).
-   **Read the migration file first** — it hardcodes the master-admin seed
-   email and the placeholder client UUID above; re-running it is idempotent
-   (`if not exists` / `on conflict do nothing` guards throughout) so it's
-   safe to run again if unsure.
-2. **`src/app/admin/layout.tsx` still has no server-side route guard.** This
-   was the explicit last item in the plan's Milestone 2 scope ("today there is
-   NONE beyond the login-time check") and hasn't been done. Use
-   `createSupabaseServerClient()` from `src/lib/supabase/server.ts` inside
-   `admin/layout.tsx` (a Server Component): get the session, look up the
-   participant's `access_tier`, and `redirect('/')` if there's no session or
-   `access_tier === 'client_user'`.
-
-**Before calling Milestone 2 done**, also: run `npm run typecheck` and
-`npm run dev` fresh (a typecheck attempt in one session hit an out-of-memory
-crash in that particular sandbox — inconclusive, re-run somewhere with more
-headroom rather than trusting that result), and manually verify: a
-`client_user` can't reach `/admin`; a direct Supabase `PATCH` of
-`access_tier` is rejected; `set_access_tier()` enforces the hierarchy
-end-to-end (self-target rejected, super_admin can't touch super_admin/
-master_admin rows, etc.); registering via a bad/missing `?client=` link is
-blocked client-side (and would be rejected server-side by RLS regardless).
+1. **Migration confirmed applied to the live project.** Verified from outside
+   via PostgREST probes with the anon key: `public.clients` resolves (was
+   `PGRST205` before), `participants.access_tier`/`designation`/`client_id`
+   resolve (were `42703` before), old `participants.role` column is gone
+   (rename confirmed). Before applying it, the master-admin account
+   (`collins.kulei@iacentre.co.ke`) didn't exist yet in `auth.users` or
+   `participants` — created it directly via the Auth REST API
+   (`/auth/v1/signup`) plus a matching `participants` insert (old-schema
+   shape, since this was pre-migration), since the deployed app's
+   register page already assumed the new schema and would not have worked.
+   One hiccup: the chosen `id_number` collided with a stray pre-existing
+   participants row (unrelated email) — deleted that row manually via the
+   SQL Editor before the insert succeeded. After running the migration,
+   confirmed via an authenticated REST call as that user:
+   `access_tier = 'master_admin'`, `client_id = null`, and it can read the
+   `clients` table (proves the RLS tier check, not just the column value).
+2. **`src/app/admin/layout.tsx` now has the server-side guard.** Converted to
+   an async Server Component: calls `createSupabaseServerClient()`, uses
+   `supabase.auth.getUser()` (not `getSession()` — revalidates against the
+   auth server rather than trusting a locally-decoded JWT), looks up
+   `access_tier` for that user's `participants` row, and `redirect('/')` if
+   there's no user or `access_tier === 'client_user'`. Verified with
+   `npm run typecheck` (clean — only pre-existing, unrelated errors remain:
+   a couple of shadcn component type quirks, one loose `null`/`undefined`
+   mismatch in the per-diem submit payload, Next 15's async-`searchParams`
+   `.next/types` noise — none block `next build`, which still succeeds) and
+   `npm run build`. Manually verified end-to-end:
+   - Unauthenticated `curl` to `/admin` → `307` to `/`, confirmed at the HTTP
+     level before any client JS runs.
+   - A direct `PATCH .../participants?id=eq.<self>` setting `access_tier`
+     → rejected by the `guard_participant_privilege_columns` trigger
+     (`P0001: access_tier/client_id can only change via
+     public.set_access_tier()`).
+   - `set_access_tier()` targeting yourself → rejected
+     (`P0001: Cannot change your own access tier`).
+   - **Not yet exercised for real** (no browser tool was available this
+     session, and there's only one participant account to test with so far):
+     a logged-in non-`client_user` actually loading `/admin` past the guard
+     in a real browser session, and the full tier hierarchy
+     (`super_admin` blocked from touching `master_admin`/`super_admin` rows,
+     restricted to assigning `client_admin`/`client_user` only) — this needs
+     more than one account to exercise meaningfully, which Milestone 3's
+     invite flow will naturally create. Worth a quick manual click-through
+     once you're at a machine with a browser, but not considered blocking.
 
 ## Milestone 3 — Admin-management console + first server-side Supabase code — ⬜ NOT STARTED
 
@@ -150,7 +164,14 @@ token (confirmed workable - see the JWT signing note above). Needs
 
 ## Suggested next session prompt
 
-"Continue Milestone 2: confirm/apply `supabase/migrations/0003_tenancy_and_tiers.sql`
-against the live project, then add the server-side `/admin` route guard in
-`src/app/admin/layout.tsx` using `createSupabaseServerClient()`. Verify with a
-fresh typecheck + manual RLS/route-guard checks, then move to Milestone 3."
+"Start Milestone 3: admin-management console + first server-side Supabase
+code. Add `SUPABASE_SERVICE_ROLE_KEY` to `.env`, create
+`src/lib/supabase/admin-server.ts` (service-role client, server-only), add
+Route Handlers under `src/app/api/admin/invite-*` using
+`supabase.auth.admin.inviteUserByEmail()`, and build the console UI for
+Master Admin → add Super Admins, Super Admin → add/manage Clients and
+Client Admins. This is also the natural point to exercise the tier hierarchy
+for real (a second/third account finally exists to test `set_access_tier()`
+cross-tier rules against) and to click through `/admin` as a logged-in
+non-`client_user` in a real browser, closing the one manual check Milestone 2
+left unexercised."

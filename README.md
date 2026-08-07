@@ -1,4 +1,4 @@
-# Per Diem Pro Application
+ # Per Diem Pro Application
 
 Welcome to Per Diem Pro, a streamlined application designed to simplify how participants request and manage per diem allowances for work-related events. This document provides a comprehensive overview of the application's features and workflows for both Participant and Admin users.
 npm run bu
