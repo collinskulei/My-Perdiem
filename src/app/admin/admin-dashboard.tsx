@@ -91,6 +91,7 @@ import { OUT_OF_OFFICE_RATES, dutyStationCoordinates } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import * as supabaseDb from '@/lib/supabase/database';
 import * as storage from '@/lib/supabase/storage';
+import { supabase } from "@/lib/supabase/client";
 import { cn, formatCurrency, getHaversineDistance } from "@/lib/utils";
 import { ClientOnly } from "@/components/client-only";
 import { PerDiemBalanceCard } from "@/app/dashboard/employee-dashboard";
@@ -172,6 +173,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState(currentTab);
+  const [currentAdmin, setCurrentAdmin] = useState<Participant | null>(null);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [perdiemRequests, setPerdiemRequests] = useState<PerdiemRequest[]>([]);
@@ -246,6 +248,17 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   useEffect(() => {
     setActiveTab(currentTab);
   }, [currentTab]);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        dataProvider.getParticipantById(session.user.id).then(setCurrentAdmin);
+      } else {
+        setCurrentAdmin(null);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   const fetchAllData = useCallback(async () => {
     setLoading(true);
@@ -389,6 +402,12 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         return;
     }
 
+    if (!editingEvent && !currentAdmin?.clientId) {
+        toast({ title: "Cannot Create Event", description: "Only Client Admins can create events from this dashboard. Super/Master Admins should use the multi-client console.", variant: "destructive" });
+        setIsSaving(false);
+        return;
+    }
+
     const formattedDates = eventDates.map(date => format(date, 'yyyy-MM-dd')).sort();
 
     const phoneToIdMap = new Map(participants.map(p => [p.phoneNumber, p.id]));
@@ -442,8 +461,8 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         toast({ title: "Success", description: "Event updated successfully." });
       } else {
         // Add new event using the pre-generated ID
-        await dataProvider.addEventWithId(eventId, { ...eventData, createdAt: new Date().toISOString() });
-        finalEvent = { id: eventId, ...eventData, createdAt: new Date().toISOString(), checkedInParticipants: {} } as AppEvent;
+        await dataProvider.addEventWithId(eventId, { ...eventData, clientId: currentAdmin!.clientId!, createdAt: new Date().toISOString() });
+        finalEvent = { id: eventId, ...eventData, clientId: currentAdmin!.clientId!, createdAt: new Date().toISOString(), checkedInParticipants: {} } as AppEvent;
         toast({ title: "Success", description: "Event created successfully." });
       }
 
@@ -598,7 +617,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
             ...req,
             participantDutyStation: participant?.dutyStation || 'N/A',
             participantJobGroup: participant?.jobGroup || 'N/A',
-            participantRole: participant?.role || 'N/A',
+            participantRole: participant?.designation || 'N/A',
             eventLocation: event?.venueName || 'N/A',
             eventStartDate: event?.eventDates?.[0] || 'N A',
             eventEndDate: event?.eventDates?.[(event.eventDates || []).length - 1] || 'N A',
@@ -705,7 +724,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   };
 
 
-  const nonAdminParticipants = useMemo(() => participants.filter(p => p.role !== 'Admin'), [participants]);
+  const nonAdminParticipants = useMemo(() => participants.filter(p => p.accessTier === 'client_user'), [participants]);
 
   const filteredParticipants = useMemo(() => {
     if (!participantSearch) {
@@ -1364,7 +1383,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                         <TableCell><Image alt="Participant avatar" className="aspect-square rounded-full object-cover" height="40" src={participant.avatarUrl} width="40" data-ai-hint="person portrait"/></TableCell>
                         <TableCell className="font-medium whitespace-nowrap">{participant.name}</TableCell>
                         <TableCell>{participant.idNumber}</TableCell>
-                        <TableCell>{participant.role}</TableCell>
+                        <TableCell>{participant.designation}</TableCell>
                         <TableCell>{participant.dutyStation}</TableCell>
                         <TableCell>{participant.jobGroup}</TableCell>
                         <TableCell>
@@ -1607,7 +1626,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                         </div>
                     </div>
 
-                    {editingParticipant?.role !== 'Admin' && (
+                    {editingParticipant?.accessTier === 'client_user' && (
                         <>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
@@ -1631,9 +1650,9 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                             </div>
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="role">Role/Designation</Label>
-                                    <Select value={participantFormData.role} onValueChange={(value) => setParticipantFormData(prev => ({ ...prev, role: value }))}>
-                                        <SelectTrigger id="role"><SelectValue placeholder="Select a designation" /></SelectTrigger>
+                                    <Label htmlFor="designation">Role/Designation</Label>
+                                    <Select value={participantFormData.designation} onValueChange={(value) => setParticipantFormData(prev => ({ ...prev, designation: value }))}>
+                                        <SelectTrigger id="designation"><SelectValue placeholder="Select a designation" /></SelectTrigger>
                                         <SelectContent>
                                             {designations.map((d) => (<SelectItem key={d} value={d}>{d}</SelectItem>))}
                                         </SelectContent>
@@ -1642,7 +1661,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                             </div>
                         </>
                     )}
-                     {editingParticipant?.role === 'Admin' && (
+                     {editingParticipant?.accessTier !== 'client_user' && (
                         <div className="space-y-2">
                             <Label htmlFor="organizationName">Organization Name</Label>
                             <Input id="organizationName" value={participantFormData.organizationName || ''} onChange={(e) => setParticipantFormData(prev => ({ ...prev, organizationName: e.target.value }))} />

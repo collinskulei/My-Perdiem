@@ -93,9 +93,9 @@ function LoginCard() {
       if (error) throw error;
       const user = data.user;
 
-      // Check if the user has an 'Admin' role
+      // Check if the user has an admin-tier access level
       const participant = await dataProvider.getParticipantById(user.id);
-      if (participant && participant.role === 'Admin') {
+      if (participant && participant.accessTier !== 'client_user') {
         router.push("/admin");
       } else {
         await supabase.auth.signOut(); // Sign out the user if they are not an admin

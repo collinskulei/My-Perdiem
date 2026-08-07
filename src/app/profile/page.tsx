@@ -174,7 +174,7 @@ function Profile() {
                         render={({ field }) => <Input id="idNumber" {...field} />}
                     />
                 </div>
-                {participant.role !== 'Admin' && (
+                {participant.accessTier === 'client_user' && (
                     <>
                         <div className="space-y-2">
                             <Label htmlFor="dutyStation">Duty Station</Label>
@@ -193,16 +193,16 @@ function Profile() {
                             />
                         </div>
                          <div className="space-y-2">
-                            <Label htmlFor="role">Role/Designation</Label>
+                            <Label htmlFor="designation">Role/Designation</Label>
                              <Controller
-                                name="role"
+                                name="designation"
                                 control={control}
-                                render={({ field }) => <Input id="role" {...field} />}
+                                render={({ field }) => <Input id="designation" {...field} />}
                             />
                         </div>
                     </>
                 )}
-                 {participant.role === 'Admin' && (
+                 {participant.accessTier !== 'client_user' && (
                     <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="organizationName">Organization Name</Label>
                         <Controller

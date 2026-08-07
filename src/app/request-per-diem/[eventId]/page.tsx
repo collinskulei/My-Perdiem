@@ -144,6 +144,7 @@ function PerDiemWizard() {
         setIsSubmitting(true);
         try {
             const requestData = {
+                clientId: participant.clientId!,
                 participantId: authUser.id,
                 participantName: participant.name,
                 eventId: event.id,

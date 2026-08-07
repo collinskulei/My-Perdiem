@@ -6,10 +6,10 @@
  */
 "use client";
 
-import { useState, Suspense, useCallback } from "react";
+import { useState, Suspense, useCallback, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, ChevronsUpDown, Check, Eye, EyeOff } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeft, Loader2, ChevronsUpDown, Check, Eye, EyeOff, AlertTriangle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +20,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,16 +44,38 @@ const dataProvider = supabaseDb;
 /**
  * The main component for the registration wizard.
  * It manages the state for the current step and handles navigation between steps.
+ * Registration always requires a client invite link (`?client=<clientId>`) since
+ * every self-registered user must belong to exactly one client.
  * @returns {JSX.Element} The rendered registration wizard.
  */
 function RegistrationWizard() {
   const [formData, setFormData] = useState<Partial<ParticipantData & { password?: string, confirmPassword?: string, organizationName?: string, phone?: string }>>({});
   const [isAgreed, setIsAgreed] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [otherDesignation, setOtherDesignation] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const clientId = searchParams.get('client');
+  const [clientName, setClientName] = useState<string | null>(null);
+  const [clientCheckStatus, setClientCheckStatus] = useState<'checking' | 'valid' | 'invalid'>('checking');
+
+  useEffect(() => {
+    if (!clientId) {
+      setClientCheckStatus('invalid');
+      return;
+    }
+    dataProvider.getPublicClientName(clientId).then((name) => {
+      if (name) {
+        setClientName(name);
+        setClientCheckStatus('valid');
+      } else {
+        setClientCheckStatus('invalid');
+      }
+    });
+  }, [clientId]);
 
   /**
    * Handles input changes and updates the form data state.
@@ -77,11 +100,11 @@ function RegistrationWizard() {
    */
   const handleSelectChange = (id: string, value: string) => {
     setFormData(prev => ({ ...prev, [id]: value }));
-     if (id === 'role' && value !== 'Other') {
+     if (id === 'designation' && value !== 'Other') {
       setOtherDesignation("");
     }
   };
-  
+
   /**
    * Handles the final form submission.
    * Creates a user in Supabase Auth and then saves their profile to the participants table.
@@ -91,6 +114,11 @@ function RegistrationWizard() {
     e.preventDefault();
 
     // --- Form Validation ---
+    if (!clientId || clientCheckStatus !== 'valid') {
+      toast({ title: "Invalid Registration Link", description: "This registration link is missing or has an invalid client code. Please use the link provided by your organization admin.", variant: "destructive" });
+      return;
+    }
+
      if (!isAgreed) {
       toast({ title: "Agreement Required", description: "You must agree to the terms and conditions and privacy policy to register.", variant: "destructive" });
       return;
@@ -111,9 +139,9 @@ function RegistrationWizard() {
       return;
     }
 
-    const finalRole = formData.role === 'Other' ? otherDesignation : formData.role;
+    const finalDesignation = formData.designation === 'Other' ? otherDesignation : formData.designation;
 
-    if (!finalRole) {
+    if (!finalDesignation) {
         toast({ title: "Missing required fields", description: `Please fill out the 'Designation' field.`, variant: "destructive" });
         return;
     }
@@ -175,7 +203,8 @@ function RegistrationWizard() {
           phoneNumber: fullPhoneNumber,
           idNumber: formData.idNumber!,
           email: user.email!, // Use email from the created user
-          role: finalRole,
+          designation: finalDesignation,
+          clientId: clientId!,
           dutyStation: formData.dutyStation!,
           jobGroup: formData.jobGroup!,
       };
@@ -229,11 +258,22 @@ function RegistrationWizard() {
         <CardHeader>
           <CardTitle className="text-2xl">Create a Participant Account</CardTitle>
           <CardDescription>
-            Fill out the form below to register. Fields marked with <span className="text-destructive">*</span> are required.
+            {clientCheckStatus === 'valid' && clientName
+              ? <>Registering for <span className="font-medium text-foreground">{clientName}</span>. Fields marked with <span className="text-destructive">*</span> are required.</>
+              : <>Fill out the form below to register. Fields marked with <span className="text-destructive">*</span> are required.</>}
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-6">
+            {clientCheckStatus === 'invalid' && (
+                <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Invalid Registration Link</AlertTitle>
+                    <AlertDescription>
+                        This registration link is missing or has an invalid client code. Please use the link provided by your organization admin.
+                    </AlertDescription>
+                </Alert>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                <div className="space-y-2">
                 <Label htmlFor="name">Full Name <span className="text-destructive">*</span></Label>
@@ -310,9 +350,9 @@ function RegistrationWizard() {
             
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <Label htmlFor="role">Designation <span className="text-destructive">*</span></Label>
-                    <Select required onValueChange={(value) => handleSelectChange('role', value)}>
-                        <SelectTrigger id="role">
+                    <Label htmlFor="designation">Designation <span className="text-destructive">*</span></Label>
+                    <Select required onValueChange={(value) => handleSelectChange('designation', value)}>
+                        <SelectTrigger id="designation">
                             <SelectValue placeholder="Select a designation" />
                         </SelectTrigger>
                         <SelectContent>
@@ -322,7 +362,7 @@ function RegistrationWizard() {
                             <SelectItem value="Other">Other</SelectItem>
                         </SelectContent>
                     </Select>
-                    {formData.role === 'Other' && (
+                    {formData.designation === 'Other' && (
                         <Input
                             id="otherDesignation"
                             placeholder="Please specify your designation"
@@ -400,7 +440,7 @@ function RegistrationWizard() {
             <Button variant="ghost" asChild className="w-full sm:w-auto">
                 <Link href="/">Cancel</Link>
             </Button>
-            <Button type="submit" className="w-full sm:w-auto" disabled={!isAgreed}>
+            <Button type="submit" className="w-full sm:w-auto" disabled={!isAgreed || clientCheckStatus !== 'valid'}>
               Submit Registration
             </Button>
           </CardFooter>
