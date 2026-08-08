@@ -21,6 +21,17 @@ export type Client = {
 };
 
 /**
+ * A named category of document a client's users submit against (e.g.
+ * "Site Visit Report"). Minimal for now - Milestone 5 extends this
+ * alongside the documents/document_reports tables it's built to support.
+ */
+export type WorkType = {
+  id: string;
+  clientId: string;
+  name: string;
+};
+
+/**
  * Represents an participant in the system.
  */
 export type Participant = {
@@ -32,6 +43,7 @@ export type Participant = {
   designation: string; // Job title, set at registration; distinct from accessTier
   accessTier: AccessTier;
   clientId: string | null; // null for master_admin/super_admin, set for client_admin/client_user
+  disabledAt?: string; // set = account is banned from signing in; only via the deactivate API route
   dutyStation?: string;
   avatarUrl: string;
   email: string;

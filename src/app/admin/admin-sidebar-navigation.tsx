@@ -1,6 +1,7 @@
 
 'use client';
 
+import { useState, useEffect } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -13,6 +14,7 @@ import {
   MapPin,
   FileText,
   BarChart,
+  ShieldCheck,
 } from "lucide-react";
 
 import {
@@ -20,11 +22,28 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
+import { supabase } from "@/lib/supabase/client";
+import * as supabaseDb from "@/lib/supabase/database";
+import type { AccessTier } from "@/lib/data";
 
 export function AdminSidebarNavigation() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const activeTab = searchParams.get('tab') || 'requests';
+  const [accessTier, setAccessTier] = useState<AccessTier | null>(null);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        supabaseDb.getParticipantById(session.user.id).then((p) => setAccessTier(p?.accessTier ?? null));
+      } else {
+        setAccessTier(null);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const canManage = accessTier !== null && accessTier !== 'client_user';
 
   const isLinkActive = (path: string, tab: string | null) => {
     if (path !== '/admin') {
@@ -103,6 +122,16 @@ export function AdminSidebarNavigation() {
           </SidebarMenuButton>
         </Link>
       </SidebarMenuItem>
+      {canManage && (
+        <SidebarMenuItem>
+          <Link href="/admin?tab=management">
+            <SidebarMenuButton isActive={isLinkActive('/admin', 'management')}>
+              <ShieldCheck />
+              Manage
+            </SidebarMenuButton>
+          </Link>
+        </SidebarMenuItem>
+      )}
         <SidebarMenuItem>
         <Link href="/profile">
           <SidebarMenuButton isActive={isLinkActive('/profile', null)}>

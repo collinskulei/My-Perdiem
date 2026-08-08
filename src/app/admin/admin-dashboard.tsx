@@ -98,6 +98,8 @@ import { PerDiemBalanceCard } from "@/app/dashboard/employee-dashboard";
 import { Separator } from "@/components/ui/separator";
 import { PlacesAutocomplete, type Place } from "@/components/places-autocomplete";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { AdminManagement } from "./admin-management";
+import { inviteAdmin, setParticipantDisabled } from "@/lib/admin-api-client";
 
 const dataProvider = supabaseDb;
 
@@ -197,6 +199,11 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   const [editingParticipant, setEditingParticipant] = useState<Participant | null>(null);
   const [participantFormData, setParticipantFormData] = useState<Partial<Participant>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [isAddParticipantOpen, setIsAddParticipantOpen] = useState(false);
+  const [newParticipantName, setNewParticipantName] = useState("");
+  const [newParticipantEmail, setNewParticipantEmail] = useState("");
+  const [isAddingParticipant, setIsAddingParticipant] = useState(false);
+  const [togglingDisabledId, setTogglingDisabledId] = useState<string | null>(null);
 
   // State for participant-specific data in the dialog
   const [participantEvents, setParticipantEvents] = useState<AppEvent[]>([]);
@@ -509,6 +516,50 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
       toast({ title: "Error", description: "Failed to update participant.", variant: "destructive" });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleAddParticipant = async () => {
+    if (!newParticipantName || !newParticipantEmail) {
+      toast({ title: "Missing fields", description: "Name and email are required.", variant: "destructive" });
+      return;
+    }
+    if (!currentAdmin?.clientId) {
+      toast({ title: "Cannot Add Participant", description: "Only Client Admins can add participants from this dashboard.", variant: "destructive" });
+      return;
+    }
+    setIsAddingParticipant(true);
+    const result = await inviteAdmin({
+      email: newParticipantEmail,
+      name: newParticipantName,
+      tier: 'client_user',
+      clientId: currentAdmin.clientId,
+    });
+    setIsAddingParticipant(false);
+    if (result.success) {
+      toast({ title: "Invite sent", description: `${newParticipantName} has been invited.` });
+      setIsAddParticipantOpen(false);
+      setNewParticipantName("");
+      setNewParticipantEmail("");
+      await fetchAllData();
+    } else {
+      toast({ title: "Could not add participant", description: result.error, variant: "destructive" });
+    }
+  };
+
+  const handleToggleParticipantDisabled = async (participant: Participant) => {
+    setTogglingDisabledId(participant.id);
+    const nextDisabled = !participant.disabledAt;
+    const result = await setParticipantDisabled(participant.id, nextDisabled);
+    setTogglingDisabledId(null);
+    if (result.success) {
+      toast({
+        title: nextDisabled ? "Participant Deactivated" : "Participant Reactivated",
+        description: `${participant.name} ${nextDisabled ? "can no longer sign in." : "can sign in again."}`,
+      });
+      await fetchAllData();
+    } else {
+      toast({ title: "Could not update participant", description: result.error, variant: "destructive" });
     }
   };
 
@@ -905,6 +956,9 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
             <TabsTrigger value="venues">Venues</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            {currentAdmin && currentAdmin.accessTier !== 'client_user' && (
+              <TabsTrigger value="management">Manage</TabsTrigger>
+            )}
             </TabsList>
         </div>
         <TabsContent value="requests">
@@ -1358,16 +1412,46 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
 
         <TabsContent value="participants">
           <Card>
-            <CardHeader>
-                <CardTitle>Participants</CardTitle>
-                <CardDescription>A list of all registered participants.</CardDescription>
+            <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div>
+                  <CardTitle>Participants</CardTitle>
+                  <CardDescription>A list of all registered participants.</CardDescription>
+                </div>
+                <Dialog open={isAddParticipantOpen} onOpenChange={setIsAddParticipantOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4" />Add Participant</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add a Participant</DialogTitle>
+                      <DialogDescription>They&apos;ll receive an email invite to set their password.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="new-participant-name">Full Name</Label>
+                        <Input id="new-participant-name" value={newParticipantName} onChange={(e) => setNewParticipantName(e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="new-participant-email">Email</Label>
+                        <Input id="new-participant-email" type="email" value={newParticipantEmail} onChange={(e) => setNewParticipantEmail(e.target.value)} />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setIsAddParticipantOpen(false)}>Cancel</Button>
+                      <Button onClick={handleAddParticipant} disabled={isAddingParticipant}>
+                        {isAddingParticipant && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Send Invite
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
             </CardHeader>
             <CardContent>
               <div className="mb-4">
                   <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input 
-                          placeholder="Search by name or ID number..." 
+                      <Input
+                          placeholder="Search by name or ID number..."
                           className="pl-10"
                           value={participantSearch}
                           onChange={(e) => setParticipantSearch(e.target.value)}
@@ -1376,9 +1460,9 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
               </div>
               <div className="overflow-x-auto">
                 <Table>
-                    <TableHeader><TableRow><TableHead className="w-[64px]"><span className="sr-only">Image</span></TableHead><TableHead>Name</TableHead><TableHead>ID Number</TableHead><TableHead>Role</TableHead><TableHead>Duty Station</TableHead><TableHead>Job Group</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead className="w-[64px]"><span className="sr-only">Image</span></TableHead><TableHead>Name</TableHead><TableHead>ID Number</TableHead><TableHead>Role</TableHead><TableHead>Duty Station</TableHead><TableHead>Job Group</TableHead><TableHead>Status</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
                     <TableBody>
-                    {loading ? <TableRow><TableCell colSpan={7} className="h-24 text-center">Loading participants...</TableCell></TableRow> : filteredParticipants.map(participant => (
+                    {loading ? <TableRow><TableCell colSpan={8} className="h-24 text-center">Loading participants...</TableCell></TableRow> : filteredParticipants.map(participant => (
                         <TableRow key={participant.id}>
                         <TableCell><Image alt="Participant avatar" className="aspect-square rounded-full object-cover" height="40" src={participant.avatarUrl} width="40" data-ai-hint="person portrait"/></TableCell>
                         <TableCell className="font-medium whitespace-nowrap">{participant.name}</TableCell>
@@ -1386,6 +1470,9 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                         <TableCell>{participant.designation}</TableCell>
                         <TableCell>{participant.dutyStation}</TableCell>
                         <TableCell>{participant.jobGroup}</TableCell>
+                        <TableCell>
+                            {participant.disabledAt ? <Badge variant="destructive">Deactivated</Badge> : <Badge variant="secondary">Active</Badge>}
+                        </TableCell>
                         <TableCell>
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -1397,8 +1484,13 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                                 <DropdownMenuContent align="end">
                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                     <DropdownMenuItem onSelect={() => handleOpenParticipantDialog(participant)}>Edit</DropdownMenuItem>
-                                    <DropdownMenuItem>View</DropdownMenuItem>
-                                    <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        className="text-destructive"
+                                        disabled={togglingDisabledId === participant.id}
+                                        onSelect={() => handleToggleParticipantDisabled(participant)}
+                                    >
+                                        {participant.disabledAt ? "Reactivate" : "Deactivate"}
+                                    </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </TableCell>
@@ -1589,6 +1681,15 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
         <TabsContent value="analytics">
             <AnalyticsTabContent requests={perdiemRequests} loading={loading} />
         </TabsContent>
+        {currentAdmin && currentAdmin.accessTier !== 'client_user' && (
+          <TabsContent value="management">
+            <AdminManagement
+              currentAdmin={currentAdmin}
+              participants={participants}
+              onParticipantsChanged={fetchAllData}
+            />
+          </TabsContent>
+        )}
       </Tabs>
       </ClientOnly>
     </div>

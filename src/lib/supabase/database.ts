@@ -5,7 +5,7 @@
  * (see ../data.ts) and the database's snake_case columns.
  */
 import { supabase } from './client';
-import type { Venue, PerdiemRequest, Participant, AppEvent, AccessTier, Client } from '../data';
+import type { Venue, PerdiemRequest, Participant, AppEvent, AccessTier, Client, WorkType } from '../data';
 
 // --- Generic camelCase <-> snake_case row mapping ---
 
@@ -38,6 +38,7 @@ const PARTICIPANT_FIELDS: FieldMap = {
   designation: 'designation',
   accessTier: 'access_tier',
   clientId: 'client_id',
+  disabledAt: 'disabled_at',
   dutyStation: 'duty_station',
   avatarUrl: 'avatar_url',
   email: 'email',
@@ -534,6 +535,76 @@ export const getPublicClientName = async (clientId: string): Promise<string | nu
     return null;
   }
   return data ?? null;
+};
+
+/**
+ * Creates a new client (tenant). RLS already restricts this to Super Admin
+ * and above, so - unlike the admin-invite flow - no service-role API route
+ * is needed here.
+ * @param {string} name - The new client's display name.
+ * @returns {Promise<string>} The new client's ID.
+ */
+export const addClient = async (name: string): Promise<string> => {
+  const { data, error } = await supabase.from('clients').insert({ name }).select('id').single();
+  if (error || !data) {
+    throw error ?? new Error('Failed to add client');
+  }
+  return data.id;
+};
+
+// --- WORK TYPES TABLE ---
+
+/**
+ * Fetches the (non-archived) work types for a client.
+ * @param {string} clientId - The client to fetch work types for.
+ * @returns {Promise<WorkType[]>}
+ */
+export const getWorkTypesByClient = async (clientId: string): Promise<WorkType[]> => {
+  const { data, error } = await supabase
+    .from('work_types')
+    .select('id, client_id, name')
+    .eq('client_id', clientId)
+    .is('archived_at', null)
+    .order('name');
+  if (error) {
+    console.error("Error fetching work types: ", error);
+    return [];
+  }
+  return (data ?? []).map((row) => ({ id: row.id, clientId: row.client_id, name: row.name }));
+};
+
+/**
+ * Adds a new work type for a client. RLS restricts this to Super Admin and above.
+ * @param {string} clientId - The client this work type belongs to.
+ * @param {string} name - The work type's display name.
+ * @returns {Promise<string>} The new work type's ID.
+ */
+export const addWorkType = async (clientId: string, name: string): Promise<string> => {
+  const { data, error } = await supabase
+    .from('work_types')
+    .insert({ client_id: clientId, name })
+    .select('id')
+    .single();
+  if (error || !data) {
+    throw error ?? new Error('Failed to add work type');
+  }
+  return data.id;
+};
+
+/**
+ * Archives a work type (soft delete, matching the clients table's pattern).
+ * RLS restricts this to Super Admin and above.
+ * @param {string} workTypeId - The work type to archive.
+ * @returns {Promise<void>}
+ */
+export const archiveWorkType = async (workTypeId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('work_types')
+    .update({ archived_at: new Date().toISOString() })
+    .eq('id', workTypeId);
+  if (error) {
+    throw error;
+  }
 };
 
 // --- ACCESS TIER RPC ---

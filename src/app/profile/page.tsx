@@ -28,6 +28,14 @@ import type { Participant } from "@/lib/data";
 import { supabase } from "@/lib/supabase/client";
 import { Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+
+const TIER_LABELS: Record<string, string> = {
+  master_admin: "Master Admin",
+  super_admin: "Super Admin",
+  client_admin: "Client Admin",
+  client_user: "Participant",
+};
 
 const dataProvider = supabaseDb;
 
@@ -144,7 +152,12 @@ function Profile() {
                     <AvatarFallback>{participant.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div className="space-y-1 overflow-hidden">
-                    <h2 className="text-2xl font-semibold truncate">{participant.name}</h2>
+                    <div className="flex items-center gap-2">
+                        <h2 className="text-2xl font-semibold truncate">{participant.name}</h2>
+                        <Badge variant={participant.accessTier === "client_user" ? "secondary" : "default"}>
+                            {TIER_LABELS[participant.accessTier] ?? participant.accessTier}
+                        </Badge>
+                    </div>
                     <p className="text-muted-foreground truncate">{participant.email}</p>
                 </div>
             </div>

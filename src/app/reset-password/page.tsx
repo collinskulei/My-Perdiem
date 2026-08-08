@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase/client";
+import * as supabaseDb from "@/lib/supabase/database";
 
 /**
  * The main form for setting a new password after following a password-reset email link.
@@ -67,14 +68,20 @@ function ResetPasswordForm() {
 
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password });
+      const { data: updateData, error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
 
       toast({
         title: "Password Updated",
         description: "You can now log in with your new password.",
       });
-      router.push("/");
+
+      // This flow is also how invited admins/participants accept their
+      // invite and set their first password - send them straight to the
+      // right dashboard instead of back to the login form they'd otherwise
+      // have to fill in while already holding a valid session.
+      const participant = updateData.user ? await supabaseDb.getParticipantById(updateData.user.id) : null;
+      router.push(participant && participant.accessTier !== "client_user" ? "/admin" : "/dashboard");
     } catch (error: any) {
       toast({
         title: "Could Not Update Password",

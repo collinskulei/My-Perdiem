@@ -6,10 +6,8 @@ planned it). Use this file to pick up work from any workspace/session.
 
 ## Current repo state
 
-- Branch `main`, in sync with `origin/main`.
-- Latest commits: `caf1583` ("adin dash borad done") on top of `325db22`
-  ("commit 003 retrieval and refactor of the heirachy and workflow") on top of
-  `43b84c3` ("Revert \"commit 002\"").
+- Branch `main`, in sync with `origin/main` as of this commit.
+- Milestones 0–3 done. Next up: Milestone 4.
 - Working tree was clean as of the last check. Always run `git status` and
   `git pull` before starting, in case another workspace pushed more since.
 
@@ -130,14 +128,103 @@ remain anywhere in `src/` or `supabase/`.
      invite flow will naturally create. Worth a quick manual click-through
      once you're at a machine with a browser, but not considered blocking.
 
-## Milestone 3 — Admin-management console + first server-side Supabase code — ⬜ NOT STARTED
+## Milestone 3 — Admin-management console + first server-side Supabase code — ✅ DONE
 
-Per the plan: `src/lib/supabase/admin-server.ts` (service-role client, needs
-`SUPABASE_SERVICE_ROLE_KEY` added to `.env` - not there yet), Route Handlers
-under `src/app/api/admin/invite-*` using `supabase.auth.admin.inviteUserByEmail()`,
-and console UI where Master Admin adds Super Admins and Super Admin adds/
-manages Clients, Client Admins, and each client's "work types" (the config
-surface Milestone 5 depends on). No `src/app/api/` directory exists yet at all.
+Went beyond the plan's original scope (invite-only for Master/Super Admin) -
+the user directed an expansion mid-milestone to also cover Client Admin
+delegation and participant lifecycle management. All of it is built, migrated
+live, and manually verified end-to-end (see below).
+
+**Schema** (two migrations, both applied to the live project):
+- `0004_admin_invites_and_work_types.sql` - `participants.phone_number`/
+  `id_number` made nullable (admin-tier accounts are invited, not
+  self-registered, so they have neither at creation time; NULL is safe under
+  the existing unique indexes). New minimal `work_types` table
+  (`id, client_id, name, archived_at`) - readable by any admin tier with
+  access to the client, writable by Super Admin and above only.
+- `0005_admin_delegation_and_deactivation.sql` - new `participants.disabled_at`
+  column, added to the same trigger guard that protects `access_tier`/
+  `client_id` (only the deactivate route or `set_access_tier()` can touch it -
+  never a direct write, so the DB flag and the real Auth ban below can never
+  drift apart). Extended `set_access_tier()` with a fourth caller branch:
+  Client Admin may demote (only) a peer Client Admin (only) at their own
+  client (only) down to Client User.
+
+**Server-only code** (first in the app):
+- `src/lib/supabase/admin-server.ts` - service-role client (`server-only`
+  import guard so accidental client-bundle inclusion is a build error).
+  `SUPABASE_SERVICE_ROLE_KEY` is in `.env` (not committed).
+- `src/app/api/admin/invite-admin/route.ts` - invites a Super Admin, Client
+  Admin, or Client User by email (`inviteUserByEmail`, `redirectTo` pointed at
+  `/reset-password`) and inserts the matching `participants` row. Authorization
+  mirrors `set_access_tier()`'s hierarchy: Master Admin invites any tier;
+  Super Admin invites Client Admin/Client User for any client; **Client Admin
+  invites Client Admin/Client User for their own client only - `clientId` in
+  the request body is ignored/overridden for Client Admin callers, never
+  trusted** (verified: passing a different client's ID gets silently forced
+  back to the caller's own client, not rejected-but-still-wrong).
+- `src/app/api/admin/participants/[id]/set-disabled/route.ts` - deactivates by
+  calling `auth.admin.updateUserById(id, { ban_duration })`, a real Auth ban
+  (blocks sign-in outright, not a cosmetic flag the app just checks), plus
+  sets `disabled_at` for display. Client Admin scope: Client Users at their
+  own client only (never a peer Client Admin - that's `set_access_tier()`'s
+  demote path instead). Super/Master Admin: any Client Admin or Client User,
+  any client. Nobody can target Master/Super Admin via this route.
+- `src/lib/admin-api-client.ts` - shared client-side fetch wrappers
+  (`inviteAdmin`, `setParticipantDisabled`) used by both the console UI and
+  the Participants tab, so the two don't duplicate the fetch logic.
+
+**Console UI** (`src/app/admin/admin-management.tsx`, new "Manage" tab in
+`AdminDashboard`, gated by tier in both the tab and the sidebar):
+- Master Admin: invite Super Admins, see every admin-tier account platform-wide.
+- Client Admin: invite peer Client Admins for their own client, see and
+  demote them (not shown to Master Admin - different scope, same component).
+- Super/Master Admin: Clients list + create, per-client work types
+  (add/archive), invite a Client Admin from a client's row.
+
+**Participant management** (`admin-dashboard.tsx`'s existing Participants
+tab): "Add Participant" button (invites a Client User the same way, wired to
+the Client Admin's own `clientId`); the previously-dead "Delete" menu item is
+now a working Deactivate/Reactivate toggle with a Status column.
+
+**Other fixes bundled into this round:**
+- `src/app/reset-password/page.tsx` now looks up the signed-in user's
+  `access_tier` after setting their password and routes to `/admin` or
+  `/dashboard` accordingly, instead of always back to `/` - this page is also
+  how invited users accept their invite and set their first password, not
+  just the forgot-password flow.
+- `src/app/profile/page.tsx` shows a tier badge next to the name (was
+  previously invisible anywhere in the UI).
+- Editing the actual invite-email template content is a Supabase dashboard
+  setting (Authentication → Email Templates → "Invite user"), not app code -
+  not built, flagged here so it isn't mistaken for an oversight.
+
+**Verified live** (test fixtures created and cleaned up afterward - the
+project's participants/clients tables are back to just the master admin +
+the default migrated client): every one of the following was exercised for
+real against the live Supabase project, not just reasoned through -
+- Client Admin invite of Super Admin → `403`.
+- Client Admin invite of Client Admin/Client User with no `clientId` in the
+  body → succeeds, lands in their own client.
+- Same, but with a *different* client's ID in the body → still lands in the
+  caller's own client (confirms the override, not just a rejection).
+- Client Admin demotes a peer Client Admin at their own client → succeeds.
+- Client Admin attempts to demote a Client Admin at a *different* client →
+  rejected (`Client Admins may only manage their own client`).
+- Deactivate → sign-in immediately fails with Supabase's own `user_banned`
+  error (not an app-level check that a stolen token could bypass).
+- Client Admin attempts to deactivate a peer Client Admin → rejected (right
+  error message, confirms the client_user-only scope).
+- Client Admin attempts to deactivate a different client's participant →
+  `404` (RLS hides it before the tier check even runs).
+- Reactivate → sign-in works again.
+- `npm run typecheck` (clean of new errors) and `npm run build` (succeeds).
+
+**Not exercised** (carried over from Milestone 2, still true): a real
+browser click-through of the invite-accept-password-reset flow end-to-end,
+and the full Super Admin hierarchy checks from Milestone 2's note. No browser
+tool was available either session so far - worth doing once someone's at a
+machine with one, not blocking.
 
 ## Milestone 4 — Bulk historical-data upload (infrastructure only) — ⬜ NOT STARTED
 
@@ -149,10 +236,13 @@ only — no real historical data gets imported as part of this milestone.
 
 ## Milestone 5 — Document submission portal — ⬜ NOT STARTED
 
-New `work_types`, `documents`, `document_reports` tables; new private Storage
+The minimal `work_types` table (`id, client_id, name, archived_at`) already
+exists as of Milestone 3 - this milestone extends it rather than creating it.
+Still to build: `documents`, `document_reports` tables; new private Storage
 bucket `documents` (not public, unlike the existing `event-files` bucket);
 generalize `src/lib/supabase/storage.ts` to support signed URLs + MIME
-validation.
+validation; `client_user` read access to `work_types` (deliberately deferred
+in the 0004 migration until this milestone defines the real access pattern).
 
 ## Milestone 6 — Claude for Team MCP integration — ⬜ NOT STARTED
 
@@ -164,14 +254,13 @@ token (confirmed workable - see the JWT signing note above). Needs
 
 ## Suggested next session prompt
 
-"Start Milestone 3: admin-management console + first server-side Supabase
-code. Add `SUPABASE_SERVICE_ROLE_KEY` to `.env`, create
-`src/lib/supabase/admin-server.ts` (service-role client, server-only), add
-Route Handlers under `src/app/api/admin/invite-*` using
-`supabase.auth.admin.inviteUserByEmail()`, and build the console UI for
-Master Admin → add Super Admins, Super Admin → add/manage Clients and
-Client Admins. This is also the natural point to exercise the tier hierarchy
-for real (a second/third account finally exists to test `set_access_tier()`
-cross-tier rules against) and to click through `/admin` as a logged-in
-non-`client_user` in a real browser, closing the one manual check Milestone 2
-left unexercised."
+"Start Milestone 4: generalize the existing XLSX/CSV participant-upload
+parser in `admin-dashboard.tsx` (`handleParticipantFileUpload`) into a full
+historical events + perdiem_requests importer, via a new atomic
+`import_historical_events(client_id, payload)` RPC. Infrastructure only - no
+real historical data gets imported as part of this milestone. If a browser
+tool is available, first spend five minutes closing the manual
+click-through gap noted in Milestones 2 and 3 (invite an account, click the
+real email link, confirm it lands on `/reset-password` and then the right
+dashboard) since every session so far has had to verify that flow indirectly
+via the API instead."
