@@ -71,6 +71,10 @@ const REQUEST_FIELDS: FieldMap = {
   clientId: 'client_id',
   participantId: 'participant_id',
   participantName: 'participant_name',
+  participantPhone: 'participant_phone',
+  participantIdNumber: 'participant_id_number',
+  importedAt: 'imported_at',
+  notes: 'notes',
   eventId: 'event_id',
   eventName: 'event_name',
   location: 'location',
@@ -632,4 +636,53 @@ export const setAccessTier = async (
   if (error) {
     throw error;
   }
+};
+
+// --- HISTORICAL IMPORT (Milestone 4) ---
+
+/**
+ * One row of historical per-diem payment data, parsed from an uploaded
+ * spreadsheet - matches the shape import_historical_events() expects.
+ */
+export type HistoricalImportRow = {
+  eventName: string;
+  venueName?: string;
+  venueCity?: string;
+  venueCounty?: string;
+  eventDates?: string[];
+  participantName: string;
+  participantPhone?: string;
+  participantIdNumber?: string;
+  status?: string;
+  transactionCode?: string;
+  notes?: string;
+  totalPerdiem: number;
+  mileageKm?: number;
+  mileageTotal?: number;
+  accommodationNights?: number;
+  accommodationTotal?: number;
+  outOfOfficeAllowance?: number;
+  airTicketCost?: number;
+  groundTransferCost?: number;
+};
+
+/**
+ * Imports a batch of historical events + per-diem payments for a client in
+ * one atomic call - the whole batch commits or none of it does. Restricted
+ * to Super Admin and above (enforced by the RPC itself, not just the UI).
+ * @param {string} clientId - The client this historical data belongs to.
+ * @param {HistoricalImportRow[]} rows - The parsed, validated rows to import.
+ * @returns {Promise<{ importedCount: number; eventCount: number }>}
+ */
+export const importHistoricalEvents = async (
+  clientId: string,
+  rows: HistoricalImportRow[]
+): Promise<{ importedCount: number; eventCount: number }> => {
+  const { data, error } = await supabase
+    .rpc('import_historical_events', { target_client_id: clientId, rows })
+    .single<{ imported_count: number; event_count: number }>();
+  if (error || !data) {
+    throw error ?? new Error('Import did not return a result');
+  }
+  return { importedCount: data.imported_count, eventCount: data.event_count };
 };

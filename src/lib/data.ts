@@ -93,8 +93,15 @@ export type AppEvent = {
 export type PerdiemRequest = {
   id: string;
   clientId: string;
-  participantId: string;
+  // Null for historical imports of people with no app account - see
+  // participantPhone/participantIdNumber, a name/contact snapshot kept for
+  // those rows instead. Always set for requests made through the live app.
+  participantId: string | null;
   participantName: string;
+  participantPhone?: string;
+  participantIdNumber?: string;
+  importedAt?: string;
+  notes?: string;
   eventId: string;
   eventName: string;
   location: string;

@@ -7,7 +7,7 @@ planned it). Use this file to pick up work from any workspace/session.
 ## Current repo state
 
 - Branch `main`, in sync with `origin/main` as of this commit.
-- Milestones 0–3 done. Next up: Milestone 4.
+- Milestones 0–4 done. Next up: Milestone 5.
 - Working tree was clean as of the last check. Always run `git status` and
   `git pull` before starting, in case another workspace pushed more since.
 
@@ -226,13 +226,79 @@ and the full Super Admin hierarchy checks from Milestone 2's note. No browser
 tool was available either session so far - worth doing once someone's at a
 machine with one, not blocking.
 
-## Milestone 4 — Bulk historical-data upload (infrastructure only) — ⬜ NOT STARTED
+## Milestone 4 — Bulk historical-data upload — ✅ DONE (turned out not to be infrastructure-only)
 
-Generalizes the existing XLSX/CSV parser in `admin-dashboard.tsx`
-(`handleParticipantFileUpload`) from "participants for one event" to full
-historical events + perdiem_requests, via a new atomic
-`import_historical_events(client_id, payload)` RPC. Explicitly infrastructure
-only — no real historical data gets imported as part of this milestone.
+The plan assumed this would generalize the existing per-event participant
+XLSX parser. A real sample file from the user changed that: historical
+per-diem data comes as standalone bulk-payment-list spreadsheets (NAME,
+PHONE NUMBER, AMOUNT, DESCRIPTION - no event/venue/date columns at all,
+since one file is one payment batch for one event by convention, e.g.
+filename "BULK TO PAY EMBU CHP 40k_20250908"). Built against that real shape
+instead of the assumed one, and - at the user's explicit direction, after
+confirming which client and that it should be a real write, not a dry run -
+actually imported that sample's 2 rows for the real "Apeiro" client. This
+milestone is **not** infrastructure-only after all; real historical data now
+lives in the live database.
+
+**Schema decision found while building this:** the existing schema required
+every `perdiem_requests` row to reference a real `auth.users`-backed
+participant. Historical payment records are routinely for people who never
+had an app account and may never need one. Two migrations:
+- `0006_historical_import.sql` - `perdiem_requests.participant_id` made
+  nullable; added `participant_phone`/`participant_id_number` snapshot
+  columns (same pattern as `events.unregisteredParticipants` already used for
+  the live pre-registration flow) and `imported_at`. Added
+  `import_historical_events(target_client_id, rows)` - one atomic call per
+  upload, restricted to Super Admin and above, all rows commit or none do.
+  Per row: finds-or-creates the venue (shared/global, matched by name) and
+  the event (matched by `client_id` + name, `event_dates` unioned in if the
+  event already exists from an earlier row/import); best-effort matches an
+  existing participant and backfills `events.allocated_participants` if
+  found, otherwise leaves `participant_id` null with the name/phone snapshot
+  kept on the row.
+- `0007_historical_import_fixes.sql` - two bugs found by testing against the
+  real sample before it was ever run for real: (1) the participant-matching
+  join was an exact string comparison, but real phone numbers show up as
+  `07XXXXXXXX`/`7XXXXXXXX`/`2547XXXXXXXX`/`+2547XXXXXXXX` interchangeably
+  while registered participants always store `+254XXXXXXXXX` - switched to
+  comparing the last 9 digits, matching the convention the rest of the app
+  already uses (`addParticipant`'s retroactive event-allocation logic). (2)
+  Added a `notes` column so a per-row description/purpose column (like the
+  sample's DESCRIPTION) isn't silently discarded.
+
+**UI** (`src/app/admin/admin-historical-import.tsx`, an "Import Historical
+Data" button on each client's row in Manage → Clients, Super Admin+ only):
+upload → **batch details** (Event Name required, Venue/Date/Status/batch
+Transaction Code - entered once per upload since real files don't carry
+these as columns; a row can still override via its own mapped column if a
+future file does mix events) → **column mapping** (headers auto-guessed by
+regex, always user-confirmed/editable - nothing is trusted blindly, since the
+real header names turned out nothing like what the plan assumed) →
+**preview** (invalid rows - missing name, missing/non-numeric amount - are
+flagged and excluded from the batch rather than failing the whole import or
+silently importing garbage) → confirm, one `importHistoricalEvents()` call.
+Phone numbers are normalized to `+254XXXXXXXXX` client-side before sending,
+matching what the RPC's matching logic expects.
+
+**Verified against the real file, not a synthetic one:** traced the header-
+matching regexes by hand against the actual sample's headers (`NAME`,
+`PHONE NUMBER`, `AMOUNT`, `DESCRIPTION`) and confirmed the guesses land
+correctly (`participantName`/`participantPhone`/`totalPerdiem`/`notes`, no
+false-positive date column) before ever running it - then ran the real
+import for Apeiro (client already existed) and confirmed live: the event
+"MOH Per Diem - Embu CHP" was created with the right venue/city/date; the
+venue "Embu CHP"/"Embu" was created since it didn't exist; both per-diem
+rows show `participant_id: null` (correct - neither Cecilia Njeru nor Paul
+Ngari has an app account) with the phone numbers normalized to
+`+254725159829` / `+254722930887`; `notes` holds "MOH Per Diem" per row.
+
+**Known limitation, not addressed:** this small sample only exercised one
+event with two never-before-seen participants - the "match an existing
+participant by phone and backfill `allocated_participants`" path, and
+"append more rows to an event that already exists from a prior import"
+path, are correct by code review but not yet exercised against real data.
+Worth confirming once a fuller historical file (repeat participants,
+multiple events) comes through.
 
 ## Milestone 5 — Document submission portal — ⬜ NOT STARTED
 
@@ -254,13 +320,18 @@ token (confirmed workable - see the JWT signing note above). Needs
 
 ## Suggested next session prompt
 
-"Start Milestone 4: generalize the existing XLSX/CSV participant-upload
-parser in `admin-dashboard.tsx` (`handleParticipantFileUpload`) into a full
-historical events + perdiem_requests importer, via a new atomic
-`import_historical_events(client_id, payload)` RPC. Infrastructure only - no
-real historical data gets imported as part of this milestone. If a browser
-tool is available, first spend five minutes closing the manual
-click-through gap noted in Milestones 2 and 3 (invite an account, click the
-real email link, confirm it lands on `/reset-password` and then the right
+"Start Milestone 5: document submission portal. The minimal `work_types`
+table already exists (Milestone 3) - extend it as needed rather than
+recreating it. Build `documents`/`document_reports` tables, a new private
+Storage bucket `documents` (not public, unlike `event-files`), generalize
+`src/lib/supabase/storage.ts` for signed URLs + MIME validation, and design
+`client_user` read access to `work_types` (deliberately left unbuilt in the
+0004 migration until this milestone defines the real access pattern). If a
+browser tool is available, first spend five minutes closing the manual
+click-through gap noted in Milestones 2-4 (invite an account, click the real
+email link, confirm it lands on `/reset-password` and then the right
 dashboard) since every session so far has had to verify that flow indirectly
-via the API instead."
+via the API instead. Also worth a look: when a fuller historical import file
+shows up, confirm the participant-matching and repeat-event paths in
+`import_historical_events()` behave correctly against real data (see
+Milestone 4's noted limitation) - they're correct by code review only so far."

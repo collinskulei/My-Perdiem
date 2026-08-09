@@ -321,7 +321,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
 
         if (filters.dutyStation !== 'all') {
             const participantIds = allParticipants.filter(p => p.dutyStation === filters.dutyStation).map(p => p.id);
-            data = data.filter(req => participantIds.includes(req.participantId));
+            data = data.filter(req => req.participantId !== null && participantIds.includes(req.participantId));
         }
 
         if (filters.participant !== 'all') {

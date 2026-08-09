@@ -53,6 +53,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import * as supabaseDb from "@/lib/supabase/database";
 import { inviteAdmin } from "@/lib/admin-api-client";
+import { HistoricalImportDialog } from "./admin-historical-import";
 import type { Client, Participant, WorkType } from "@/lib/data";
 
 /**
@@ -323,6 +324,8 @@ function ClientRow({ client, onChanged }: { client: Client; onChanged: () => voi
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          {" "}
+          <HistoricalImportDialog clientId={client.id} clientName={client.name} />
         </TableCell>
       </TableRow>
       {expanded && (
