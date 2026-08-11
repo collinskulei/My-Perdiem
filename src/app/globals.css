@@ -1,3 +1,5 @@
+@import "driver.js/dist/driver.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -102,5 +104,56 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* "Guide me" walkthrough (driver.js) - overrides driver.css's hardcoded
+   light-theme colors with the app's own tokens, so it matches both themes
+   instead of always rendering a white popover. */
+@layer base {
+  .driver-popover {
+    background-color: hsl(var(--card));
+    color: hsl(var(--card-foreground));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    box-shadow: 0 4px 20px rgb(0 0 0 / 0.25);
+  }
+  .driver-popover-title {
+    color: hsl(var(--card-foreground));
+  }
+  .driver-popover-description {
+    color: hsl(var(--muted-foreground));
+  }
+  .driver-popover-close-btn {
+    color: hsl(var(--muted-foreground));
+  }
+  .driver-popover-close-btn:hover,
+  .driver-popover-close-btn:focus {
+    color: hsl(var(--foreground));
+  }
+  .driver-popover-footer-btn {
+    background-color: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground));
+    border: 1px solid hsl(var(--border));
+  }
+  .driver-popover-footer-btn:hover,
+  .driver-popover-footer-btn:focus {
+    background-color: hsl(var(--muted));
+  }
+  .driver-popover-next-btn,
+  .driver-popover-done-btn {
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    border-color: hsl(var(--primary));
+  }
+  .driver-popover-next-btn:hover,
+  .driver-popover-done-btn:hover {
+    background-color: hsl(var(--primary) / 0.9);
+  }
+  .driver-popover-progress-text {
+    color: hsl(var(--muted-foreground));
+  }
+  .driver-popover-arrow {
+    border-color: hsl(var(--card));
   }
 }

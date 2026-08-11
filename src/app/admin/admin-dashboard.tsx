@@ -98,6 +98,9 @@ import { PerDiemBalanceCard } from "@/app/dashboard/employee-dashboard";
 import { Separator } from "@/components/ui/separator";
 import { PlacesAutocomplete, type Place } from "@/components/places-autocomplete";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { driver } from "driver.js";
+import { useTour } from "@/components/tour/tour-provider";
+import { buildAdminTourSteps } from "@/lib/tours/admin-tour";
 import { AdminManagement } from "./admin-management";
 import { AdminClientsOverview } from "./admin-clients-overview";
 import { inviteAdmin, setParticipantDisabled } from "@/lib/admin-api-client";
@@ -178,6 +181,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
 
   const [activeTab, setActiveTab] = useState(currentTab);
   const [currentAdmin, setCurrentAdmin] = useState<Participant | null>(null);
+  const { registerTour } = useTour();
   const [venues, setVenues] = useState<Venue[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -270,6 +274,18 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!currentAdmin) return;
+    registerTour(() => {
+      driver({
+        showProgress: true,
+        allowClose: true,
+        steps: buildAdminTourSteps({ setActiveTab, accessTier: currentAdmin.accessTier }),
+      }).drive();
+    });
+    return () => registerTour(null);
+  }, [registerTour, currentAdmin]);
 
   const fetchAllData = useCallback(async () => {
     setLoading(true);
@@ -961,18 +977,18 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <div className="overflow-x-auto pb-2">
             <TabsList>
-            <TabsTrigger value="requests">Perdiem Requests</TabsTrigger>
-            <TabsTrigger value="events">Events</TabsTrigger>
-            <TabsTrigger value="checkins">Event Check-ins</TabsTrigger>
-            <TabsTrigger value="participants">Participants</TabsTrigger>
-            <TabsTrigger value="venues">Venues</TabsTrigger>
-            <TabsTrigger value="reports">Reports</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="requests" data-tour="tab-requests">Perdiem Requests</TabsTrigger>
+            <TabsTrigger value="events" data-tour="tab-events">Events</TabsTrigger>
+            <TabsTrigger value="checkins" data-tour="tab-checkins">Event Check-ins</TabsTrigger>
+            <TabsTrigger value="participants" data-tour="tab-participants">Participants</TabsTrigger>
+            <TabsTrigger value="venues" data-tour="tab-venues">Venues</TabsTrigger>
+            <TabsTrigger value="reports" data-tour="tab-reports">Reports</TabsTrigger>
+            <TabsTrigger value="analytics" data-tour="tab-analytics">Analytics</TabsTrigger>
             {currentAdmin && currentAdmin.accessTier !== 'client_user' && (
-              <TabsTrigger value="management">Manage</TabsTrigger>
+              <TabsTrigger value="management" data-tour="tab-management">Manage</TabsTrigger>
             )}
             {isMultiClientAdmin && (
-              <TabsTrigger value="clients">Clients</TabsTrigger>
+              <TabsTrigger value="clients" data-tour="tab-clients">Clients</TabsTrigger>
             )}
             </TabsList>
         </div>

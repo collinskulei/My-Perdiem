@@ -8,6 +8,7 @@ import Script from 'next/script';
 import { ThemeProvider } from 'next-themes';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
+import { TourProvider } from '@/components/tour/tour-provider';
 
 // Initialize the Inter font with specified subsets and a CSS variable.
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
@@ -49,9 +50,11 @@ export default function RootLayout({
           `}
         </Script>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-          {children}
-          {/* The Toaster component is included here to be available globally for displaying notifications. */}
-          <Toaster />
+          <TourProvider>
+            {children}
+            {/* The Toaster component is included here to be available globally for displaying notifications. */}
+            <Toaster />
+          </TourProvider>
         </ThemeProvider>
       </body>
     </html>

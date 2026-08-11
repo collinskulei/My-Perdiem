@@ -219,7 +219,43 @@ are usable everywhere, not just on the settings page itself.
 
 ---
 
-## 9. Regression basics (run before considering any change done)
+## 9. "Guide me" interactive walkthrough
+
+**Prerequisites:** One account per tier if possible (participant, Client
+Admin, Super Admin, Master Admin) - the tour's content differs by tier.
+
+1. As a **participant**, open the account menu (top right of `/dashboard`)
+   → **Guide me** (compass icon, above Logout). Confirm it starts a
+   spotlight tour: a welcome step with no highlight, then in order **My
+   Events → My Check-ins → My Per Diem Requests → My Analytics**, then a
+   final step on the account-menu button itself.
+2. As a **Client Admin**, on `/<slug>-admin/dashboard`, run **Guide me** →
+   confirm it covers all seven base tabs (Perdiem Requests, Events, Event
+   Check-ins, Participants, Venues, Reports, Analytics) plus **Manage**, but
+   **not** a Clients step (Client Admins don't have that tab).
+3. As a **Super Admin** or **Master Admin**, on their own `/dashboard`, run
+   **Guide me** → confirm the same base tabs plus both **Manage** and
+   **Clients** steps, and that the Manage step's description differs by
+   tier (matches what `src/lib/tours/admin-tour.ts` says for each).
+4. While a step is highlighted, confirm the actual dashboard tab behind the
+   dimmed overlay switches to match (e.g. during the "Participants" step,
+   the Participants table is the one rendered underneath) - the tour drives
+   the same tab state a manual click would, just without pushing a new URL
+   for every step.
+5. Click **Next**/**Back** through the whole tour, then restart it and
+   press **Esc** partway through → tour closes cleanly, page is usable
+   immediately after (no leftover dimmed overlay).
+6. Toggle dark mode (`/settings`, see §8) and re-run **Guide me** → popover
+   background/text/buttons should read naturally in dark mode too, not the
+   library's default hardcoded white.
+
+**Expected:** Every tier sees a complete, accurate tour of everything *they*
+can access - no tier ever sees a step for a tab they don't have, and no
+tab they do have is missing a step.
+
+---
+
+## 10. Regression basics (run before considering any change done)
 
 1. `npm run typecheck` - compare the error list to the known pre-existing
    ones (Badge `variant="success"` typing, `checkbox.tsx`/`sidebar.tsx`
@@ -242,4 +278,6 @@ are usable everywhere, not just on the settings page itself.
 - §7: Milestone 4 (historical import).
 - §3-6, §8: off-plan tier-portal + theme work (see
   `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section).
-- §9: general project convention, not tied to one milestone.
+- §9: off-plan "Guide me" walkthrough (driver.js), see
+  `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
+- §10: general project convention, not tied to one milestone.

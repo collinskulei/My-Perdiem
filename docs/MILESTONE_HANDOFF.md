@@ -7,9 +7,10 @@ planned it). Use this file to pick up work from any workspace/session.
 ## Current repo state
 
 - Branch `main`, in sync with `origin/main` as of this commit.
-- Milestones 0–4 done. Since then, an off-plan feature (tier-specific admin
-  portals + dark/light theme toggle, see below) was built at the user's
-  direct request, ahead of Milestone 5. Milestone 5 itself is still next.
+- Milestones 0–4 done. Since then, two off-plan features (tier-specific
+  admin portals + dark/light theme toggle, and a "Guide me" interactive
+  walkthrough, see below) were built at the user's direct request, ahead of
+  Milestone 5. Milestone 5 itself is still next.
 - Working tree was clean as of the last check. Always run `git status` and
   `git pull` before starting, in case another workspace pushed more since.
 - **⚠️ TEMPORARY, TESTING-ONLY, MUST BE REVOKED BEFORE LAUNCH:** `master_admin`
@@ -430,6 +431,60 @@ end, and the Clients-tab widget stats/actions against live data. Migration
 `0008` is applied, so this is now just waiting on a browser/credentialed
 session to click through.
 
+## Off-plan: "Guide me" interactive walkthrough — ✅ DONE (code, not browser-tested)
+
+Also user-requested, off-plan, built right after the tier-portal work above.
+A "Guide me" item in the account-menu dropdown starts a spotlight-style tour
+(via `driver.js`, a new small dependency - no tour library existed before)
+covering everything the logged-in user's tier can see. Only two files have
+an account-menu dropdown in the whole app -
+`src/app/dashboard/employee-header.tsx` (participants) and
+`src/app/admin/admin-header.tsx` (shared by all three admin tiers) - so
+adding "Guide me" there covers every tier with two small edits.
+
+**How it's wired:** a tour is a list of `driver.js` steps targeting
+`data-tour="tab-<value>"` attributes added to each dashboard's existing
+`TabsTrigger` elements (`src/app/dashboard/employee-dashboard.tsx`,
+`src/app/admin/admin-dashboard.tsx`) - not the sidebar, since the in-page
+Tabs are co-located with the tab-switching state and, importantly, Radix
+keeps every `TabsTrigger` mounted in the DOM regardless of which tab is
+active, so there's no render-timing/waiting concern when the tour switches
+tabs mid-sequence. Each step's `onHighlightStarted` calls the dashboard's
+own `setActiveTab` (not the URL-pushing `handleTabChange` - deliberately, to
+avoid stacking ~9 browser-history entries for one tour run) so the real tab
+content visibly changes behind the dimmed overlay as the tour progresses.
+
+Because "Guide me" lives in the **header** (a sibling of the dashboard
+content, not a descendant) and only the dashboard itself knows its own
+tab-switch function and (for admin) which tabs the current tier can see, a
+small React Context bridges the two:
+`src/components/tour/tour-provider.tsx` (`TourProvider`/`useTour`, mounted
+in `src/app/layout.tsx` inside the existing `ThemeProvider`) exposes
+`registerTour(fn)` (called by each dashboard on mount) and `startTour()`
+(called by the header's "Guide me" click).
+
+Tour content lives in `src/lib/tours/participant-tour.ts` (4 tabs: My
+Events/Check-ins/Requests/Analytics) and `src/lib/tours/admin-tour.ts`
+(7 base tabs for every admin tier, plus a `management` step gated the same
+way the existing "Manage" tab already is, plus a `clients` step gated to
+super/master only, matching `isMultiClientAdmin` exactly) - both end on a
+step highlighting the account-menu button itself, mentioning Profile/
+Settings/re-running the guide. `src/app/globals.css` has a theme-override
+block (driver.js ships hardcoded light-mode CSS by default) mapping its
+popover to the app's own HSL tokens, so it matches both the light and the
+newly-added dark theme instead of always rendering white.
+
+**Verified this session:** `npm run typecheck`/`npm run build` (temporary
+placeholder `.env`, deleted after) show no new errors beyond the same
+pre-existing ones noted throughout this doc, and the built bundle size for
+each dashboard route grew by driver.js's footprint as expected.
+
+**Not yet verified** (no browser tool this session, same caveat as
+everything else): actually running the tour in a browser per tier - confirm
+step order, that Client Admin never sees a `clients` step, that Next/Back/
+Esc/close all work, and that the popover renders correctly in dark mode.
+Added as `docs/TEST_GUIDE.md` §9.
+
 ## Milestone 5 — Document submission portal — ⬜ NOT STARTED
 
 The minimal `work_types` table (`id, client_id, name, archived_at`) already
@@ -458,9 +513,12 @@ portals: log in as the existing Apeiro Client Admin
 at `/apeiro-admin` (or whatever slug it got), confirm it lands on
 `/apeiro-admin/dashboard` and rejects other clients' slugs; same for
 `/super-admin` and `/master-admin`; click through the new Clients-tab
-widgets (invite, work types, view participants) against live data; and
-toggle the new dark/light switch at `/settings`. None of this has been
-click-tested in a real browser yet (see the off-plan section above).
+widgets (invite, work types, view participants) against live data; toggle
+the new dark/light switch at `/settings`; and run the new "Guide me" tour
+(account menu → Guide me) for a participant and each admin tier, confirming
+step order and that Client Admin never sees the `clients` step. None of this
+has been click-tested in a real browser yet (see the off-plan sections
+above).
 
 Then start Milestone 5: document submission portal. The minimal `work_types`
 table already exists (Milestone 3) - extend it as needed rather than

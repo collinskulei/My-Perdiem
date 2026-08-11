@@ -51,6 +51,9 @@ import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { Label } from "@/components/ui/label";
 import { ClientOnly } from "@/components/client-only";
 import { Input } from "@/components/ui/input";
+import { driver } from "driver.js";
+import { useTour } from "@/components/tour/tour-provider";
+import { buildParticipantTourSteps } from "@/lib/tours/participant-tour";
 
 
 const ANALYTICS_COLORS = {
@@ -75,6 +78,18 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
   const { toast, dismiss } = useToast();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState(currentTab);
+  const { registerTour } = useTour();
+
+  useEffect(() => {
+    registerTour(() => {
+      driver({
+        showProgress: true,
+        allowClose: true,
+        steps: buildParticipantTourSteps({ setActiveTab }),
+      }).drive();
+    });
+    return () => registerTour(null);
+  }, [registerTour]);
 
   // State for Confirm Payment dialog
   const [isConfirmingPayment, setIsConfirmingPayment] = useState(false);
@@ -386,10 +401,10 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
         <Tabs value={activeTab} onValueChange={handleTabChange}>
             <div className="overflow-x-auto pb-2">
                 <TabsList>
-                    <TabsTrigger value="events">My Events</TabsTrigger>
-                    <TabsTrigger value="checkins">My Check-ins</TabsTrigger>
-                    <TabsTrigger value="requests">My Per Diem Requests</TabsTrigger>
-                    <TabsTrigger value="analytics">My Analytics</TabsTrigger>
+                    <TabsTrigger value="events" data-tour="tab-events">My Events</TabsTrigger>
+                    <TabsTrigger value="checkins" data-tour="tab-checkins">My Check-ins</TabsTrigger>
+                    <TabsTrigger value="requests" data-tour="tab-requests">My Per Diem Requests</TabsTrigger>
+                    <TabsTrigger value="analytics" data-tour="tab-analytics">My Analytics</TabsTrigger>
                 </TabsList>
             </div>
             <TabsContent value="events">

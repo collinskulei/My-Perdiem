@@ -3,13 +3,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bell } from "lucide-react";
+import { Bell, Compass } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ClientOnly } from "@/components/client-only";
 import { signOutEverywhere } from "@/lib/supabase/auth";
+import { useTour } from "@/components/tour/tour-provider";
 
 export function AdminHeader({
   loginPath = "/",
@@ -19,6 +20,7 @@ export function AdminHeader({
   portalLabel?: string;
 }) {
   const router = useRouter();
+  const { startTour } = useTour();
   const handleLogout = async () => {
     await signOutEverywhere();
     router.push(loginPath);
@@ -38,7 +40,7 @@ export function AdminHeader({
         <ClientOnly>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full">
+                <Button variant="ghost" size="icon" className="rounded-full" data-tour="account-menu">
                   <Avatar className="h-8 w-8">
                   <AvatarImage src="https://picsum.photos/seed/admin/100/100" data-ai-hint="person avatar" />
                   <AvatarFallback>AD</AvatarFallback>
@@ -50,6 +52,10 @@ export function AdminHeader({
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild><Link href="/profile">Profile</Link></DropdownMenuItem>
               <DropdownMenuItem asChild><Link href="/settings">Settings</Link></DropdownMenuItem>
+              <DropdownMenuItem onClick={startTour}>
+                <Compass className="mr-2 h-4 w-4" />
+                Guide me
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
             </DropdownMenuContent>
