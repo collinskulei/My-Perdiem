@@ -3,6 +3,7 @@
  * server-side, same pattern as src/app/admin/layout.tsx. No session, or a
  * session whose participant row isn't access_tier = 'super_admin', bounces
  * back to the Super Admin login page (not the generic '/').
+ * (TEMPORARY testing exception for master_admin - see inline comments.)
  */
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
@@ -26,7 +27,11 @@ export default async function SuperAdminDashboardLayout({
     .eq('id', user.id)
     .single();
 
-  if (!participant || participant.access_tier !== 'super_admin') {
+  // TEMPORARY (testing only, revoke before launch): master_admin is also let
+  // through so one account can exercise every portal - see the matching
+  // note in src/components/admin-login-form.tsx. To revoke, drop the
+  // `&& participant.access_tier !== 'master_admin'` clause below.
+  if (!participant || (participant.access_tier !== 'super_admin' && participant.access_tier !== 'master_admin')) {
     redirect('/super-admin');
   }
 

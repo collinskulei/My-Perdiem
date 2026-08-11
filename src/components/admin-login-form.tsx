@@ -66,8 +66,14 @@ export function AdminLoginForm({
       const user = data.user;
 
       const participant = await supabaseDb.getParticipantById(user.id);
-      const tierMatches = participant?.accessTier === expectedTier;
-      const clientMatches = !expectedClientId || participant?.clientId === expectedClientId;
+      // TEMPORARY (testing only, revoke before launch): master_admin can log
+      // in through every portal regardless of expectedTier/expectedClientId,
+      // so one account can exercise all three dashboards without needing
+      // separate super_admin/client_admin test accounts. To revoke, delete
+      // isMasterAdmin and go back to the two plain equality checks below.
+      const isMasterAdmin = participant?.accessTier === 'master_admin';
+      const tierMatches = participant?.accessTier === expectedTier || isMasterAdmin;
+      const clientMatches = isMasterAdmin || !expectedClientId || participant?.clientId === expectedClientId;
 
       if (participant && tierMatches && clientMatches) {
         router.push(redirectTo);

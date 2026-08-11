@@ -12,6 +12,20 @@ planned it). Use this file to pick up work from any workspace/session.
   direct request, ahead of Milestone 5. Milestone 5 itself is still next.
 - Working tree was clean as of the last check. Always run `git status` and
   `git pull` before starting, in case another workspace pushed more since.
+- **⚠️ TEMPORARY, TESTING-ONLY, MUST BE REVOKED BEFORE LAUNCH:** `master_admin`
+  can currently log into and pass the server-side guard on *every* portal -
+  `/super-admin`, `/<any-slug>-admin`, and `/master-admin` - not just its own,
+  so one account can exercise all three dashboards without provisioning
+  separate Super Admin / Client Admin test accounts. Landing on a
+  Client/Super Admin portal as `master_admin` shows the master-level global
+  view (its `client_id` is still null), not a true client-scoped experience -
+  it's a login/guard bypass for testing, not real impersonation. Marked with
+  `// TEMPORARY (testing only, revoke before launch)` comments in three
+  places - `grep -rn "TEMPORARY (testing only" src/` finds all of them:
+  `src/components/admin-login-form.tsx`,
+  `src/app/super-admin/dashboard/layout.tsx`, and
+  `src/app/client-admin/[clientSlug]/dashboard/layout.tsx`. Revoke by
+  reverting each marked block to its plain equality check.
 - `0008_client_slug.sql` (adds `clients.slug` + the `get_client_by_slug` RPC)
   has been applied to the live project (per the user, this session - not
   independently re-verified from outside since this workspace has no `.env`/
