@@ -517,7 +517,7 @@ export const markEventAsPaid = async (eventId: string, transactionCode: string):
  * @returns {Promise<Client[]>}
  */
 export const getClients = async (): Promise<Client[]> => {
-  const { data, error } = await supabase.from('clients').select('id, name').order('name');
+  const { data, error } = await supabase.from('clients').select('id, name, slug').order('name');
   if (error) {
     console.error("Error fetching clients: ", error);
     return [];
@@ -539,6 +539,24 @@ export const getPublicClientName = async (clientId: string): Promise<string | nu
     return null;
   }
   return data ?? null;
+};
+
+/**
+ * Resolves a client-admin portal's URL slug (e.g. "apeiro" from
+ * /apeiro-admin) to the client's ID and name, without requiring an
+ * authenticated session - used by the portal's login page to display the
+ * client's name and, post-auth, to confirm the signed-in Client Admin
+ * belongs to this client. Backed by a SECURITY DEFINER RPC.
+ * @param {string} slug - The slug segment from the portal URL.
+ * @returns {Promise<{ id: string; name: string } | null>} The matching client, or null if the slug is unknown/archived.
+ */
+export const getClientBySlug = async (slug: string): Promise<{ id: string; name: string } | null> => {
+  const { data, error } = await supabase.rpc('get_client_by_slug', { target_slug: slug });
+  if (error) {
+    console.error("Error looking up client by slug: ", error);
+    return null;
+  }
+  return data?.[0] ?? null;
 };
 
 /**

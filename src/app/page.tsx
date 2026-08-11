@@ -1,7 +1,8 @@
 
 /**
- * @file This file defines the main login page for the application.
- * It presents a tabbed interface for users to log in as either an Participant or an Admin.
+ * @file This file defines the main login page for the application, used by
+ * Participants only - Client/Super/Master Admins sign in through their own
+ * dedicated portals (/<clientSlug>-admin, /super-admin, /master-admin).
  */
 "use client";
 
@@ -26,17 +27,15 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, Suspense } from "react";
-import * as supabaseDb from '@/lib/supabase/database';
 import { Eye, EyeOff, Loader2, Download } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import Link from "next/link";
 
 /**
- * The main interactive component for the login page, featuring separate tabs for participant and admin login.
+ * The main interactive component for the login page.
  * @returns {JSX.Element} The rendered login card.
  */
 function LoginCard() {
@@ -44,8 +43,6 @@ function LoginCard() {
   const { toast } = useToast();
   const [participantEmail, setParticipantEmail] = useState("");
   const [participantPassword, setParticipantPassword] = useState("");
-  const [adminEmail, setAdminEmail] = useState("admin@example.com");
-  const [adminPassword, setAdminPassword] = useState("password");
   const [hasMounted, setHasMounted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -54,8 +51,6 @@ function LoginCard() {
   const [resetEmail, setResetEmail] = useState("");
   const [isSendingReset, setIsSendingReset] = useState(false);
   const isMobile = useIsMobile();
-
-  const dataProvider = supabaseDb;
 
   useEffect(() => {
     setHasMounted(true);
@@ -72,35 +67,6 @@ function LoginCard() {
       const { error } = await supabase.auth.signInWithPassword({ email: participantEmail, password: participantPassword });
       if (error) throw error;
       router.push("/dashboard");
-    } catch (error: any) {
-      toast({
-        title: "Login Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  /**
-   * Handles the admin login form submission.
-   * Prevents the default form submission and redirects the user to the admin dashboard.
-   * @param {React.FormEvent} e - The form submission event.
-   */
-  const handleAdminLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email: adminEmail, password: adminPassword });
-      if (error) throw error;
-      const user = data.user;
-
-      // Check if the user has an admin-tier access level
-      const participant = await dataProvider.getParticipantById(user.id);
-      if (participant && participant.accessTier !== 'client_user') {
-        router.push("/admin");
-      } else {
-        await supabase.auth.signOut(); // Sign out the user if they are not an admin
-        throw new Error("You do not have administrative privileges.");
-      }
     } catch (error: any) {
       toast({
         title: "Login Failed",
@@ -144,7 +110,7 @@ function LoginCard() {
             <CardHeader className="text-center">
               <CardTitle className="text-2xl">Welcome Back</CardTitle>
               <CardDescription>
-                Select your role to access your account.
+                Sign in to access your account.
               </CardDescription>
             </CardHeader>
             <CardContent className="h-64 flex items-center justify-center">
@@ -171,106 +137,53 @@ function LoginCard() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Welcome Back</CardTitle>
           <CardDescription>
-            Select your role to access your account.
+            Sign in to access your account.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="participant" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="participant">Participant</TabsTrigger>
-              <TabsTrigger value="admin">Admin</TabsTrigger>
-            </TabsList>
-            <TabsContent value="participant">
-              <form onSubmit={handleParticipantLogin}>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="participant-email">Email</Label>
-                    <Input
-                      id="participant-email"
-                      type="email"
-                      placeholder="email@example.com"
-                      required
-                      value={participantEmail}
-                      onChange={(e) => setParticipantEmail(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2 relative">
-                    <div className="flex items-center justify-between">
-                        <Label htmlFor="password">Password</Label>
-                         <button type="button" onClick={() => { setResetEmail(participantEmail); setIsResetDialogOpen(true); }} className="text-xs text-primary underline-offset-4 hover:underline">
-                            Forgot Password?
-                         </button>
-                    </div>
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      required
-                      value={participantPassword}
-                      onChange={(e) => setParticipantPassword(e.target.value)}
-                    />
-                     <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-1 top-7 h-7 w-7"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      <span className="sr-only">{showPassword ? 'Hide password' : 'Show password'}</span>
-                    </Button>
-                  </div>
+          <form onSubmit={handleParticipantLogin}>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="participant-email">Email</Label>
+                <Input
+                  id="participant-email"
+                  type="email"
+                  placeholder="email@example.com"
+                  required
+                  value={participantEmail}
+                  onChange={(e) => setParticipantEmail(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2 relative">
+                <div className="flex items-center justify-between">
+                    <Label htmlFor="password">Password</Label>
+                     <button type="button" onClick={() => { setResetEmail(participantEmail); setIsResetDialogOpen(true); }} className="text-xs text-primary underline-offset-4 hover:underline">
+                        Forgot Password?
+                     </button>
                 </div>
-                <Button type="submit" className="w-full">
-                  Login as Participant
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  value={participantPassword}
+                  onChange={(e) => setParticipantPassword(e.target.value)}
+                />
+                 <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-7 h-7 w-7"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  <span className="sr-only">{showPassword ? 'Hide password' : 'Show password'}</span>
                 </Button>
-              </form>
-            </TabsContent>
-            <TabsContent value="admin">
-              <form onSubmit={handleAdminLogin}>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="admin-email">Email</Label>
-                    <Input
-                      id="admin-email"
-                      type="email"
-                      placeholder="admin@example.com"
-                      required
-                      value={adminEmail}
-                      onChange={(e) => setAdminEmail(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2 relative">
-                     <div className="flex items-center justify-between">
-                        <Label htmlFor="admin-password">Password</Label>
-                         <button type="button" onClick={() => { setResetEmail(adminEmail); setIsResetDialogOpen(true); }} className="text-xs text-primary underline-offset-4 hover:underline">
-                            Forgot Password?
-                         </button>
-                    </div>
-                    <Input
-                      id="admin-password"
-                      type={showPassword ? "text" : "password"}
-                      required
-                      value={adminPassword}
-                      onChange={(e) => setAdminPassword(e.target.value)}
-                    />
-                     <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-1 top-7 h-7 w-7"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      <span className="sr-only">{showPassword ? 'Hide password' : 'Show password'}</span>
-                    </Button>
-                  </div>
-                </div>
-                <Button type="submit" className="w-full">
-                  Login as Admin
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
+              </div>
+            </div>
+            <Button type="submit" className="w-full">
+              Login
+            </Button>
+          </form>
         </CardContent>
          <CardFooter className="flex flex-col gap-4">
             {isMobile && (

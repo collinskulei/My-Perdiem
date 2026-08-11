@@ -5,6 +5,7 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import Script from 'next/script';
+import { ThemeProvider } from 'next-themes';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 
@@ -47,9 +48,11 @@ export default function RootLayout({
             gtag('config', 'G-KLRRFCRXS3');
           `}
         </Script>
-        {children}
-        {/* The Toaster component is included here to be available globally for displaying notifications. */}
-        <Toaster />
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+          {children}
+          {/* The Toaster component is included here to be available globally for displaying notifications. */}
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

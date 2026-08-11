@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2, QrCode, Upload, File as FileIcon, X, Wallet, Paperclip, Info, Trash2, Search } from "lucide-react";
 import Image from "next/image";
@@ -86,7 +86,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import type { PerdiemRequest, Venue, Participant, AppEvent } from "@/lib/data";
+import type { PerdiemRequest, Venue, Participant, AppEvent, Client } from "@/lib/data";
 import { OUT_OF_OFFICE_RATES, dutyStationCoordinates } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import * as supabaseDb from '@/lib/supabase/database';
@@ -99,6 +99,7 @@ import { Separator } from "@/components/ui/separator";
 import { PlacesAutocomplete, type Place } from "@/components/places-autocomplete";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AdminManagement } from "./admin-management";
+import { AdminClientsOverview } from "./admin-clients-overview";
 import { inviteAdmin, setParticipantDisabled } from "@/lib/admin-api-client";
 
 const dataProvider = supabaseDb;
@@ -171,13 +172,16 @@ const downloadCSV = (csvData: string, filename: string) => {
     document.body.removeChild(link);
 }
 
-export function AdminDashboard({ currentTab }: { currentTab: string }) {
+export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab: string; basePath?: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [activeTab, setActiveTab] = useState(currentTab);
   const [currentAdmin, setCurrentAdmin] = useState<Participant | null>(null);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [participantClientFilter, setParticipantClientFilter] = useState(searchParams.get('clientId') ?? 'all');
   const [perdiemRequests, setPerdiemRequests] = useState<PerdiemRequest[]>([]);
   const [events, setEvents] = useState<AppEvent[]>([]);
   
@@ -249,7 +253,7 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   
   const handleTabChange = (value: string) => {
     setActiveTab(value);
-    router.push(`/admin?tab=${value}`, { scroll: false });
+    router.push(`${basePath}?tab=${value}`, { scroll: false });
   };
 
   useEffect(() => {
@@ -270,14 +274,16 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
   const fetchAllData = useCallback(async () => {
     setLoading(true);
     try {
-      const [venuesData, participantsData, requestsData, eventsData] = await Promise.all([
+      const [venuesData, participantsData, requestsData, eventsData, clientsData] = await Promise.all([
         dataProvider.getVenues(),
         dataProvider.getParticipants(),
         dataProvider.getPerDiemRequests(),
-        dataProvider.getEvents()
+        dataProvider.getEvents(),
+        dataProvider.getClients()
       ]);
       setVenues(venuesData);
       setParticipants(participantsData);
+      setClients(clientsData);
       // Sort requests by date descending
       setPerdiemRequests(requestsData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
       setEvents(eventsData.sort((a, b) => {
@@ -777,16 +783,22 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
 
   const nonAdminParticipants = useMemo(() => participants.filter(p => p.accessTier === 'client_user'), [participants]);
 
+  const isMultiClientAdmin = currentAdmin?.accessTier === 'super_admin' || currentAdmin?.accessTier === 'master_admin';
+
   const filteredParticipants = useMemo(() => {
+    let data = participants;
+    if (isMultiClientAdmin && participantClientFilter !== 'all') {
+      data = data.filter(p => p.clientId === participantClientFilter);
+    }
     if (!participantSearch) {
-      return participants;
+      return data;
     }
     const searchTerm = participantSearch.toLowerCase();
-    return participants.filter(p => 
-      p.name.toLowerCase().includes(searchTerm) || 
+    return data.filter(p =>
+      p.name.toLowerCase().includes(searchTerm) ||
       p.idNumber.includes(searchTerm)
     );
-  }, [participants, participantSearch]);
+  }, [participants, participantSearch, participantClientFilter, isMultiClientAdmin]);
 
   const handleSelectParticipant = useCallback((participantId: string) => {
     setEventFormData(prev => {
@@ -958,6 +970,9 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             {currentAdmin && currentAdmin.accessTier !== 'client_user' && (
               <TabsTrigger value="management">Manage</TabsTrigger>
+            )}
+            {isMultiClientAdmin && (
+              <TabsTrigger value="clients">Clients</TabsTrigger>
             )}
             </TabsList>
         </div>
@@ -1447,8 +1462,8 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                 </Dialog>
             </CardHeader>
             <CardContent>
-              <div className="mb-4">
-                  <div className="relative">
+              <div className="mb-4 flex flex-col md:flex-row gap-2">
+                  <div className="relative flex-1">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                           placeholder="Search by name or ID number..."
@@ -1457,6 +1472,17 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
                           onChange={(e) => setParticipantSearch(e.target.value)}
                       />
                   </div>
+                  {isMultiClientAdmin && (
+                    <Select value={participantClientFilter} onValueChange={setParticipantClientFilter}>
+                      <SelectTrigger className="md:w-[220px]"><SelectValue placeholder="All Clients" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Clients</SelectItem>
+                        {clients.map(client => (
+                          <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
               </div>
               <div className="overflow-x-auto">
                 <Table>
@@ -1687,6 +1713,16 @@ export function AdminDashboard({ currentTab }: { currentTab: string }) {
               currentAdmin={currentAdmin}
               participants={participants}
               onParticipantsChanged={fetchAllData}
+            />
+          </TabsContent>
+        )}
+        {isMultiClientAdmin && (
+          <TabsContent value="clients">
+            <AdminClientsOverview
+              clients={clients}
+              participants={participants}
+              basePath={basePath}
+              onChanged={fetchAllData}
             />
           </TabsContent>
         )}

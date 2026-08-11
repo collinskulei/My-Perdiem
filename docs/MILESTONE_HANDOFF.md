@@ -7,9 +7,19 @@ planned it). Use this file to pick up work from any workspace/session.
 ## Current repo state
 
 - Branch `main`, in sync with `origin/main` as of this commit.
-- Milestones 0–4 done. Next up: Milestone 5.
+- Milestones 0–4 done. Since then, an off-plan feature (tier-specific admin
+  portals + dark/light theme toggle, see below) was built at the user's
+  direct request, ahead of Milestone 5. Milestone 5 itself is still next.
 - Working tree was clean as of the last check. Always run `git status` and
   `git pull` before starting, in case another workspace pushed more since.
+- `0008_client_slug.sql` (adds `clients.slug` + the `get_client_by_slug` RPC)
+  has been applied to the live project (per the user, this session - not
+  independently re-verified from outside since this workspace has no `.env`/
+  Supabase credentials to probe with). Worth a quick outside check next time
+  credentials are available: confirm existing clients (`Apeiro`, `Default
+  Client (migrated)`) got a non-null `slug`, and that `get_client_by_slug`
+  resolves one of them - same style of verification Milestone 2 did for its
+  migration.
 
 ## Milestone 0 — Recover deleted code — ✅ DONE
 
@@ -300,6 +310,112 @@ path, are correct by code review but not yet exercised against real data.
 Worth confirming once a fuller historical file (repeat participants,
 multiple events) comes through.
 
+## Off-plan: tier-specific admin portals + dark/light theme toggle — ✅ DONE (code + migration applied live)
+
+Not part of the original plan - the user asked for this directly, ahead of
+Milestone 5. Summary: every admin tier used to share one login tab on the
+landing page and one dashboard at `/admin`, tab-gated internally by
+`accessTier`. Now each tier has its own login URL and its own guarded
+dashboard route, and there's a personal dark/light preference.
+
+**Locked-in decision (don't re-litigate):** "dedicated dashboard per tier"
+was implemented as separate URLs + separate server-side guards per tier, not
+three independently-maintained forks of the ~2,300-line dashboard. The
+existing `AdminDashboard`/`AdminSidebarNavigation`/`AdminHeader`/
+`AdminLayoutClient` components (`src/app/admin/*`) are still the single
+shared implementation - already correctly tab-gated by `accessTier` - now
+parameterized with a `basePath` (and `loginPath`/`portalLabel`) prop instead
+of hardcoding `/admin`, and mounted under three new route trees. `/admin`
+itself is untouched and still works standalone.
+
+**Client slug (DB):** `supabase/migrations/0008_client_slug.sql` adds
+`clients.slug` (auto-generated from `name` via a `before insert/update`
+trigger, collision-suffixed, with `super`/`master` reserved so no client can
+ever collide with the Super/Master Admin routes), plus a
+`get_client_by_slug(text)` RPC (anon+authenticated, mirrors the existing
+`get_public_client_name`). **Applied to the live project this session** (per
+the user; not independently re-verified from outside, see "Current repo
+state" above). `src/lib/data.ts`'s `Client` type and
+`getClients()`/new `getClientBySlug()` in `src/lib/supabase/database.ts` were
+updated to match.
+
+**Pretty URLs via middleware rewrite:** Next.js can't mix literal text with a
+dynamic segment in one route folder (no `[clientname]-admin` folder is
+possible), so `src/middleware.ts` now also rewrites `/<slug>-admin` and
+`/<slug>-admin/dashboard` onto `src/app/client-admin/[clientSlug]/...`
+(regex-matched, "super"/"master" excluded since those are their own static
+routes). **Implementation note for future sessions:** a leading-underscore
+"private folder" (`_client-admin`) was tried first to also block direct
+`/client-admin/<slug>` access, but Next.js excludes private folders from
+routing entirely - the rewrite target itself silently vanished from the
+build's route list. Renamed to the plain `client-admin` folder; it's a real,
+directly-reachable route now too, alongside the pretty URL, but every guard
+is independent of which URL got you there, so this is cosmetic only.
+
+**Three portals**, each a public login page + a `dashboard` route guarded by
+a server-component layout (same pattern as `src/app/admin/layout.tsx`):
+- `src/app/super-admin/` (login) + `super-admin/dashboard/` (guard requires
+  `access_tier = 'super_admin'` exactly).
+- `src/app/master-admin/` + `master-admin/dashboard/` (`master_admin` exactly).
+- `src/app/client-admin/[clientSlug]/` + `.../dashboard/` (`client_admin`
+  exactly, AND the participant's `client_id` must resolve to a client whose
+  `slug` matches the URL segment - checked server-side against the `clients`
+  table, not just trusted from the URL).
+- Shared login UI extracted from the landing page's old "Admin" tab into
+  `src/components/admin-login-form.tsx` (`expectedTier`/`expectedClientId`/
+  `redirectTo` props). `src/app/page.tsx` (landing page) is now
+  participant-only - the Admin tab is gone.
+- Logout now routes back to the portal's own login page (`loginPath` prop
+  threaded through `AdminLayoutClient`/`AdminHeader`), not the generic `/`,
+  since `/` no longer has an admin path.
+
+**Super/Master Admin "Clients" tab** (`src/app/admin/admin-clients-overview.tsx`,
+new): a widget grid, one card per client, replacing the old plain-table
+client list that used to live inside admin-management.tsx's `ClientsSection`
+(removed - fully absorbed into the new file). Each card shows live admin/
+participant counts (computed client-side from data `admin-dashboard.tsx`
+already fetches - no new query), invite-a-Client-Admin, work types
+(unchanged logic, just restyled), and a "View Participants" link that
+deep-links into the Participants tab with `?clientId=`. The Participants tab
+itself gained a client-filter `Select`, shown only to Super/Master Admin.
+
+**Master Admin can now manage Super Admins** (admin-management.tsx's
+`AdminsSection`): the DB-side `set_access_tier()` RPC's `master_admin` branch
+was already unrestricted (confirmed in migrations 0003/0005) - the gap was
+purely that the UI hid the Demote button for Master Admin. Fixed; Master
+Admin can now demote any Super Admin or Client Admin to Participant (not
+another Master Admin, by UI choice, even though the RPC would allow it - kept
+out to avoid accidentally locking out all Master Admins).
+
+**Dark/light theme:** `next-themes` added; `src/app/layout.tsx` wraps
+children in a class-based `ThemeProvider` (`globals.css`'s `.dark` palette
+and `tailwind.config.ts`'s `darkMode: ['class']` already existed and needed
+no changes - this is the first time either was actually reachable in the
+UI). New `src/components/theme-toggle.tsx` (simple Light/Dark switch, no
+System option - matches what was explicitly asked for) lives on the new
+`src/app/settings/page.tsx` ("Settings > Preferences"), linked from the
+previously-dead "Settings" item in both `admin-header.tsx` and
+`employee-header.tsx`.
+
+**Verified this session:** `npm run build` succeeds (confirmed with a
+temporary local-only placeholder `.env` - none exists in this workspace, so
+this environment can't build against real Supabase data; delete any such
+file before committing) and lists all new routes
+(`/super-admin`, `/super-admin/dashboard`, `/master-admin`,
+`/master-admin/dashboard`, `/client-admin/[clientSlug]`,
+`/client-admin/[clientSlug]/dashboard`, `/settings`). `npm run typecheck`
+shows only pre-existing errors (the same ones noted in Milestone 2's
+verification, plus the same class of Next-15-async-params `.next/types`
+noise already present on `/admin/page.tsx` before this work) - none block
+`next build` (`typescript.ignoreBuildErrors: true` in `next.config.ts`).
+
+**Not yet verified** (no browser tool available this session, same caveat as
+every milestone before this one): an actual login through each portal in a
+browser, the middleware rewrite serving a real `/<slug>-admin` URL end to
+end, and the Clients-tab widget stats/actions against live data. Migration
+`0008` is applied, so this is now just waiting on a browser/credentialed
+session to click through.
+
 ## Milestone 5 — Document submission portal — ⬜ NOT STARTED
 
 The minimal `work_types` table (`id, client_id, name, archived_at`) already
@@ -320,18 +436,31 @@ token (confirmed workable - see the JWT signing note above). Needs
 
 ## Suggested next session prompt
 
-"Start Milestone 5: document submission portal. The minimal `work_types`
+"Migration `0008_client_slug.sql` is applied live (not independently
+re-verified from outside yet - worth a quick outside probe first, see
+'Current repo state' above). If a browser tool is available, spend a few
+minutes closing the manual click-through gap on the new tier-specific admin
+portals: log in as the existing Apeiro Client Admin
+at `/apeiro-admin` (or whatever slug it got), confirm it lands on
+`/apeiro-admin/dashboard` and rejects other clients' slugs; same for
+`/super-admin` and `/master-admin`; click through the new Clients-tab
+widgets (invite, work types, view participants) against live data; and
+toggle the new dark/light switch at `/settings`. None of this has been
+click-tested in a real browser yet (see the off-plan section above).
+
+Then start Milestone 5: document submission portal. The minimal `work_types`
 table already exists (Milestone 3) - extend it as needed rather than
 recreating it. Build `documents`/`document_reports` tables, a new private
 Storage bucket `documents` (not public, unlike `event-files`), generalize
 `src/lib/supabase/storage.ts` for signed URLs + MIME validation, and design
 `client_user` read access to `work_types` (deliberately left unbuilt in the
-0004 migration until this milestone defines the real access pattern). If a
-browser tool is available, first spend five minutes closing the manual
-click-through gap noted in Milestones 2-4 (invite an account, click the real
-email link, confirm it lands on `/reset-password` and then the right
-dashboard) since every session so far has had to verify that flow indirectly
-via the API instead. Also worth a look: when a fuller historical import file
-shows up, confirm the participant-matching and repeat-event paths in
-`import_historical_events()` behave correctly against real data (see
-Milestone 4's noted limitation) - they're correct by code review only so far."
+0004 migration until this milestone defines the real access pattern).
+
+Also worth a look, lower priority: while at a machine with a browser, close
+the original Milestones 2-4 gap too (invite an account, click the real email
+link, confirm it lands on `/reset-password` and then the right dashboard) -
+every session so far has had to verify that flow indirectly via the API
+instead. And when a fuller historical import file shows up, confirm the
+participant-matching and repeat-event paths in `import_historical_events()`
+behave correctly against real data (see Milestone 4's noted limitation) -
+they're correct by code review only so far."

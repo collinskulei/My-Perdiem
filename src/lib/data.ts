@@ -18,6 +18,7 @@ export type AccessTier = 'master_admin' | 'super_admin' | 'client_admin' | 'clie
 export type Client = {
   id: string;
   name: string;
+  slug: string;
 };
 
 /**

@@ -11,17 +11,26 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ClientOnly } from "@/components/client-only";
 import { signOutEverywhere } from "@/lib/supabase/auth";
 
-export function AdminHeader() {
+export function AdminHeader({
+  loginPath = "/",
+  portalLabel,
+}: {
+  loginPath?: string;
+  portalLabel?: string;
+}) {
   const router = useRouter();
   const handleLogout = async () => {
     await signOutEverywhere();
-    router.push("/");
+    router.push(loginPath);
   };
 
   return (
     <header className="flex h-14 items-center justify-between border-b bg-card px-4 lg:px-6">
       <SidebarTrigger className="md:hidden" />
       <div className="flex flex-1 items-center justify-end gap-4">
+        {portalLabel && (
+          <span className="hidden sm:inline text-sm text-muted-foreground">{portalLabel}</span>
+        )}
         <Button variant="ghost" size="icon" className="rounded-full">
           <Bell className="h-5 w-5" />
           <span className="sr-only">Toggle notifications</span>
@@ -40,7 +49,7 @@ export function AdminHeader() {
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild><Link href="/profile">Profile</Link></DropdownMenuItem>
-              <DropdownMenuItem>Settings</DropdownMenuItem>
+              <DropdownMenuItem asChild><Link href="/settings">Settings</Link></DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
             </DropdownMenuContent>

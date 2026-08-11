@@ -28,11 +28,21 @@ import { signOutEverywhere } from "@/lib/supabase/auth";
  * @param {React.ReactNode} props.children - The server-rendered page content.
  * @returns {JSX.Element} The rendered client-side layout.
  */
-export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
+export function AdminLayoutClient({
+  children,
+  basePath = "/admin",
+  loginPath = "/",
+  portalLabel,
+}: {
+  children: React.ReactNode;
+  basePath?: string;
+  loginPath?: string;
+  portalLabel?: string;
+}) {
   const router = useRouter();
   const handleLogout = async () => {
     await signOutEverywhere();
-    router.push("/");
+    router.push(loginPath);
   };
 
   return (
@@ -44,7 +54,7 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
           </div>
         </SidebarHeader>
         <SidebarContent>
-          <AdminSidebarNavigation />
+          <AdminSidebarNavigation basePath={basePath} />
         </SidebarContent>
         <SidebarFooter>
           <SidebarMenu>
@@ -61,7 +71,7 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        <AdminHeader />
+        <AdminHeader loginPath={loginPath} portalLabel={portalLabel} />
         <main className="flex-1 p-4 sm:p-6">{children}</main>
       </SidebarInset>
     </SidebarProvider>

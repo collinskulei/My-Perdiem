@@ -15,6 +15,7 @@ import {
   FileText,
   BarChart,
   ShieldCheck,
+  Building2,
 } from "lucide-react";
 
 import {
@@ -26,7 +27,7 @@ import { supabase } from "@/lib/supabase/client";
 import * as supabaseDb from "@/lib/supabase/database";
 import type { AccessTier } from "@/lib/data";
 
-export function AdminSidebarNavigation() {
+export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: string }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const activeTab = searchParams.get('tab') || 'requests';
@@ -44,14 +45,15 @@ export function AdminSidebarNavigation() {
   }, []);
 
   const canManage = accessTier !== null && accessTier !== 'client_user';
+  const isMultiClientAdmin = accessTier === 'super_admin' || accessTier === 'master_admin';
 
   const isLinkActive = (path: string, tab: string | null) => {
-    if (path !== '/admin') {
+    if (path !== basePath) {
       return pathname === path;
     }
     // Special handling for the main dashboard link
     if (tab === null) {
-      return pathname === '/admin' && !searchParams.has('tab');
+      return pathname === basePath && !searchParams.has('tab');
     }
     return pathname === path && activeTab === tab;
   }
@@ -59,73 +61,83 @@ export function AdminSidebarNavigation() {
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <Link href="/admin">
-          <SidebarMenuButton isActive={isLinkActive('/admin', null)}>
+        <Link href={basePath}>
+          <SidebarMenuButton isActive={isLinkActive(basePath, null)}>
             <Home />
             Dashboard
           </SidebarMenuButton>
         </Link>
       </SidebarMenuItem>
         <SidebarMenuItem>
-        <Link href="/admin?tab=analytics">
-          <SidebarMenuButton isActive={isLinkActive('/admin', 'analytics')}>
+        <Link href={`${basePath}?tab=analytics`}>
+          <SidebarMenuButton isActive={isLinkActive(basePath, 'analytics')}>
             <BarChart />
             Analytics
           </SidebarMenuButton>
         </Link>
       </SidebarMenuItem>
         <SidebarMenuItem>
-        <Link href="/admin?tab=requests">
-          <SidebarMenuButton isActive={isLinkActive('/admin', 'requests')}>
+        <Link href={`${basePath}?tab=requests`}>
+          <SidebarMenuButton isActive={isLinkActive(basePath, 'requests')}>
             <ClipboardList />
             Per Diem Requests
           </SidebarMenuButton>
         </Link>
       </SidebarMenuItem>
         <SidebarMenuItem>
-        <Link href="/admin?tab=events">
-          <SidebarMenuButton isActive={isLinkActive('/admin', 'events')}>
+        <Link href={`${basePath}?tab=events`}>
+          <SidebarMenuButton isActive={isLinkActive(basePath, 'events')}>
             <CalendarDays />
             Events
           </SidebarMenuButton>
         </Link>
       </SidebarMenuItem>
         <SidebarMenuItem>
-        <Link href="/admin?tab=checkins">
-          <SidebarMenuButton isActive={isLinkActive('/admin', 'checkins')}>
+        <Link href={`${basePath}?tab=checkins`}>
+          <SidebarMenuButton isActive={isLinkActive(basePath, 'checkins')}>
             <ClipboardCheck />
             Event Check-ins
           </SidebarMenuButton>
         </Link>
       </SidebarMenuItem>
         <SidebarMenuItem>
-        <Link href="/admin?tab=participants">
-          <SidebarMenuButton isActive={isLinkActive('/admin', 'participants')}>
+        <Link href={`${basePath}?tab=participants`}>
+          <SidebarMenuButton isActive={isLinkActive(basePath, 'participants')}>
             <Users />
             Participants
           </SidebarMenuButton>
         </Link>
       </SidebarMenuItem>
         <SidebarMenuItem>
-        <Link href="/admin?tab=venues">
-          <SidebarMenuButton isActive={isLinkActive('/admin', 'venues')}>
+        <Link href={`${basePath}?tab=venues`}>
+          <SidebarMenuButton isActive={isLinkActive(basePath, 'venues')}>
             <MapPin />
             Venues
           </SidebarMenuButton>
         </Link>
       </SidebarMenuItem>
       <SidebarMenuItem>
-        <Link href="/admin?tab=reports">
-          <SidebarMenuButton isActive={isLinkActive('/admin', 'reports')}>
+        <Link href={`${basePath}?tab=reports`}>
+          <SidebarMenuButton isActive={isLinkActive(basePath, 'reports')}>
             <FileText />
             Reports
           </SidebarMenuButton>
         </Link>
       </SidebarMenuItem>
+      {isMultiClientAdmin && (
+        <SidebarMenuItem>
+          <Link href={`${basePath}?tab=clients`}>
+            <SidebarMenuButton isActive={isLinkActive(basePath, 'clients')}>
+              <Building2 />
+              Clients
+            </SidebarMenuButton>
+          </Link>
+        </SidebarMenuItem>
+      )}
       {canManage && (
         <SidebarMenuItem>
-          <Link href="/admin?tab=management">
-            <SidebarMenuButton isActive={isLinkActive('/admin', 'management')}>
+          <Link href={`${basePath}?tab=management`}>
+            <SidebarMenuButton isActive={isLinkActive(basePath, 'management')}>
               <ShieldCheck />
               Manage
             </SidebarMenuButton>
