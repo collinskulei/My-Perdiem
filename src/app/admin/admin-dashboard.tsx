@@ -86,7 +86,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import type { PerdiemRequest, Venue, Participant, AppEvent, Client } from "@/lib/data";
+import type { PerdiemRequest, Venue, Participant, AppEvent, Client, Document } from "@/lib/data";
 import { OUT_OF_OFFICE_RATES, dutyStationCoordinates } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import * as supabaseDb from '@/lib/supabase/database';
@@ -103,6 +103,8 @@ import { useTour } from "@/components/tour/tour-provider";
 import { buildAdminTourSteps } from "@/lib/tours/admin-tour";
 import { AdminManagement } from "./admin-management";
 import { AdminClientsOverview } from "./admin-clients-overview";
+import { AdminDocumentsTab } from "./admin-documents-tab";
+import { AdminSubmissionsTab } from "./admin-submissions-tab";
 import { inviteAdmin, setParticipantDisabled } from "@/lib/admin-api-client";
 
 const dataProvider = supabaseDb;
@@ -185,6 +187,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
   const [venues, setVenues] = useState<Venue[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [participantClientFilter, setParticipantClientFilter] = useState(searchParams.get('clientId') ?? 'all');
   const [perdiemRequests, setPerdiemRequests] = useState<PerdiemRequest[]>([]);
   const [events, setEvents] = useState<AppEvent[]>([]);
@@ -290,16 +293,18 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
   const fetchAllData = useCallback(async () => {
     setLoading(true);
     try {
-      const [venuesData, participantsData, requestsData, eventsData, clientsData] = await Promise.all([
+      const [venuesData, participantsData, requestsData, eventsData, clientsData, documentsData] = await Promise.all([
         dataProvider.getVenues(),
         dataProvider.getParticipants(),
         dataProvider.getPerDiemRequests(),
         dataProvider.getEvents(),
-        dataProvider.getClients()
+        dataProvider.getClients(),
+        dataProvider.getDocuments()
       ]);
       setVenues(venuesData);
       setParticipants(participantsData);
       setClients(clientsData);
+      setDocuments(documentsData);
       // Sort requests by date descending
       setPerdiemRequests(requestsData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
       setEvents(eventsData.sort((a, b) => {
@@ -989,6 +994,12 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
             )}
             {isMultiClientAdmin && (
               <TabsTrigger value="clients" data-tour="tab-clients">Clients</TabsTrigger>
+            )}
+            {currentAdmin?.accessTier === 'client_admin' && (
+              <TabsTrigger value="documents" data-tour="tab-documents">Documents</TabsTrigger>
+            )}
+            {isMultiClientAdmin && (
+              <TabsTrigger value="submissions" data-tour="tab-submissions">Submissions</TabsTrigger>
             )}
             </TabsList>
         </div>
@@ -1738,6 +1749,25 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
               clients={clients}
               participants={participants}
               basePath={basePath}
+              onChanged={fetchAllData}
+            />
+          </TabsContent>
+        )}
+        {currentAdmin?.accessTier === 'client_admin' && (
+          <TabsContent value="documents">
+            <AdminDocumentsTab
+              client={clients.find((c) => c.id === currentAdmin.clientId) ?? null}
+              documents={documents.filter((d) => d.clientId === currentAdmin.clientId)}
+              onChanged={fetchAllData}
+            />
+          </TabsContent>
+        )}
+        {isMultiClientAdmin && currentAdmin && (
+          <TabsContent value="submissions">
+            <AdminSubmissionsTab
+              currentAdmin={currentAdmin}
+              clients={clients}
+              documents={documents}
               onChanged={fetchAllData}
             />
           </TabsContent>

@@ -4,9 +4,9 @@
  * the same src/app/admin/admin-dashboard.tsx. Steps target the TabsTrigger
  * buttons via data-tour attributes (always mounted regardless of the active
  * tab - see participant-tour.ts's file comment for why that avoids any
- * render-timing issues), and the "management"/"clients" steps are only
- * included for the tiers that can actually see those tabs, matching the
- * same gates admin-dashboard.tsx itself uses.
+ * render-timing issues), and the "management"/"clients"/"documents"/
+ * "submissions" steps are only included for the tiers that can actually see
+ * those tabs, matching the same gates admin-dashboard.tsx itself uses.
  */
 import type { DriveStep } from "driver.js";
 import type { AccessTier } from "@/lib/data";
@@ -66,6 +66,28 @@ export function buildAdminTourSteps({
         "clients",
         "Clients",
         "Every client on the platform, with live admin/participant counts, work types, and quick actions to manage each one.",
+        setActiveTab
+      )
+    );
+  }
+
+  if (accessTier === "client_admin") {
+    steps.push(
+      tabStep(
+        "documents",
+        "Documents",
+        "Upload payment-list documents directly in your OneDrive folder, then sync here to track their status.",
+        setActiveTab
+      )
+    );
+  }
+
+  if (isMultiClientAdmin) {
+    steps.push(
+      tabStep(
+        "submissions",
+        "Submissions",
+        "Every client's uploaded documents in one queue - open a file in OneDrive, then mark it Processing/Done once you've cleaned the data and paid.",
         setActiveTab
       )
     );

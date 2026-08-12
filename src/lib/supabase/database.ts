@@ -5,7 +5,7 @@
  * (see ../data.ts) and the database's snake_case columns.
  */
 import { supabase } from './client';
-import type { Venue, PerdiemRequest, Participant, AppEvent, AccessTier, Client, WorkType } from '../data';
+import type { Venue, PerdiemRequest, Participant, AppEvent, AccessTier, Client, WorkType, Document } from '../data';
 
 // --- Generic camelCase <-> snake_case row mapping ---
 
@@ -517,12 +517,22 @@ export const markEventAsPaid = async (eventId: string, transactionCode: string):
  * @returns {Promise<Client[]>}
  */
 export const getClients = async (): Promise<Client[]> => {
-  const { data, error } = await supabase.from('clients').select('id, name, slug').order('name');
+  const { data, error } = await supabase
+    .from('clients')
+    .select('id, name, slug, onedrive_drive_id, onedrive_folder_id, onedrive_folder_link')
+    .order('name');
   if (error) {
     console.error("Error fetching clients: ", error);
     return [];
   }
-  return (data ?? []) as Client[];
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    onedriveDriveId: row.onedrive_drive_id,
+    onedriveFolderId: row.onedrive_folder_id,
+    onedriveFolderLink: row.onedrive_folder_link,
+  }));
 };
 
 /**
@@ -624,6 +634,112 @@ export const archiveWorkType = async (workTypeId: string): Promise<void> => {
     .from('work_types')
     .update({ archived_at: new Date().toISOString() })
     .eq('id', workTypeId);
+  if (error) {
+    throw error;
+  }
+};
+
+// --- DOCUMENTS (Milestone 5: OneDrive submission inbox) ---
+
+const mapDocumentRow = (row: any): Document => ({
+  id: row.id,
+  clientId: row.client_id,
+  onedriveItemId: row.onedrive_item_id,
+  onedriveFileName: row.onedrive_file_name,
+  onedriveWebUrl: row.onedrive_web_url,
+  status: row.status,
+  onedriveModifiedAt: row.onedrive_modified_at,
+  firstSeenAt: row.first_seen_at,
+  processedAt: row.processed_at,
+  processedBy: row.processed_by,
+  notes: row.notes,
+});
+
+/**
+ * Fetches all documents visible to the caller under RLS (Client Admin sees
+ * their own client's submissions; Super/Master Admin see every client's).
+ * @returns {Promise<Document[]>}
+ */
+export const getDocuments = async (): Promise<Document[]> => {
+  const { data, error } = await supabase
+    .from('documents')
+    .select('*')
+    .order('first_seen_at', { ascending: false });
+  if (error) {
+    console.error("Error fetching documents: ", error);
+    return [];
+  }
+  return (data ?? []).map(mapDocumentRow);
+};
+
+/**
+ * Calls the server-only sync route to pull a client's OneDrive folder
+ * listing into the documents table. Client Admin callers may only sync
+ * their own client - the server ignores/overrides clientId for them.
+ * @param {string} [clientId] - The client to sync (required for Super/Master Admin, ignored for Client Admin).
+ * @returns {Promise<{ success: boolean; error?: string; count?: number }>}
+ */
+export const syncClientDocuments = async (
+  clientId?: string
+): Promise<{ success: boolean; error?: string; count?: number }> => {
+  const res = await fetch('/api/admin/documents/sync', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ clientId }),
+  });
+  const body = await res.json();
+  if (!res.ok) {
+    return { success: false, error: body.error ?? 'Failed to sync documents' };
+  }
+  return { success: true, count: body.count };
+};
+
+/**
+ * Marks a document Processing or Done. RLS restricts this to Super Admin
+ * and above - a Client Admin can see status but never update it.
+ * @param {string} documentId - The document to update.
+ * @param {'processing' | 'done'} status - The new status.
+ * @param {string} processedBy - The acting admin's participant ID, recorded when marking Done.
+ * @returns {Promise<void>}
+ */
+export const setDocumentStatus = async (
+  documentId: string,
+  status: 'processing' | 'done',
+  processedBy: string
+): Promise<void> => {
+  const { error } = await supabase
+    .from('documents')
+    .update({
+      status,
+      ...(status === 'done' ? { processed_at: new Date().toISOString(), processed_by: processedBy } : {}),
+    })
+    .eq('id', documentId);
+  if (error) {
+    throw error;
+  }
+};
+
+/**
+ * Records a client's existing OneDrive folder (drive ID + folder ID, both
+ * from an existing org OneDrive/SharePoint structure - this app never
+ * creates OneDrive folders itself). RLS restricts client updates to Super
+ * Admin and above, same as other client-management fields.
+ * @param {string} clientId - The client to update.
+ * @param {string} driveId - The OneDrive/SharePoint drive ID.
+ * @param {string} folderId - The folder's item ID within that drive.
+ * @param {string} [link] - A browser-openable link to the folder, shown to the Client Admin.
+ * @returns {Promise<void>}
+ */
+export const setClientOneDriveFolder = async (
+  clientId: string,
+  driveId: string,
+  folderId: string,
+  link?: string
+): Promise<void> => {
+  const { error } = await supabase
+    .from('clients')
+    .update({ onedrive_drive_id: driveId, onedrive_folder_id: folderId, onedrive_folder_link: link ?? null })
+    .eq('id', clientId);
   if (error) {
     throw error;
   }

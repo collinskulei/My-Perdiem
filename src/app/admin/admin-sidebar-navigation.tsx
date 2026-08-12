@@ -16,6 +16,7 @@ import {
   BarChart,
   ShieldCheck,
   Building2,
+  FileStack,
 } from "lucide-react";
 
 import {
@@ -130,6 +131,26 @@ export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: str
             <SidebarMenuButton isActive={isLinkActive(basePath, 'clients')}>
               <Building2 />
               Clients
+            </SidebarMenuButton>
+          </Link>
+        </SidebarMenuItem>
+      )}
+      {accessTier === 'client_admin' && (
+        <SidebarMenuItem>
+          <Link href={`${basePath}?tab=documents`}>
+            <SidebarMenuButton isActive={isLinkActive(basePath, 'documents')}>
+              <FileStack />
+              Documents
+            </SidebarMenuButton>
+          </Link>
+        </SidebarMenuItem>
+      )}
+      {isMultiClientAdmin && (
+        <SidebarMenuItem>
+          <Link href={`${basePath}?tab=submissions`}>
+            <SidebarMenuButton isActive={isLinkActive(basePath, 'submissions')}>
+              <FileStack />
+              Submissions
             </SidebarMenuButton>
           </Link>
         </SidebarMenuItem>

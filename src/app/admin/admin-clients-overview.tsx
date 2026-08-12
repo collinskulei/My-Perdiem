@@ -8,7 +8,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { Loader2, PlusCircle, Trash2, UserPlus, Users, ShieldCheck, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, UserPlus, Users, ShieldCheck, ChevronDown, ChevronUp, FolderCog } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -65,6 +65,12 @@ function ClientWidget({
   const [name, setName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [oneDriveExpanded, setOneDriveExpanded] = useState(false);
+  const [driveId, setDriveId] = useState(client.onedriveDriveId ?? "");
+  const [folderId, setFolderId] = useState(client.onedriveFolderId ?? "");
+  const [folderLink, setFolderLink] = useState(client.onedriveFolderLink ?? "");
+  const [isSavingFolder, setIsSavingFolder] = useState(false);
+
   const loadWorkTypes = useCallback(async () => {
     setLoadingWorkTypes(true);
     setWorkTypes(await supabaseDb.getWorkTypesByClient(client.id));
@@ -111,6 +117,23 @@ function ClientWidget({
       await loadWorkTypes();
     } catch (error: any) {
       toast({ title: "Could not remove work type", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleSaveFolder = async () => {
+    if (!driveId.trim() || !folderId.trim()) {
+      toast({ title: "Missing fields", description: "Drive ID and Folder ID are both required.", variant: "destructive" });
+      return;
+    }
+    setIsSavingFolder(true);
+    try {
+      await supabaseDb.setClientOneDriveFolder(client.id, driveId.trim(), folderId.trim(), folderLink.trim() || undefined);
+      toast({ title: "OneDrive folder saved", description: `${client.name}'s submission folder is now configured.` });
+      onChanged();
+    } catch (error: any) {
+      toast({ title: "Could not save folder", description: error.message, variant: "destructive" });
+    } finally {
+      setIsSavingFolder(false);
     }
   };
 
@@ -199,6 +222,35 @@ function ClientWidget({
                 <PlusCircle className="h-4 w-4" />
               </Button>
             </div>
+          </div>
+        )}
+        <Button size="sm" variant="ghost" className="w-full justify-between" onClick={() => setOneDriveExpanded((v) => !v)}>
+          <span className="flex items-center gap-2"><FolderCog className="h-4 w-4" />OneDrive Submission Folder</span>
+          {oneDriveExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </Button>
+        {oneDriveExpanded && (
+          <div className="space-y-2 pt-1">
+            <p className="text-xs text-muted-foreground">
+              Point this at {client.name}&apos;s existing OneDrive/SharePoint folder - the app never creates folders itself.
+            </p>
+            <div className="grid grid-cols-1 gap-2">
+              <div className="space-y-1">
+                <Label htmlFor={`onedrive-drive-${client.id}`}>Drive ID</Label>
+                <Input id={`onedrive-drive-${client.id}`} value={driveId} onChange={(e) => setDriveId(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor={`onedrive-folder-${client.id}`}>Folder ID</Label>
+                <Input id={`onedrive-folder-${client.id}`} value={folderId} onChange={(e) => setFolderId(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor={`onedrive-link-${client.id}`}>Folder Link (optional, shown to the Client Admin)</Label>
+                <Input id={`onedrive-link-${client.id}`} value={folderLink} onChange={(e) => setFolderLink(e.target.value)} placeholder="https://..." />
+              </div>
+            </div>
+            <Button size="sm" variant="outline" onClick={handleSaveFolder} disabled={isSavingFolder}>
+              {isSavingFolder && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save
+            </Button>
           </div>
         )}
       </CardContent>

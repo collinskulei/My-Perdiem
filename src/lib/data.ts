@@ -19,17 +19,45 @@ export type Client = {
   id: string;
   name: string;
   slug: string;
+  onedriveDriveId?: string | null;
+  onedriveFolderId?: string | null;
+  onedriveFolderLink?: string | null;
 };
 
 /**
  * A named category of document a client's users submit against (e.g.
- * "Site Visit Report"). Minimal for now - Milestone 5 extends this
- * alongside the documents/document_reports tables it's built to support.
+ * "Site Visit Report"). Minimal, unchanged since Milestone 3 - Milestone 5
+ * turned out not to need this after all (see the Document type below and
+ * docs/MILESTONE_HANDOFF.md's Milestone 5 section): the real workflow is a
+ * Client Admin -> Super Admin submission inbox, not participants submitting
+ * against work types, so client_user read access here is still deferred
+ * with no milestone currently planning to add it.
  */
 export type WorkType = {
   id: string;
   clientId: string;
   name: string;
+};
+
+/**
+ * A tracked OneDrive submission: a Client Admin uploads a raw payment-list
+ * document directly in OneDrive (never through this app - see the Milestone
+ * 5 section of docs/MILESTONE_HANDOFF.md), and this row is how the app
+ * knows the file exists and how far a Super Admin has gotten processing it.
+ * The file's bytes always stay in OneDrive; this is metadata only.
+ */
+export type Document = {
+  id: string;
+  clientId: string;
+  onedriveItemId: string;
+  onedriveFileName: string;
+  onedriveWebUrl: string | null;
+  status: "submitted" | "processing" | "done";
+  onedriveModifiedAt: string | null;
+  firstSeenAt: string;
+  processedAt: string | null;
+  processedBy: string | null;
+  notes: string | null;
 };
 
 /**
