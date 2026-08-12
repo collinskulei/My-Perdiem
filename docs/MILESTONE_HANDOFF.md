@@ -485,15 +485,45 @@ step order, that Client Admin never sees a `clients` step, that Next/Back/
 Esc/close all work, and that the popover renders correctly in dark mode.
 Added as `docs/TEST_GUIDE.md` §9.
 
-## Milestone 5 — Document submission portal — ⬜ NOT STARTED
+## Milestone 5 — Document submission portal — ⬜ NOT STARTED (re-scoped: Zoho WorkDrive)
 
-The minimal `work_types` table (`id, client_id, name, archived_at`) already
-exists as of Milestone 3 - this milestone extends it rather than creating it.
-Still to build: `documents`, `document_reports` tables; new private Storage
-bucket `documents` (not public, unlike the existing `event-files` bucket);
-generalize `src/lib/supabase/storage.ts` to support signed URLs + MIME
-validation; `client_user` read access to `work_types` (deliberately deferred
-in the 0004 migration until this milestone defines the real access pattern).
+**Re-scoped at the user's direction** (this session) from a Supabase
+Storage-backed design to a **Zoho WorkDrive-backed** one - documents
+submitted through the app should land directly in WorkDrive, not an
+app-only Supabase bucket. The minimal `work_types` table (`id, client_id,
+name, archived_at`) already exists as of Milestone 3 and is unaffected by
+this change - still extend it, not recreate it. `client_user` read access to
+`work_types` is still deliberately deferred from the 0004 migration until
+this milestone defines the real access pattern.
+
+**What changes vs. the original plan:**
+- No `documents`/private-Storage-bucket design on the Supabase side for the
+  file bytes themselves - files live in Zoho WorkDrive. Supabase still needs
+  a `documents` (metadata) table - `client_id`, `work_type_id`,
+  `participant_id`, WorkDrive file ID, WorkDrive folder ID, filename,
+  uploaded_at, etc. - since WorkDrive has no concept of this app's
+  clients/tiers/RLS and the app still needs to scope "which documents can
+  this participant/admin see" itself.
+- Uploads flow client → app server → Zoho WorkDrive API (the app acts as a
+  single service-account-like Zoho identity via OAuth, the same shape as
+  today's `SUPABASE_SERVICE_ROLE_KEY` service-role pattern) - participants
+  don't get individual Zoho accounts.
+- `src/lib/supabase/storage.ts`'s planned "generalize for signed URLs + MIME
+  validation" is replaced by a new Zoho WorkDrive API client module instead.
+
+**Blocked on, not yet provided:** a Zoho API Console OAuth app (Client
+ID/Secret + refresh token, or a Self Client setup) with WorkDrive scopes -
+this is an external action only the user can do, the same category of
+blocker `.env` Supabase credentials were in earlier milestones. Also still
+open, worth deciding with the user before implementation starts: the
+WorkDrive folder structure (one team folder per client? per work type
+inside that?), and whether to reuse an existing WorkDrive folder tree the
+org already has or create a fresh one via the API.
+
+**Not yet designed/built at all** - this is a placeholder scope note, not an
+implementation plan. Treat the next session's first step as planning this
+properly (likely worth entering plan mode given it's a new external
+integration with real architectural choices), not jumping straight to code.
 
 ## Milestone 6 — Claude for Team MCP integration — ⬜ NOT STARTED
 
@@ -501,7 +531,9 @@ Read-mostly MCP server (`list_clients`, `list_work_types`, `list_documents`,
 `get_document_content`, `save_draft_report`). Auth: `mcp_api_keys` table +
 short-lived self-signed HS256 JWT minted per-request from a personal access
 token (confirmed workable - see the JWT signing note above). Needs
-`SUPABASE_JWT_SECRET` added to `.env`. Depends on Milestone 5.
+`SUPABASE_JWT_SECRET` added to `.env`. Depends on Milestone 5 -
+`get_document_content` will need to fetch from Zoho WorkDrive now that
+Milestone 5 is re-scoped to it, not from Supabase Storage.
 
 ## Suggested next session prompt
 
@@ -520,13 +552,19 @@ step order and that Client Admin never sees the `clients` step. None of this
 has been click-tested in a real browser yet (see the off-plan sections
 above).
 
-Then start Milestone 5: document submission portal. The minimal `work_types`
-table already exists (Milestone 3) - extend it as needed rather than
-recreating it. Build `documents`/`document_reports` tables, a new private
-Storage bucket `documents` (not public, unlike `event-files`), generalize
-`src/lib/supabase/storage.ts` for signed URLs + MIME validation, and design
-`client_user` read access to `work_types` (deliberately left unbuilt in the
-0004 migration until this milestone defines the real access pattern).
+Then plan Milestone 5, re-scoped this session to a Zoho WorkDrive-backed
+design instead of Supabase Storage (see that milestone's section above for
+the full rationale) - documents should land in Zoho WorkDrive directly, with
+a Supabase `documents` metadata table for access-control scoping. Before
+writing any code: confirm with the user whether Zoho OAuth app credentials
+(Client ID/Secret + refresh token, or a Self Client) now exist, and settle
+the WorkDrive folder structure (per-client team folder? existing tree to
+reuse?) - this is a new external integration with real architectural
+choices, worth entering plan mode for rather than assuming. The minimal
+`work_types` table already exists (Milestone 3) - extend it, don't recreate
+it - and `client_user` read access to `work_types` is still deliberately
+unbuilt from the 0004 migration until this milestone defines the real
+access pattern.
 
 Also worth a look, lower priority: while at a machine with a browser, close
 the original Milestones 2-4 gap too (invite an account, click the real email
