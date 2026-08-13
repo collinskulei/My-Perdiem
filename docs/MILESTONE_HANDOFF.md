@@ -15,6 +15,20 @@ planned it). Use this file to pick up work from any workspace/session.
   but blocked on real Microsoft credentials**, not yet exercised live.
 - Working tree was clean as of the last check. Always run `git status` and
   `git pull` before starting, in case another workspace pushed more since.
+- **Live data cleanup done by the user this session**, ahead of a real bulk
+  historical-data upload for Apeiro, via a one-off script (not a numbered
+  migration - `supabase/one-off-apeiro-cleanup.sql`, kept in the repo for
+  reference but not meant to be replayed):
+  - Added 4 work types for Apeiro: TOT - Training of Trainers, EUT - End
+    User Training, Leadership Training/Workshop, CHP - County Health
+    Promoters Event.
+  - Deleted Apeiro's existing events/per-diem requests, including
+    Milestone 4's sample import (see that milestone's section for the
+    updated note) - a clean slate for the incoming bulk upload.
+  - Permanently deleted the placeholder "Default Client (migrated)" row
+    (`00000000-0000-0000-0000-000000000001` from Milestone 2's tenancy
+    migration) - confirmed by the user as done; not independently
+    re-verified from outside this session.
 - **⚠️ TEMPORARY, TESTING-ONLY, MUST BE REVOKED BEFORE LAUNCH:** `master_admin`
   can currently log into and pass the server-side guard on *every* portal -
   `/super-admin`, `/<any-slug>-admin`, and `/master-admin` - not just its own,
@@ -326,6 +340,14 @@ participant by phone and backfill `allocated_participants`" path, and
 path, are correct by code review but not yet exercised against real data.
 Worth confirming once a fuller historical file (repeat participants,
 multiple events) comes through.
+
+**Update:** this sample import (the "MOH Per Diem - Embu CHP" event and its
+two rows for Cecilia Njeru/Paul Ngari) was deleted from the live project by
+the user ahead of a real bulk historical-data upload, via
+`supabase/one-off-apeiro-cleanup.sql` (see "Current repo state" above) - it
+no longer exists live. The venue "Embu CHP" was left untouched. The
+"known limitation" above is still unaddressed either way - the real bulk
+upload replacing this sample is exactly the opportunity to confirm it.
 
 ## Off-plan: tier-specific admin portals + dark/light theme toggle — ✅ DONE (code + migration applied live)
 
