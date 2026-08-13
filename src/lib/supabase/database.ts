@@ -584,6 +584,28 @@ export const addClient = async (name: string): Promise<string> => {
   return data.id;
 };
 
+/**
+ * Permanently deletes a client. RLS restricts this to Super Admin and above.
+ * Only succeeds if nothing (participants, events, per-diem requests, work
+ * types, documents) still references this client - the database's own
+ * foreign-key constraints are the real safety net here, not an
+ * application-level check, so a client with any real data attached will
+ * reject this with a foreign-key-violation error (Postgres code 23503)
+ * instead of silently cascading. Callers should catch that and suggest
+ * archiving instead for clients that actually have data.
+ * @param {string} clientId - The client to delete.
+ * @returns {Promise<void>}
+ */
+export const deleteClient = async (clientId: string): Promise<void> => {
+  const { error } = await supabase.from('clients').delete().eq('id', clientId);
+  if (error) {
+    if (error.code === '23503') {
+      throw new Error('This client still has participants, events, or other data attached - archive it instead of deleting.');
+    }
+    throw error;
+  }
+};
+
 // --- WORK TYPES TABLE ---
 
 /**

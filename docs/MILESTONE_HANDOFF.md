@@ -11,8 +11,11 @@ planned it). Use this file to pick up work from any workspace/session.
   admin portals + dark/light theme toggle, and a "Guide me" interactive
   walkthrough) were built at the user's direct request, and Milestone 5
   itself was completed this session (re-scoped to a Microsoft OneDrive
-  submission inbox - see that milestone's section below) - **code-complete
-  but blocked on real Microsoft credentials**, not yet exercised live.
+  submission inbox - see that milestone's section below). Its schema
+  migration (`0009_documents.sql`) is confirmed applied live - the Clients
+  tab widget grid works correctly now. The OneDrive sync itself (Documents/
+  Submissions tabs' actual functionality) is still **blocked on real
+  Microsoft credentials**, not yet exercised live.
 - Working tree was clean as of the last check. Always run `git status` and
   `git pull` before starting, in case another workspace pushed more since.
 - **Live data cleanup done by the user this session**, ahead of a real bulk
@@ -579,7 +582,19 @@ planning to add it.
   (`src/lib/tours/admin-tour.ts`), gated identically to how the dashboard
   itself gates them.
 
-**Blocked on, not yet provided:** a Microsoft Entra ID (Azure AD) app
+**`supabase/migrations/0009_documents.sql` is now applied live** (confirmed
+by the user). Note this migration slipped through without being explicitly
+tracked as applied when it was first written, unlike `0008` - it caused a
+real bug in the meantime: `getClients()` (`src/lib/supabase/database.ts`)
+selects the new `onedrive_*` columns unconditionally, so before this
+migration was applied that query failed outright (column doesn't exist) and
+its error handler silently returned an empty array - the Super Admin
+Clients tab showed "No clients yet." even though Apeiro (and anything else)
+still existed. Now fixed. **Lesson for future migrations:** always
+explicitly confirm and record live application in this doc the same
+session a migration is written, not just when something breaks later.
+
+**Still blocked on, not yet provided:** a Microsoft Entra ID (Azure AD) app
 registration with Graph **Application permission** `Files.Read.All`
 (admin-consented) - same category of blocker Supabase `.env` credentials
 were in earlier milestones. Needs `MICROSOFT_TENANT_ID`,
@@ -589,18 +604,61 @@ folder structure is confirmed. The exact Graph "list folder children"
 response shape (`GET /v1.0/drives/{id}/items/{id}/children`) was built
 against Microsoft's public, well-documented API reference but has not been
 exercised against a real call yet - worth a live smoke test as soon as
-credentials exist, before trusting it against real client data.
+credentials exist, before trusting it against real client data. This part
+(the "Documents"/"Submissions" tabs' actual sync functionality) is what
+remains non-functional - the Clients tab widget grid itself is now fixed
+and doesn't depend on Microsoft credentials at all.
 
 **Verified this session:** `npm run typecheck`/`npm run build` (temporary
 placeholder `.env` including placeholder Microsoft vars, deleted after)
 show no new errors beyond the same pre-existing ones tracked throughout
-this doc, and `/api/admin/documents/sync` registers correctly as a route.
+this doc, `/api/admin/documents/sync` registers correctly as a route, and
+migration `0009` is now confirmed applied live, fixing the Clients-tab
+empty-grid bug.
 
-**Not yet verified** (blocked on real credentials + no browser tool this
-session): an actual sync against a real OneDrive folder, RLS confirmed via
-direct PostREST call (Client Admin never able to update a document's
-status, only Super/Master), and the full click-through per tier. Added as
-`docs/TEST_GUIDE.md` §10.
+**Not yet verified** (blocked on real Microsoft credentials + no browser
+tool this session): an actual OneDrive sync against a real folder, RLS
+confirmed via direct PostREST call (Client Admin never able to update a
+document's status, only Super/Master), and the full click-through per
+tier. Added as `docs/TEST_GUIDE.md` §10.
+
+## Off-plan: self-service Delete Client — ✅ DONE (code, not browser-tested)
+
+Prompted by real friction this session: applying migration `0009` late
+caused the Clients tab to silently show an empty grid (see Milestone 5
+above), which led to several duplicate clients getting created by repeated
+"Add Client" clicks while troubleshooting. Cleaning those up required
+hand-written one-off SQL scripts (`supabase/one-off-remove-duplicate-apeiro-clients.sql`,
+`supabase/one-off-diagnose-blocking-participant.sql`) run manually in the
+Supabase SQL Editor - the user asked for this to be self-service instead.
+
+**What was built:**
+- `supabase/migrations/0010_client_delete.sql` - adds a DELETE RLS policy on
+  `clients` for `is_super_admin_or_above()`. Previously there was no DELETE
+  policy at all, so no one (not even Super Admin) could delete a client row
+  through the app - only direct SQL Editor access (service-role, bypasses
+  RLS) could, which is exactly what forced the manual-script workaround.
+- `src/lib/supabase/database.ts`'s new `deleteClient(clientId)` - deliberately
+  has **no application-level "is this client empty?" check**. The existing
+  foreign-key references from `participants`/`events`/`perdiem_requests`/
+  `work_types`/`documents` to `clients` are the real safety mechanism - a
+  client with anything attached rejects the delete outright (Postgres error
+  code `23503`, mapped to a friendly "archive instead" message) rather than
+  silently cascading real data away. This mirrors exactly the safety
+  behavior the manual SQL scripts already relied on.
+- UI: `src/app/admin/admin-clients-overview.tsx`'s `ClientWidget` gained a
+  "Delete Client" button in a visually-separated destructive footer,
+  opening an `AlertDialog` that requires typing the client's exact name
+  before the Delete action enables - the type-to-confirm pattern the user
+  asked for.
+
+**Verified this session:** `npm run typecheck`/`npm run build` (temporary
+placeholder `.env`, deleted after) - no new errors.
+
+**Not yet verified** (no browser tool this session): an actual delete
+against a real empty client, and confirming a client with attached data
+gets the friendly "archive instead" message rather than a raw Postgres
+error. Worth adding to `docs/TEST_GUIDE.md` once click-tested.
 
 ## Milestone 6 — Claude for Team MCP integration — ⬜ NOT STARTED
 

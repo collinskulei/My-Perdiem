@@ -31,6 +31,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import * as supabaseDb from "@/lib/supabase/database";
 import { inviteAdmin } from "@/lib/admin-api-client";
@@ -70,6 +81,9 @@ function ClientWidget({
   const [folderId, setFolderId] = useState(client.onedriveFolderId ?? "");
   const [folderLink, setFolderLink] = useState(client.onedriveFolderLink ?? "");
   const [isSavingFolder, setIsSavingFolder] = useState(false);
+
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const loadWorkTypes = useCallback(async () => {
     setLoadingWorkTypes(true);
@@ -134,6 +148,20 @@ function ClientWidget({
       toast({ title: "Could not save folder", description: error.message, variant: "destructive" });
     } finally {
       setIsSavingFolder(false);
+    }
+  };
+
+  const handleDeleteClient = async () => {
+    setIsDeleting(true);
+    try {
+      await supabaseDb.deleteClient(client.id);
+      toast({ title: "Client deleted", description: `${client.name} has been removed.` });
+      onChanged();
+    } catch (error: any) {
+      toast({ title: "Could not delete client", description: error.message, variant: "destructive" });
+    } finally {
+      setIsDeleting(false);
+      setDeleteConfirmText("");
     }
   };
 
@@ -254,6 +282,49 @@ function ClientWidget({
           </div>
         )}
       </CardContent>
+      <CardFooter className="border-t pt-4">
+        <AlertDialog onOpenChange={(open) => !open && setDeleteConfirmText("")}>
+          <AlertDialogTrigger asChild>
+            <Button size="sm" variant="outline" className="text-destructive hover:text-destructive">
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Client
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete {client.name}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This permanently deletes the client. It only succeeds if nothing is attached to it yet -
+                any participants, events, per-diem requests, work types, or documents will block this
+                (delete or reassign those first, or archive the client instead of deleting it).
+                This can&apos;t be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="space-y-2 py-2">
+              <Label htmlFor={`delete-confirm-${client.id}`}>
+                Type <span className="font-semibold">{client.name}</span> to confirm
+              </Label>
+              <Input
+                id={`delete-confirm-${client.id}`}
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                autoComplete="off"
+              />
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteClient}
+                disabled={deleteConfirmText !== client.name || isDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </CardFooter>
     </Card>
   );
 }

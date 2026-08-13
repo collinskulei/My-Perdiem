@@ -301,7 +301,34 @@ Client Admin can always see status but never change it.
 
 ---
 
-## 11. Regression basics (run before considering any change done)
+## 11. Delete Client (Super/Master Admin only)
+
+**Prerequisites:** Super Admin or Master Admin; ideally one throwaway empty
+client to actually delete, plus the real client (e.g. Apeiro) to confirm
+the block behavior against.
+
+1. On an **empty** client (no participants, events, requests, work types,
+   or documents) → its card in the Clients tab → **Delete Client** → type a
+   name that does **not** match exactly → confirm the **Delete** button
+   stays disabled.
+2. Type the exact client name (case-sensitive) → **Delete** enables →
+   confirm → client disappears from the grid immediately.
+3. On a client **with** data attached (e.g. one with a work type or a
+   participant) → **Delete Client** → type its name correctly → **Delete**
+   → confirm you get a friendly error like "This client still has
+   participants, events, or other data attached - archive it instead of
+   deleting," not a raw Postgres/foreign-key error message, and that the
+   client is still there afterward.
+4. Confirm a Client Admin (logged into their own client's dashboard) never
+   sees a "Delete Client" option anywhere - this is Super/Master only.
+
+**Expected:** deletion is only ever possible for a genuinely empty client;
+anything with real data attached is protected and explained clearly, never
+silently cascaded away.
+
+---
+
+## 12. Regression basics (run before considering any change done)
 
 1. `npm run typecheck` - compare the error list to the known pre-existing
    ones (Badge `variant="success"` typing, `checkbox.tsx`/`sidebar.tsx`
@@ -328,4 +355,6 @@ Client Admin can always see status but never change it.
   `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
 - §10: Milestone 5, re-scoped to a Microsoft OneDrive submission inbox - see
   `docs/MILESTONE_HANDOFF.md`'s Milestone 5 section.
-- §11: general project convention, not tied to one milestone.
+- §11: off-plan self-service Delete Client, see
+  `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
+- §12: general project convention, not tied to one milestone.
