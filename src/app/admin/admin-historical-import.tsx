@@ -6,13 +6,20 @@
  * no event/venue/date columns at all, since one such file is one payment
  * batch for one event. Event/venue/date/status are entered once per upload
  * ("batch details") instead of guessed from columns that don't exist; a row
- * can still override them via its own mapped column if a future file does
- * carry multiple events in one sheet.
+ * can still override them via its own mapped column if a file does carry
+ * multiple events in one sheet (already supported - see buildRows below).
  *
- * Column mapping is user-confirmed, not just auto-guessed - upload -> batch
- * details -> mapping -> preview with per-row validation -> confirm. Import
- * itself is one atomic RPC call (import_historical_events) - all rows commit
- * or none do.
+ * Later real files turned out to also have multiple sheets (e.g. one per
+ * quarter) and a few title rows before the real header row, instead of a
+ * single sheet with headers on row 1 - handleFile/detectHeaderRow below
+ * auto-detect both (sheet picker only shown if more than one non-empty
+ * sheet exists; header row picked by scoring which row best matches known
+ * field patterns, not assumed to be row 1).
+ *
+ * Column mapping is still user-confirmed, not blindly trusted even after
+ * auto-detection - upload -> [pick sheet, if >1] -> batch details -> mapping
+ * -> preview with per-row validation -> confirm. Import itself is one atomic
+ * RPC call (import_historical_events) - all rows commit or none do.
  */
 "use client";
 
@@ -116,6 +123,34 @@ function guessMapping(headers: string[]): Partial<Record<FieldKey, number>> {
   return mapping;
 }
 
+/** Real files aren't always a single sheet with headers on row 1 - some
+ * have title/blank rows before the real header row. Scans the first 20
+ * rows and picks whichever one guessMapping() matches the most known
+ * fields against, so title rows (which match nothing) are skipped
+ * automatically. Falls back to row 0 if nothing scores >=2 matches,
+ * preserving the original behavior for already-well-formed files. */
+function detectHeaderRow(rows: any[][]): number {
+  let bestIdx = 0;
+  let bestScore = 0;
+  for (let i = 0; i < Math.min(20, rows.length); i++) {
+    const candidate = (rows[i] ?? []).map((h) => String(h ?? ""));
+    const score = Object.keys(guessMapping(candidate)).length;
+    if (score > bestScore) {
+      bestScore = score;
+      bestIdx = i;
+    }
+  }
+  return bestScore >= 2 ? bestIdx : 0;
+}
+
+/** A sheet with no real data (just title rows, or nothing) shouldn't clutter
+ * a sheet picker - "does any row have 2+ non-empty cells" is enough to tell
+ * an empty/title-only sheet apart from one with actual tabular data. */
+function sheetHasData(ws: XLSX.WorkSheet): boolean {
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" }) as any[][];
+  return rows.some((r) => r.filter((c) => String(c).trim() !== "").length >= 2);
+}
+
 function splitDates(raw: unknown): string[] {
   if (raw === null || raw === undefined || raw === "") return [];
   return String(raw).split(/[,;|]/).map((d) => d.trim()).filter(Boolean);
@@ -203,6 +238,9 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<"upload" | "details" | "map" | "preview">("upload");
+  const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
+  const [sheetOptions, setSheetOptions] = useState<string[]>([]);
+  const [selectedSheet, setSelectedSheet] = useState<string>("");
   const [headers, setHeaders] = useState<string[]>([]);
   const [dataRows, setDataRows] = useState<any[][]>([]);
   const [mapping, setMapping] = useState<Partial<Record<FieldKey, number>>>({});
@@ -215,6 +253,9 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
 
   const reset = () => {
     setStep("upload");
+    setWorkbook(null);
+    setSheetOptions([]);
+    setSelectedSheet("");
     setHeaders([]);
     setDataRows([]);
     setMapping({});
@@ -223,24 +264,48 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
     setResult(null);
   };
 
+  /** Reads the chosen sheet out of the already-loaded workbook, auto-detects
+   * the real header row (skipping any title/blank rows above it), and moves
+   * on to batch details. Shared by the single-sheet auto-advance path and
+   * the multi-sheet picker's "Next" button. */
+  const loadSheet = useCallback((wb: XLSX.WorkBook, sheetName: string) => {
+    const ws = wb.Sheets[sheetName];
+    const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" }) as any[][];
+    const headerIdx = detectHeaderRow(data);
+    const hdrs = (data[headerIdx] ?? []).map((h) => String(h ?? "").trim());
+    const rows = data.slice(headerIdx + 1);
+    setHeaders(hdrs);
+    setDataRows(rows);
+    setMapping(guessMapping(hdrs));
+    const guessedDateCol = hdrs.findIndex((h) => /date/i.test(h));
+    setDateColumns(guessedDateCol !== -1 ? new Set([guessedDateCol]) : new Set());
+    setStep("details");
+  }, []);
+
   const handleFile = useCallback((file: File) => {
     const reader = new FileReader();
     reader.onload = (evt) => {
       const bstr = evt.target?.result;
       const wb = XLSX.read(bstr, { type: "binary" });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
-      const [hdrRow, ...rows] = data;
-      const hdrs = (hdrRow ?? []).map((h) => String(h ?? ""));
-      setHeaders(hdrs);
-      setDataRows(rows);
-      setMapping(guessMapping(hdrs));
-      const guessedDateCol = hdrs.findIndex((h) => /date/i.test(h));
-      setDateColumns(guessedDateCol !== -1 ? new Set([guessedDateCol]) : new Set());
-      setStep("details");
+      const nonEmptySheets = wb.SheetNames.filter((name) => sheetHasData(wb.Sheets[name]));
+
+      if (nonEmptySheets.length === 0) {
+        toast({ title: "No data found", description: "This file doesn't seem to have any rows in it.", variant: "destructive" });
+        return;
+      }
+
+      setWorkbook(wb);
+      if (nonEmptySheets.length === 1) {
+        loadSheet(wb, nonEmptySheets[0]);
+      } else {
+        // Multiple sheets (e.g. one per quarter) - let the user pick which
+        // one this upload is for, rather than silently guessing.
+        setSheetOptions(nonEmptySheets);
+        setSelectedSheet(nonEmptySheets[0]);
+      }
     };
     reader.readAsBinaryString(file);
-  }, []);
+  }, [loadSheet, toast]);
 
   const validated = buildRows(dataRows, mapping, Array.from(dateColumns), defaults);
   const validRows = validated.filter((v) => v.errors.length === 0);
@@ -276,18 +341,38 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
         </DialogHeader>
 
         {step === "upload" && (
-          <div className="py-6">
-            <Label htmlFor="historical-file">Excel or CSV file</Label>
-            <input
-              id="historical-file"
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              className="mt-2 block w-full text-sm"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleFile(file);
-              }}
-            />
+          <div className="py-6 space-y-4">
+            <div>
+              <Label htmlFor="historical-file">Excel or CSV file</Label>
+              <input
+                id="historical-file"
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                className="mt-2 block w-full text-sm"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFile(file);
+                }}
+              />
+            </div>
+            {sheetOptions.length > 1 && (
+              <div className="space-y-3 rounded-md border p-3">
+                <p className="text-sm text-muted-foreground">
+                  This file has {sheetOptions.length} sheets - pick the one to import. You can upload the others separately afterward.
+                </p>
+                <Select value={selectedSheet} onValueChange={setSelectedSheet}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {sheetOptions.map((name) => (
+                      <SelectItem key={name} value={name}>{name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button onClick={() => workbook && loadSheet(workbook, selectedSheet)} disabled={!selectedSheet}>
+                  Next
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
