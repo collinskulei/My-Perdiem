@@ -184,8 +184,10 @@ directly.
 1. From a client's card in the Clients tab, open **Import Historical Data**.
 2. Upload the file → confirm column auto-mapping guesses correctly, but is
    editable.
-3. Fill in batch details (event name required) → preview step flags rows
-   with missing name or non-numeric amount, excludes them from the import.
+3. Batch Details step: everything is now optional (event name is no longer
+   required to proceed) → click Next straight away if the sheet already has
+   its own Event Name column mapped in the next step. Preview still flags
+   any row with neither a mapped column nor a default event name.
 4. Confirm import → event/venue created if new, phone numbers normalized to
    `+254XXXXXXXXX`, rows with no matching participant show
    `participant_id: null` with the name/phone snapshot kept.
@@ -193,9 +195,25 @@ directly.
    → confirm it appends rows to the existing event rather than duplicating
    it (this path was previously only verified by code review, not real
    data - see `docs/MILESTONE_HANDOFF.md` Milestone 4).
+6. Upload a **multi-sheet** workbook (e.g. one tab per quarter/month) →
+   confirm a sheet picker appears listing only sheets that actually have
+   data (title-only/empty sheets excluded), and that a single-sheet file
+   still skips the picker entirely and auto-advances.
+7. Upload a sheet with a few title/note rows before the real header row →
+   confirm the app finds the real header row on its own (check the Map
+   Columns step lands on the right columns, not on "No." style row-number
+   junk).
+8. Upload a sheet containing `"<Event> — EVENT TOTAL"` / `"GRAND TOTAL"`
+   -style summary rows (real column position: same column as participant
+   name, with a real number in the amount column) → confirm these show up
+   in preview as excluded ("Looks like a total/summary row, not a
+   participant"), not as extra "participants" worth suspiciously large
+   amounts. This was a real risk found and fixed this session - worth
+   never regressing.
 
 **Expected:** Import is atomic (all rows or none), never silently drops a
-row without flagging it first.
+row without flagging it first, and summary/title rows never get mistaken
+for real payment records.
 
 ---
 
@@ -348,7 +366,9 @@ silently cascaded away.
 ## Appendix: which milestone/change introduced each section
 
 - §1-2: Milestones 0-2 (core app, tenancy/roles).
-- §7: Milestone 4 (historical import).
+- §7: Milestone 4 (historical import); steps 6-8 are off-plan hardening
+  added later for real multi-sheet/multi-event files - see
+  `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
 - §3-6, §8: off-plan tier-portal + theme work (see
   `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section).
 - §9: off-plan "Guide me" walkthrough (driver.js), see

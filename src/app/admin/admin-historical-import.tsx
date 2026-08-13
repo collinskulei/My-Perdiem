@@ -89,14 +89,21 @@ const FIELD_LABELS: Record<FieldKey, string> = {
 
 const REQUIRED_COLUMN_FIELDS: FieldKey[] = ["participantName", "totalPerdiem"];
 
-// Ordered so more specific patterns (e.g. "id number") are tried before
-// looser ones (e.g. bare "id", which would otherwise also match "Paid").
+// Ordered so more specific patterns (e.g. "id number", "total amount") are
+// tried before looser ones that would otherwise win on a technicality - e.g.
+// bare "id" also matching "Paid", or a generic "amount"/"allowance" pattern
+// landing on "DSA Allowance"/"Transport Allowance" instead of the real
+// "Total Amount" column just because it appears earlier in the sheet.
 const HEADER_GUESSES: [FieldKey, RegExp][] = [
   ["participantIdNumber", /id\s*number|national\s*id/],
   ["participantPhone", /phone|mobile|msisdn/],
-  ["eventName", /event/],
+  ["totalPerdiem", /total.*amount|grand.*total|net.*pay/],
+  ["eventName", /event|training/],
   ["venueCity", /city/],
-  ["venueCounty", /county/],
+  // Deliberately excludes headers that also say "employer" (e.g.
+  // "County/Employer", a participant's own org, not the event venue's
+  // county) - a plain "employer" match would be a false positive here.
+  ["venueCounty", /county(?!.*employer)/],
   ["venueName", /venue/],
   ["participantName", /name/],
   ["status", /status/],
@@ -106,7 +113,7 @@ const HEADER_GUESSES: [FieldKey, RegExp][] = [
   ["mileageTotal", /mileage/],
   ["accommodationNights", /night/],
   ["accommodationTotal", /accommodation/],
-  ["outOfOfficeAllowance", /out.of.office|allowance/],
+  ["outOfOfficeAllowance", /out.of.office/],
   ["airTicketCost", /ticket|flight|air/],
   ["groundTransferCost", /transfer|taxi|ground/],
   ["totalPerdiem", /perdiem|per.diem|dsa|total|amount/],
@@ -228,6 +235,13 @@ function buildRows(
       const errors: string[] = [];
       if (!row.eventName) errors.push("Missing event name (set a batch default or map a column)");
       if (!row.participantName) errors.push("Missing participant name");
+      // Some real files put summary text ("<Event> — EVENT TOTAL",
+      // "GRAND TOTAL — PAYMENTS TO DATE") in the same column as the
+      // participant name, with a real number in the amount column - these
+      // would otherwise pass every other check and get imported as a
+      // payment to a fake "participant". Real names essentially never
+      // contain the word "total", so this is a safe, simple exclusion.
+      else if (/\btotal\b/i.test(row.participantName)) errors.push("Looks like a total/summary row, not a participant - excluded");
       if (Number.isNaN(row.totalPerdiem)) errors.push("Missing/invalid amount");
 
       return { row, errors };
@@ -379,13 +393,13 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
         {step === "details" && (
           <div className="space-y-4 py-2">
             <p className="text-sm text-muted-foreground">
-              Most historical files are one payment batch for one event, with no event/venue/date columns in the
-              sheet itself - fill those in once here. A row can still override any of these if you map a column for
-              it in the next step.
+              Everything below is optional - it's only used as a fallback for rows that don't map their own column for
+              it in the next step. If your sheet already has its own Event Name (or Venue/Date/Status) column per row,
+              just leave these blank and click Next.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs">Event Name *</Label>
+                <Label className="text-xs">Event Name (fallback default)</Label>
                 <Input value={defaults.eventName} onChange={(e) => setDefaults((d) => ({ ...d, eventName: e.target.value }))} placeholder="e.g. Embu CHP Training - Sept 2025" />
               </div>
               <div className="space-y-1">
@@ -419,7 +433,7 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={reset}>Back</Button>
-              <Button onClick={() => setStep("map")} disabled={!defaults.eventName.trim()}>Next: Map Columns</Button>
+              <Button onClick={() => setStep("map")}>Next: Map Columns</Button>
             </DialogFooter>
           </div>
         )}

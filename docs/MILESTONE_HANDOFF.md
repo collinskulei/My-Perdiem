@@ -660,6 +660,91 @@ against a real empty client, and confirming a client with attached data
 gets the friendly "archive instead" message rather than a raw Postgres
 error. Worth adding to `docs/TEST_GUIDE.md` once click-tested.
 
+## Off-plan: Historical Import hardening for real multi-sheet/multi-event files — ✅ DONE (code, not browser-tested)
+
+Prompted by two real bulk per-diem files this session ("Payment Analysis
+from Jan 2025 to May 2026" and "2026 Apeiro Taifacare Payment Analysis") -
+both far messier than the original Milestone 4 sample: multiple sheets
+(one per quarter/month), several title/note rows before the real header
+row (position varies even between sheets in the *same* workbook), and -
+critically - rows like `"<Event> — EVENT TOTAL"` / `"GRAND TOTAL — PAYMENTS
+TO DATE"` with the summary text sitting in the same column as the
+participant's name and a real number in the amount column. Uploaded as-is
+before this work, those summary rows would have silently imported as
+payments to a fake "participant," worth several million KES combined
+across the two 2026 sheets alone (63 such rows found and confirmed
+excluded, zero false positives on real names).
+
+**What changed in `src/app/admin/admin-historical-import.tsx`:**
+- **Multi-sheet support**: `handleFile` now filters to non-empty sheets
+  (`sheetHasData` - a sheet needs at least one row with 2+ non-blank cells)
+  and shows a sheet picker only when more than one qualifies; a single
+  non-empty sheet still auto-advances exactly like before, so simple files
+  see no new friction.
+- **Header-row auto-detection**: `detectHeaderRow` scores the first 20 rows
+  by how many fields `guessMapping()` recognizes and picks the best-scoring
+  one (falling back to row 0 if nothing scores >=2), instead of always
+  assuming row 1 - title/note rows above the real header are skipped
+  automatically, computed independently per sheet since header position
+  varies within the same file.
+- **Summary-row exclusion**: `buildRows` now flags any row whose mapped
+  participant-name cell matches `/\btotal\b/i` as invalid ("Looks like a
+  total/summary row, not a participant - excluded") rather than importing
+  it - verified against real data that this only ever matches actual
+  summary rows (all had a blank "No." column), never a real name.
+- **Sharper auto-guessing** (`HEADER_GUESSES`): added `training` as an
+  `eventName` synonym for `event`; added an early, more specific
+  `totalPerdiem` pattern (`total.*amount|grand.*total|net.*pay`) tried
+  *before* the old broad `perdiem|per.diem|dsa|total|amount` fallback, so a
+  sheet with both "DSA Allowance" and "Total Amount" columns picks the real
+  total instead of whichever appears first left-to-right; `venueCounty`'s
+  `county` pattern now excludes headers that also say "employer" (a
+  participant's own org/county, not the event venue's); `outOfOfficeAllowance`
+  narrowed from a bare `allowance` match (which false-positived on
+  "Transport Allowance"/"DSA Allowance") to specifically `out.of.office`.
+  Verified: the real files' header row now auto-maps with **zero manual
+  corrections** (previously needed 3 manual fixes per upload), and the
+  original Milestone 4 sample header's mapping is unchanged (no regression).
+- **Batch Details step no longer requires an Event Name** to proceed - it's
+  now framed as a fallback default only, since real multi-event files map
+  their own per-row Event Name column instead. The real safety net (a row
+  with neither a mapped column nor a default gets flagged "Missing event
+  name" and excluded) already existed in the preview step and is untouched.
+
+**Explicitly decided against building:** parsing the repeated
+`EVENT:`/`Place:`/`Payment Date:` note-blocks that appear *between* data
+sections in some sheets to auto-populate Venue Name/City per event - the
+existing per-row Event Name column (e.g. "Training") already carries
+enough identifying text, and correlating multi-row context blocks to the
+data rows that follow them is a meaningfully bigger parsing problem than
+the flat one-row-per-record model this feature is built around. Venue
+Name/City stay a manual per-upload fallback default (usually left blank)
+for files shaped like this.
+
+**Data-quality checks done manually this session, not built into the
+tool:** near-duplicate event-name detection (Levenshtein + word-overlap
+clustering) was run ad hoc against both real files to catch typo'd venue
+names before import (found and merged 2 real groups in the Jan2025-May2026
+file - see the one-off `perdiem-import-ready/*.xlsx` files prepared for
+Q1-Q3 2025; found zero real duplicates in the 2026 file, where superficial
+clustering matches turned out to be genuinely different locations sharing
+template wording like "County Leadership Forum"). This stayed a one-off
+manual analysis, not a new importer feature - worth reconsidering if a
+third messy file shows the same need.
+
+**Verified this session:** `npm run typecheck`/`npm run build` (temporary
+placeholder `.env`, deleted after) - no new errors. Auto-guess and
+total-row-exclusion logic verified against the real files' actual data via
+standalone Node scripts replicating the exact regex/logic
+(`sheetHasData`/`detectHeaderRow`/`guessMapping`/the `\btotal\b` check),
+not just reasoned through.
+
+**Not yet verified** (no browser tool this session): an actual upload
+through the real dialog UI - sheet picker rendering, the Details step
+proceeding with everything blank, and the corrected auto-mapped columns
+showing up right in the Map step - all reasoned through and logic-tested
+outside the component, not click-tested inside it.
+
 ## Milestone 6 — Claude for Team MCP integration — ⬜ NOT STARTED
 
 Read-mostly MCP server (`list_clients`, `list_work_types`, `list_documents`,
