@@ -9,8 +9,10 @@ planned it). Use this file to pick up work from any workspace/session.
 - Branch `main`, in sync with `origin/main` as of this commit.
 - Milestones 0–4 done. Since then, two off-plan features (tier-specific
   admin portals + dark/light theme toggle, and a "Guide me" interactive
-  walkthrough, see below) were built at the user's direct request, ahead of
-  Milestone 5. Milestone 5 itself is still next.
+  walkthrough) were built at the user's direct request, and Milestone 5
+  itself was completed this session (re-scoped to a Microsoft OneDrive
+  submission inbox - see that milestone's section below) - **code-complete
+  but blocked on real Microsoft credentials**, not yet exercised live.
 - Working tree was clean as of the last check. Always run `git status` and
   `git pull` before starting, in case another workspace pushed more since.
 - **⚠️ TEMPORARY, TESTING-ONLY, MUST BE REVOKED BEFORE LAUNCH:** `master_admin`
@@ -485,45 +487,98 @@ step order, that Client Admin never sees a `clients` step, that Next/Back/
 Esc/close all work, and that the popover renders correctly in dark mode.
 Added as `docs/TEST_GUIDE.md` §9.
 
-## Milestone 5 — Document submission portal — ⬜ NOT STARTED (re-scoped: Zoho WorkDrive)
+## Milestone 5 — OneDrive submission inbox — ✅ CODE DONE, ⬜ BLOCKED ON REAL MICROSOFT CREDENTIALS
 
-**Re-scoped at the user's direction** (this session) from a Supabase
-Storage-backed design to a **Zoho WorkDrive-backed** one - documents
-submitted through the app should land directly in WorkDrive, not an
-app-only Supabase bucket. The minimal `work_types` table (`id, client_id,
-name, archived_at`) already exists as of Milestone 3 and is unaffected by
-this change - still extend it, not recreate it. `client_user` read access to
-`work_types` is still deliberately deferred from the 0004 migration until
-this milestone defines the real access pattern.
+**Re-scoped twice at the user's direction this session**: originally a
+Supabase Storage-backed "document submission portal", then briefly Zoho
+WorkDrive, then corrected to **Microsoft OneDrive**. Clarifying questions
+also revealed the real workflow is much narrower than any storage-backed
+plan first assumed - it's a **Client Admin → Super Admin payment-processing
+inbox**, not a participant-facing upload feature:
 
-**What changes vs. the original plan:**
-- No `documents`/private-Storage-bucket design on the Supabase side for the
-  file bytes themselves - files live in Zoho WorkDrive. Supabase still needs
-  a `documents` (metadata) table - `client_id`, `work_type_id`,
-  `participant_id`, WorkDrive file ID, WorkDrive folder ID, filename,
-  uploaded_at, etc. - since WorkDrive has no concept of this app's
-  clients/tiers/RLS and the app still needs to scope "which documents can
-  this participant/admin see" itself.
-- Uploads flow client → app server → Zoho WorkDrive API (the app acts as a
-  single service-account-like Zoho identity via OAuth, the same shape as
-  today's `SUPABASE_SERVICE_ROLE_KEY` service-role pattern) - participants
-  don't get individual Zoho accounts.
-- `src/lib/supabase/storage.ts`'s planned "generalize for signed URLs + MIME
-  validation" is replaced by a new Zoho WorkDrive API client module instead.
+1. Each client already has a dedicated folder inside the org's **existing**
+   OneDrive/SharePoint structure - the app plugs into it, it never creates
+   folders itself.
+2. A **Client Admin** uploads a raw document there (a list of people to be
+   paid, often scanned/handwritten/typed) **directly in OneDrive's own
+   website** - never through this app.
+3. A **Super/Master Admin** sees it in a queue, opens it straight in
+   OneDrive, cleans the data and pays offline (optionally with Claude's
+   informal help - not a new in-app feature), then imports the resulting
+   clean sheet through the **existing Historical Import feature (Milestone
+   4, unchanged)**.
+4. The imported `perdiem_requests` rows are **already visible to the Client
+   Admin today** via existing RLS - confirmed by the user as exactly the
+   "payment records" visibility they wanted. No new payment-tracking table
+   was needed for that part.
+5. The Super/Master Admin marks the submission **Done** in the new inbox
+   once finished.
 
-**Blocked on, not yet provided:** a Zoho API Console OAuth app (Client
-ID/Secret + refresh token, or a Self Client setup) with WorkDrive scopes -
-this is an external action only the user can do, the same category of
-blocker `.env` Supabase credentials were in earlier milestones. Also still
-open, worth deciding with the user before implementation starts: the
-WorkDrive folder structure (one team folder per client? per work type
-inside that?), and whether to reuse an existing WorkDrive folder tree the
-org already has or create a fresh one via the API.
+**Confirmed explicitly not needed, and not built:** no `document_reports`
+table, no in-app upload proxy, no new payment-record feature. `work_types`
+was left untouched - this milestone turned out not to need it after all
+(see the corrected comment on `WorkType` in `src/lib/data.ts`); its
+`client_user` read access is still deferred, now with no milestone actively
+planning to add it.
 
-**Not yet designed/built at all** - this is a placeholder scope note, not an
-implementation plan. Treat the next session's first step as planning this
-properly (likely worth entering plan mode given it's a new external
-integration with real architectural choices), not jumping straight to code.
+**What was built:**
+- `supabase/migrations/0009_documents.sql` - `clients.onedrive_drive_id`/
+  `onedrive_folder_id`/`onedrive_folder_link` (nullable, set manually per
+  client - never auto-created); new `documents` table (`client_id`,
+  `onedrive_item_id`, `onedrive_file_name`, `onedrive_web_url`, `status`
+  `submitted|processing|done`, `onedrive_modified_at`, `first_seen_at`,
+  `processed_at`, `processed_by`). RLS: SELECT via the same
+  `can_access_client()` shape `work_types` already uses; UPDATE restricted
+  to `is_super_admin_or_above()` only - a Client Admin can see status but
+  never marks their own submission done; no authenticated-role INSERT
+  policy at all - rows only ever come from the sync route below.
+- `src/lib/microsoft/graph.ts` - read-only Graph client mirroring
+  `src/lib/supabase/admin-server.ts`'s pattern exactly (`server-only`,
+  throw on missing env, no exported singleton). Uses the OAuth2
+  client-credentials grant (`POST
+  https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token`, scope
+  `https://graph.microsoft.com/.default`) - simpler than a refresh-token
+  flow, just three static credentials, access token cached in memory and
+  re-requested near expiry. One function: `listFolderChildren(driveId,
+  folderId)`.
+- `src/app/api/admin/documents/sync/route.ts` - mirrors
+  `invite-admin/route.ts`'s auth shape (request-scoped client
+  authenticates, manual per-tier authorization, Client Admin's `clientId`
+  forced from their own row not trusted from the body, only then drops to
+  the service-role client) - calls Graph, upserts into `documents`, never
+  regresses an existing `processing`/`done` row back to `submitted`.
+- UI: Clients tab widget (`admin-clients-overview.tsx`) gained a collapsible
+  "OneDrive Submission Folder" section per client (Drive ID/Folder ID/Link,
+  Super/Master only); new "Documents" tab (`admin-documents-tab.tsx`,
+  Client Admin only) - open-in-OneDrive link, manual Sync button, status
+  table; new "Submissions" tab (`admin-submissions-tab.tsx`, Super/Master
+  only) - cross-client queue, per-client Sync, Mark Processing/Done. Both
+  new tabs got sidebar nav entries and "Guide me" tour steps
+  (`src/lib/tours/admin-tour.ts`), gated identically to how the dashboard
+  itself gates them.
+
+**Blocked on, not yet provided:** a Microsoft Entra ID (Azure AD) app
+registration with Graph **Application permission** `Files.Read.All`
+(admin-consented) - same category of blocker Supabase `.env` credentials
+were in earlier milestones. Needs `MICROSOFT_TENANT_ID`,
+`MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET` in `.env`, plus each
+client's real OneDrive Drive ID/Folder ID recorded once the org's existing
+folder structure is confirmed. The exact Graph "list folder children"
+response shape (`GET /v1.0/drives/{id}/items/{id}/children`) was built
+against Microsoft's public, well-documented API reference but has not been
+exercised against a real call yet - worth a live smoke test as soon as
+credentials exist, before trusting it against real client data.
+
+**Verified this session:** `npm run typecheck`/`npm run build` (temporary
+placeholder `.env` including placeholder Microsoft vars, deleted after)
+show no new errors beyond the same pre-existing ones tracked throughout
+this doc, and `/api/admin/documents/sync` registers correctly as a route.
+
+**Not yet verified** (blocked on real credentials + no browser tool this
+session): an actual sync against a real OneDrive folder, RLS confirmed via
+direct PostREST call (Client Admin never able to update a document's
+status, only Super/Master), and the full click-through per tier. Added as
+`docs/TEST_GUIDE.md` §10.
 
 ## Milestone 6 — Claude for Team MCP integration — ⬜ NOT STARTED
 
@@ -531,46 +586,62 @@ Read-mostly MCP server (`list_clients`, `list_work_types`, `list_documents`,
 `get_document_content`, `save_draft_report`). Auth: `mcp_api_keys` table +
 short-lived self-signed HS256 JWT minted per-request from a personal access
 token (confirmed workable - see the JWT signing note above). Needs
-`SUPABASE_JWT_SECRET` added to `.env`. Depends on Milestone 5 -
-`get_document_content` will need to fetch from Zoho WorkDrive now that
-Milestone 5 is re-scoped to it, not from Supabase Storage.
+`SUPABASE_JWT_SECRET` added to `.env`. Depends on Milestone 5.
+
+**Tool set needs re-checking against Milestone 5's actual final shape**
+before building this - it was designed around the original Supabase
+Storage plan and hasn't been revisited since Milestone 5 turned out to be a
+much narrower OneDrive submission inbox (see that section above): `
+get_document_content` would now mean fetching a file's bytes via Microsoft
+Graph (`GET /v1.0/drives/{id}/items/{id}/content`) rather than Supabase
+Storage or Zoho; `save_draft_report` presumed a `document_reports`
+table that was explicitly decided against and never built - Milestone 5's
+"cleaning the data" step is a human (optionally Claude-assisted ad hoc,
+outside any formal tool) exporting a clean sheet and running it through
+the existing Historical Import feature, not a draft-report artifact this
+MCP server would store. Worth deciding at Milestone 6 planning time whether
+`save_draft_report` still makes sense at all, or whether the real
+Claude-for-Team value here is just `list_documents`/`get_document_content`
+(surface what's in the Submissions queue and let Claude read a raw
+document to help with the cleaning step) plus perhaps a new tool wrapping
+the existing `import_historical_events()` RPC.
 
 ## Suggested next session prompt
 
-"Migration `0008_client_slug.sql` is applied live (not independently
-re-verified from outside yet - worth a quick outside probe first, see
-'Current repo state' above). If a browser tool is available, spend a few
-minutes closing the manual click-through gap on the new tier-specific admin
-portals: log in as the existing Apeiro Client Admin
-at `/apeiro-admin` (or whatever slug it got), confirm it lands on
+"Milestone 5 is code-complete (Microsoft OneDrive submission inbox - see
+that section above) but entirely unverified live, since it's blocked on a
+Microsoft Entra ID app registration that doesn't exist yet. First: get
+`MICROSOFT_TENANT_ID`/`MICROSOFT_CLIENT_ID`/`MICROSOFT_CLIENT_SECRET` from
+the user (Entra ID → App registrations → new app → Graph API permission
+`Files.Read.All`, admin-consented → Certificates & secrets → new secret),
+add them to `.env`, then record a real client's OneDrive Drive ID/Folder ID
+via the Clients tab's new 'OneDrive Submission Folder' field and run an
+actual sync (`/api/admin/documents/sync`) against it - confirm files appear
+as `submitted`, and only Super/Master can move them to
+`processing`/`done` (RLS-enforced, not just hidden in the UI - test via a
+direct PostREST call too).
+
+If a browser tool is available, also close the still-open click-through gap
+on everything built across the last few sessions, none of which has been
+tested in a real browser yet: the tier-specific admin portals (log in as
+the existing Apeiro Client Admin at `/apeiro-admin`, confirm it lands on
 `/apeiro-admin/dashboard` and rejects other clients' slugs; same for
-`/super-admin` and `/master-admin`; click through the new Clients-tab
-widgets (invite, work types, view participants) against live data; toggle
-the new dark/light switch at `/settings`; and run the new "Guide me" tour
-(account menu → Guide me) for a participant and each admin tier, confirming
-step order and that Client Admin never sees the `clients` step. None of this
-has been click-tested in a real browser yet (see the off-plan sections
-above).
+`/super-admin`/`/master-admin`; click through the Clients-tab widgets); the
+dark/light toggle at `/settings`; the 'Guide me' tour per tier (confirm
+step order, and that a Client Admin never sees the `clients`/`submissions`
+steps while a Super/Master Admin does); and the new Documents/Submissions
+tabs once real OneDrive data exists.
 
-Then plan Milestone 5, re-scoped this session to a Zoho WorkDrive-backed
-design instead of Supabase Storage (see that milestone's section above for
-the full rationale) - documents should land in Zoho WorkDrive directly, with
-a Supabase `documents` metadata table for access-control scoping. Before
-writing any code: confirm with the user whether Zoho OAuth app credentials
-(Client ID/Secret + refresh token, or a Self Client) now exist, and settle
-the WorkDrive folder structure (per-client team folder? existing tree to
-reuse?) - this is a new external integration with real architectural
-choices, worth entering plan mode for rather than assuming. The minimal
-`work_types` table already exists (Milestone 3) - extend it, don't recreate
-it - and `client_user` read access to `work_types` is still deliberately
-unbuilt from the 0004 migration until this milestone defines the real
-access pattern.
+Also still pending, lower priority: revoke the ⚠️ TEMPORARY master_admin
+all-portals-access testing bypass before any real launch (see 'Current repo
+state' above for the exact three spots); independently re-verify migration
+`0008`'s live application; close the original Milestones 2-4 email-invite
+click-through gap; and once a fuller historical import file shows up,
+confirm `import_historical_events()`'s participant-matching/repeat-event
+paths against real data (Milestone 4's noted limitation - correct by code
+review only so far).
 
-Also worth a look, lower priority: while at a machine with a browser, close
-the original Milestones 2-4 gap too (invite an account, click the real email
-link, confirm it lands on `/reset-password` and then the right dashboard) -
-every session so far has had to verify that flow indirectly via the API
-instead. And when a fuller historical import file shows up, confirm the
-participant-matching and repeat-event paths in `import_historical_events()`
-behave correctly against real data (see Milestone 4's noted limitation) -
-they're correct by code review only so far."
+Once OneDrive is verified live, revisit Milestone 6's planned MCP tool set
+against Milestone 5's actual final shape before building it - see the note
+under Milestone 6 above (`save_draft_report` in particular presumed a
+`document_reports` table that was explicitly decided against)."

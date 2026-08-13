@@ -255,7 +255,53 @@ tab they do have is missing a step.
 
 ---
 
-## 10. Regression basics (run before considering any change done)
+## 10. OneDrive submission inbox (Milestone 5)
+
+**Prerequisites:** `MICROSOFT_TENANT_ID`/`MICROSOFT_CLIENT_ID`/
+`MICROSOFT_CLIENT_SECRET` in `.env` (Entra ID app registration with Graph
+`Files.Read.All`, admin-consented); a real client's OneDrive Drive ID and
+Folder ID for an existing folder with at least one file in it. None of this
+exists yet as of this write-up - see `docs/MILESTONE_HANDOFF.md`'s
+Milestone 5 section for exactly what's blocked and why.
+
+1. As Super/Master Admin, open **Clients** → a client's card → **OneDrive
+   Submission Folder** → enter that client's real Drive ID/Folder ID (and
+   optionally a folder link) → **Save**. Reload → values persisted.
+2. As that client's **Client Admin**, open the new **Documents** tab →
+   confirm the "Open OneDrive Folder" button appears (if a link was saved)
+   and **Sync** is enabled (not greyed out - it's disabled until a folder
+   is configured).
+3. Click **Sync** → confirm every file actually in that OneDrive folder
+   appears in the table with status **Submitted**, filename linking
+   straight to the file in OneDrive.
+4. As **Super Admin** (or Master Admin), open the new **Submissions** tab →
+   confirm the same file appears, labeled with the correct client name.
+   Pick the client from the "Sync a client..." dropdown and Sync again →
+   confirm re-syncing doesn't duplicate the row or reset its status.
+5. Click **Mark Processing** → confirm the badge updates immediately and,
+   as the Client Admin, reloading their Documents tab shows **Processing**
+   too (not stuck on Submitted).
+6. Click **Mark Done** → confirm the badge updates to **Done**, and that
+   the Client Admin's own Documents tab shows **Done** but has no
+   Processing/Done buttons anywhere on their side - only Super/Master ever
+   see those actions (confirm this is enforced server-side too: a direct
+   PostREST `PATCH` to `documents` as the Client Admin's session should be
+   rejected by RLS, not just hidden by the UI).
+7. Add a second, new file to the same OneDrive folder directly in
+   OneDrive's website (not through the app) → Sync again → confirm only
+   the new file appears as Submitted, and the already-Done file's status
+   is untouched (a sync must never regress an existing row's status).
+8. Run the "Guide me" tour as a Client Admin and as a Super/Master Admin →
+   confirm the **Documents** step appears only for Client Admin and the
+   **Submissions** step only for Super/Master (see §9).
+
+**Expected:** the app never touches a file's bytes at any point - only
+Microsoft Graph's folder listing and each row's processing status. A
+Client Admin can always see status but never change it.
+
+---
+
+## 11. Regression basics (run before considering any change done)
 
 1. `npm run typecheck` - compare the error list to the known pre-existing
    ones (Badge `variant="success"` typing, `checkbox.tsx`/`sidebar.tsx`
@@ -280,4 +326,6 @@ tab they do have is missing a step.
   `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section).
 - §9: off-plan "Guide me" walkthrough (driver.js), see
   `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
-- §10: general project convention, not tied to one milestone.
+- §10: Milestone 5, re-scoped to a Microsoft OneDrive submission inbox - see
+  `docs/MILESTONE_HANDOFF.md`'s Milestone 5 section.
+- §11: general project convention, not tied to one milestone.
