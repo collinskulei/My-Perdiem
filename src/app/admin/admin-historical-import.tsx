@@ -158,8 +158,28 @@ function sheetHasData(ws: XLSX.WorkSheet): boolean {
   return rows.some((r) => r.filter((c) => String(c).trim() !== "").length >= 2);
 }
 
+/** Formats a JS Date as a plain yyyy-MM-dd string using local time fields
+ * (not toISOString(), which would shift the date at UTC offsets far enough
+ * from zero to cross midnight). */
+function toDateOnlyString(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 function splitDates(raw: unknown): string[] {
   if (raw === null || raw === undefined || raw === "") return [];
+  // A date-formatted Excel cell arrives here as a JS Date (see the
+  // `cellDates: true` read option below) - format it properly instead of
+  // falling through to String(raw), which would otherwise stringify it as
+  // its full JS toString() representation, not a clean date. A *numeric*
+  // raw Excel serial (e.g. "45931", read from a cell with no explicit date
+  // formatting) can't be reliably told apart from a real number here - the
+  // Map Columns step's date-column picker is the actual safety net for
+  // that, and buildRows below never lets an unparseable value crash the
+  // page even if one slips through.
+  if (raw instanceof Date) {
+    return isNaN(raw.getTime()) ? [] : [toDateOnlyString(raw)];
+  }
   return String(raw).split(/[,;|]/).map((d) => d.trim()).filter(Boolean);
 }
 
@@ -300,7 +320,11 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
     const reader = new FileReader();
     reader.onload = (evt) => {
       const bstr = evt.target?.result;
-      const wb = XLSX.read(bstr, { type: "binary" });
+      // cellDates: true makes date-formatted cells arrive as real JS Date
+      // objects (see splitDates above) instead of raw Excel serial numbers
+      // (e.g. "45931") that would otherwise get stored as literal garbage
+      // text and crash the dashboard later when it tries to format them.
+      const wb = XLSX.read(bstr, { type: "binary", cellDates: true });
       const nonEmptySheets = wb.SheetNames.filter((name) => sheetHasData(wb.Sheets[name]));
 
       if (nonEmptySheets.length === 0) {
@@ -506,6 +530,7 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
                 <TableHeader>
                   <TableRow>
                     <TableHead>Event</TableHead>
+                    <TableHead>Date</TableHead>
                     <TableHead>Participant</TableHead>
                     <TableHead>Phone</TableHead>
                     <TableHead>Amount</TableHead>
@@ -513,21 +538,37 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {validated.slice(0, 50).map((v, i) => (
-                    <TableRow key={i} className={v.errors.length > 0 ? "bg-destructive/5" : undefined}>
-                      <TableCell>{v.row.eventName || <span className="text-destructive">missing</span>}</TableCell>
-                      <TableCell>{v.row.participantName || <span className="text-destructive">missing</span>}</TableCell>
-                      <TableCell>{v.row.participantPhone ?? "—"}</TableCell>
-                      <TableCell>{Number.isNaN(v.row.totalPerdiem) ? <span className="text-destructive">invalid</span> : v.row.totalPerdiem}</TableCell>
-                      <TableCell>
-                        {v.errors.length > 0 ? (
-                          <Badge variant="destructive">{v.errors[0]}</Badge>
-                        ) : (
-                          <Badge variant="secondary">{v.row.status}</Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {validated.slice(0, 50).map((v, i) => {
+                    const eventDate = v.row.eventDates?.[0];
+                    // Surfaced here specifically because a malformed date
+                    // (e.g. "20/1/2025" typed as text, or a raw Excel
+                    // serial number) used to only show up as a crash after
+                    // import, not before it - this makes it visible to
+                    // check before confirming, not just after the fact.
+                    const dateLooksValid = !eventDate || /^\d{4}-\d{2}-\d{2}$/.test(eventDate);
+                    return (
+                      <TableRow key={i} className={v.errors.length > 0 ? "bg-destructive/5" : undefined}>
+                        <TableCell>{v.row.eventName || <span className="text-destructive">missing</span>}</TableCell>
+                        <TableCell>
+                          {eventDate ? (
+                            dateLooksValid ? eventDate : <span className="text-destructive" title="Doesn't look like a real date - check the mapped date column">{eventDate}</span>
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
+                        <TableCell>{v.row.participantName || <span className="text-destructive">missing</span>}</TableCell>
+                        <TableCell>{v.row.participantPhone ?? "—"}</TableCell>
+                        <TableCell>{Number.isNaN(v.row.totalPerdiem) ? <span className="text-destructive">invalid</span> : v.row.totalPerdiem}</TableCell>
+                        <TableCell>
+                          {v.errors.length > 0 ? (
+                            <Badge variant="destructive">{v.errors[0]}</Badge>
+                          ) : (
+                            <Badge variant="secondary">{v.row.status}</Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>

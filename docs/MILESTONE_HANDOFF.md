@@ -745,6 +745,56 @@ proceeding with everything blank, and the corrected auto-mapped columns
 showing up right in the Map step - all reasoned through and logic-tested
 outside the component, not click-tested inside it.
 
+### Follow-up: this shipped a real production crash, now fixed
+
+The user tried the in-app uploader on the live site right after the above
+shipped and hit "Application error: a client-side exception has occurred"
+on `/apeiro-admin/dashboard` - a real bug, not a hypothetical. Root cause:
+`handleFile`'s `XLSX.read(bstr, { type: "binary" })` had no `cellDates`
+option, so a mapped date column came through as a raw Excel serial number
+(e.g. `"45931"`) instead of a real date, got stored as literal text via
+`import_historical_events`, and then crashed the *entire* dashboard page
+for anyone viewing it the moment `date-fns`'s `format(parseISO(...))` tried
+to render that value (`RangeError: Invalid time value`, uncaught, no error
+boundary - one bad row took down the whole page, not just its own cell).
+
+**Fixed in two layers, not just one, since bad date data can reach these
+codepaths from more than one direction:**
+- **Root cause**: `XLSX.read` now passes `cellDates: true`, and
+  `splitDates()` formats a real `Date` object via local-time fields
+  (`toDateOnlyString` - deliberately not `toISOString()`, which shifts the
+  calendar date at UTC offsets far from zero). Verified against both real
+  files' actual date columns - clean `yyyy-MM-dd` output confirmed, not
+  just reasoned through.
+- **Defensive**: added `formatDateSafe()` to `src/lib/utils.ts` - tries
+  `parseISO` + `format`, falls back to showing the raw string instead of
+  throwing if invalid. Applied everywhere a request/event date renders from
+  data that could already be bad in the live database (both dashboards):
+  `admin-dashboard.tsx`'s Requests-tab and Events-tab date cells, the
+  analytics date-grouping reducer (guarded with `isValid()` instead, since
+  it builds a grouping key, not display text - an unparseable date just
+  doesn't land in any of the last-30-days buckets), and
+  `employee-dashboard.tsx`'s "My Per Diem Requests" tab. (Two other spots
+  in `employee-dashboard.tsx` were already safe - upstream `.filter(([date])
+  => isValid(...))` before the format call.) This means a bad date can
+  never again crash the whole page for every viewer, regardless of how it
+  got into the database.
+
+**Still needs the user to run, live data already affected:** this code fix
+does not retroactively repair whatever bad-date row(s) already exist in
+the live database from testing the importer before this fix landed -
+`supabase/one-off-find-bad-dates.sql` finds them (checks both
+`perdiem_requests.date` and `events.event_dates` for anything not matching
+`yyyy-MM-dd`); the script includes a commented-out delete for if that
+upload was just a test with nothing worth keeping.
+
+**Verified this session:** `npm run typecheck`/`npm run build` (no new
+errors beyond the same pre-existing ones tracked throughout this doc), and
+the date-conversion fix confirmed via a standalone script against both real
+files' actual date cells. **Not yet verified:** whether the live
+already-corrupted row(s) have actually been found/cleaned up - depends on
+the user running the diagnostic script above.
+
 ## Milestone 6 — Claude for Team MCP integration — ⬜ NOT STARTED
 
 Read-mostly MCP server (`list_clients`, `list_work_types`, `list_documents`,

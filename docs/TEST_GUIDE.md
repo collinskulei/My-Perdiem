@@ -210,10 +210,22 @@ directly.
    participant"), not as extra "participants" worth suspiciously large
    amounts. This was a real risk found and fixed this session - worth
    never regressing.
+9. Map a real date column (one containing actual Excel dates, not text) →
+   confirm the imported request's date renders correctly on the Requests
+   tab afterward, not as a raw number like "45931". This actually broke
+   production once already this session - reached live via this exact
+   path (see `docs/MILESTONE_HANDOFF.md`'s importer-hardening follow-up) -
+   before the fix, this crashed the *entire* dashboard page for every
+   viewer, not just the one bad cell. Also worth confirming a deliberately
+   bad/unmapped date doesn't crash the page either way, on both the admin
+   dashboard's Requests/Events tabs and the participant dashboard's "My Per
+   Diem Requests" tab - it should show the raw value instead, never throw.
 
 **Expected:** Import is atomic (all rows or none), never silently drops a
-row without flagging it first, and summary/title rows never get mistaken
-for real payment records.
+row without flagging it first, summary/title rows never get mistaken for
+real payment records, and a malformed date can never crash a whole
+dashboard page for every viewer - at worst it displays oddly for that one
+row.
 
 ---
 

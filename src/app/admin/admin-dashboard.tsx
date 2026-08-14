@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2, QrCode, Upload, File as FileIcon, X, Wallet, Paperclip, Info, Trash2, Search } from "lucide-react";
 import Image from "next/image";
 import { DateRange } from "react-day-picker";
-import { format, isWithinInterval, parseISO, isPast, endOfDay, subDays } from "date-fns";
+import { format, isWithinInterval, parseISO, isPast, endOfDay, subDays, isValid } from "date-fns";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { QRCodeCanvas } from 'qrcode.react';
 import * as XLSX from 'xlsx';
@@ -92,7 +92,7 @@ import { useToast } from "@/hooks/use-toast";
 import * as supabaseDb from '@/lib/supabase/database';
 import * as storage from '@/lib/supabase/storage';
 import { supabase } from "@/lib/supabase/client";
-import { cn, formatCurrency, getHaversineDistance } from "@/lib/utils";
+import { cn, formatCurrency, getHaversineDistance, formatDateSafe } from "@/lib/utils";
 import { ClientOnly } from "@/components/client-only";
 import { PerDiemBalanceCard } from "@/app/dashboard/employee-dashboard";
 import { Separator } from "@/components/ui/separator";
@@ -1016,7 +1016,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                         <TableCell><div className="font-medium">{request.participantName}</div><div className="hidden text-sm text-muted-foreground md:inline">{participants.find(p => p.id === request.participantId)?.idNumber}</div></TableCell>
                         <TableCell>{request.eventName}</TableCell>
                         <TableCell><Badge variant={getBadgeVariant(request.status)}>{request.status}</Badge></TableCell>
-                        <TableCell>{format(parseISO(request.date), 'PPP')}</TableCell>
+                        <TableCell>{formatDateSafe(request.date)}</TableCell>
                         <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.totalPerdiem)}</TableCell>
                         <TableCell>
                                 <DropdownMenu>
@@ -1329,7 +1329,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                                         <TableCell className="font-medium">{event.name}</TableCell>
                                         <TableCell>{event.venueName}</TableCell>
                                         <TableCell className="whitespace-nowrap">{(event.eventDates || []).join(', ')}</TableCell>
-                                        <TableCell className="whitespace-nowrap">{format(parseISO(event.createdAt || event.eventDates[0]), 'PPP')}</TableCell>
+                                        <TableCell className="whitespace-nowrap">{formatDateSafe(event.createdAt || event.eventDates[0])}</TableCell>
                                         <TableCell>{totalAssigned}</TableCell>
                                         <TableCell>{getTotalCheckinsForEvent(event)}</TableCell>
                                         <TableCell>
@@ -2083,7 +2083,12 @@ function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[]
     const pieChartData = Object.entries(requestsByStatus).map(([name, value]) => ({ name, value }));
 
     const requestsByDate = requests.reduce((acc, req) => {
-      const date = format(new Date(req.date), 'yyyy-MM-dd');
+      // A malformed date (e.g. a raw Excel serial number that leaked through
+      // an import) must not throw here - it just won't land in any of the
+      // last-30-days buckets below, instead of crashing the whole chart.
+      const parsed = new Date(req.date);
+      if (!isValid(parsed)) return acc;
+      const date = format(parsed, 'yyyy-MM-dd');
       acc[date] = (acc[date] || 0) + 1;
       return acc;
     }, {} as { [key: string]: number });

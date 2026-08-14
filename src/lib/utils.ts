@@ -3,6 +3,7 @@
  */
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { format, parseISO, isValid } from "date-fns"
 
 /**
  * A utility function to conditionally join class names together.
@@ -51,4 +52,22 @@ export const formatCurrency = (amount: number) => {
         style: 'currency',
         currency: 'KES',
     }).format(amount);
+};
+
+/**
+ * Formats a date string for display, tolerating bad data instead of
+ * throwing. `date-fns`'s format() throws RangeError: Invalid time value on
+ * an unparseable string (e.g. a raw Excel serial number like "45931" that
+ * leaked through from a historical import) - one bad record's date should
+ * never be able to crash an entire dashboard page for every viewer, so this
+ * shows the raw value instead of the crashing on it.
+ * @param {string | null | undefined} dateStr - An ISO-ish date string.
+ * @param {string} formatStr - A date-fns format string, e.g. 'PPP'.
+ * @returns {string} The formatted date, the raw input, or "—" if empty.
+ */
+export const formatDateSafe = (dateStr: string | null | undefined, formatStr: string = "PPP"): string => {
+  if (!dateStr) return "—";
+  const parsed = parseISO(dateStr);
+  if (!isValid(parsed)) return String(dateStr);
+  return format(parsed, formatStr);
 };

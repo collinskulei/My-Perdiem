@@ -46,7 +46,7 @@ import { supabase } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { SuccessDialog } from "@/components/success-dialog";
 import { MapPin, Loader2, Check, Wallet, Clock, AlertTriangle, Info } from "lucide-react";
-import { cn, formatCurrency, getHaversineDistance } from "@/lib/utils";
+import { cn, formatCurrency, getHaversineDistance, formatDateSafe } from "@/lib/utils";
 import { useGeolocation } from "@/lib/hooks/use-geolocation";
 import { Label } from "@/components/ui/label";
 import { ClientOnly } from "@/components/client-only";
@@ -587,7 +587,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                 <TableCell>
                                     <Badge variant={getBadgeVariant(request.status)}>{request.status}</Badge>
                                 </TableCell>
-                                <TableCell className="whitespace-nowrap">{format(parse(request.date, 'yyyy-MM-dd', new Date()), 'PPP')}</TableCell>
+                                <TableCell className="whitespace-nowrap">{formatDateSafe(request.date)}</TableCell>
                                 <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.totalPerdiem)}</TableCell>
                                 <TableCell className="text-right">
                                     {request.status === 'Paid' && (
