@@ -795,6 +795,32 @@ files' actual date cells. **Not yet verified:** whether the live
 already-corrupted row(s) have actually been found/cleaned up - depends on
 the user running the diagnostic script above.
 
+## Off-plan: Quarter filter on Reports tab — ✅ DONE (code, not browser-tested)
+
+Requested directly: "On the app lets have a filter for Quarters ie 2025
+Q1, 2025 Q2." Added to the admin dashboard's existing **Reports** tab
+filter bar (`src/app/admin/admin-dashboard.tsx`), available to every admin
+tier since that tab isn't gated by access tier.
+
+**What was built:**
+- A **Quarter** `Select` (options "2023 Q1" through next-calendar-year
+  "Q4", newest first, plus "All / Custom") placed to the left of the
+  existing Date Range picker.
+- Picking a quarter computes its exact start/end (`date-fns`
+  `startOfQuarter`/`endOfQuarter`) and writes straight into the existing
+  `filters.date` `DateRange` state - deliberately **not** a separate
+  filter dimension, so every table/download already wired to
+  `filters.date` (Approved/Paid/Rejected/Amended reports, CSV/Excel
+  exports) respects it automatically with no other code changes.
+- Manually picking a custom range in the Date Range calendar resets the
+  Quarter dropdown back to "All / Custom", so the two controls never
+  silently disagree about what's actually applied.
+
+**Verified this session:** `npm run typecheck` - no new errors (same
+pre-existing list as before this change). **Not yet verified:** an actual
+click-through in a browser (no browser tool this session) - add to the
+regression pass once one is available. See `docs/TEST_GUIDE.md` §12.
+
 ## Milestone 6 — Claude for Team MCP integration — ⬜ NOT STARTED
 
 Read-mostly MCP server (`list_clients`, `list_work_types`, `list_documents`,

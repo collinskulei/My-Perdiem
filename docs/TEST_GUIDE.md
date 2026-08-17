@@ -358,7 +358,34 @@ silently cascaded away.
 
 ---
 
-## 12. Regression basics (run before considering any change done)
+## 12. Quarter filter (Reports tab, all admin tiers)
+
+**Prerequisites:** Any admin tier (Client/Super/Master) with some per diem
+requests spanning more than one calendar quarter.
+
+1. Admin dashboard → **Reports** tab → confirm a new **Quarter** dropdown
+   appears to the left of **Date Range**, defaulted to "All / Custom".
+2. Pick a quarter that has data (e.g. "2025 Q1") → confirm the **Date
+   Range** control updates to show that quarter's exact start/end dates
+   (Jan 1 - Mar 31 for Q1, etc.) and the Approved/Paid/Rejected/Amended
+   tables + downloads below only include requests dated inside that
+   quarter.
+3. Pick a quarter with no data → confirm all report tables show their
+   empty state, not an error.
+4. Manually pick a custom range in the **Date Range** calendar afterward →
+   confirm the **Quarter** dropdown resets to "All / Custom" (it should
+   never silently disagree with the actual applied range).
+5. Select "All / Custom" from the **Quarter** dropdown → confirm the date
+   filter clears back to unfiltered.
+
+**Expected:** the Quarter dropdown is a convenience shortcut into the
+existing Date Range filter (not a separate filter dimension) - both stay
+in sync, and every download/report already wired to `filters.date`
+respects it automatically.
+
+---
+
+## 13. Regression basics (run before considering any change done)
 
 1. `npm run typecheck` - compare the error list to the known pre-existing
    ones (Badge `variant="success"` typing, `checkbox.tsx`/`sidebar.tsx`
@@ -389,4 +416,6 @@ silently cascaded away.
   `docs/MILESTONE_HANDOFF.md`'s Milestone 5 section.
 - §11: off-plan self-service Delete Client, see
   `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
-- §12: general project convention, not tied to one milestone.
+- §12: off-plan Quarter filter (Reports tab), see
+  `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
+- §13: general project convention, not tied to one milestone.

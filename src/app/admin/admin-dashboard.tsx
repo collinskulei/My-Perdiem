@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2, QrCode, Upload, File as FileIcon, X, Wallet, Paperclip, Info, Trash2, Search } from "lucide-react";
 import Image from "next/image";
 import { DateRange } from "react-day-picker";
-import { format, isWithinInterval, parseISO, isPast, endOfDay, subDays, isValid } from "date-fns";
+import { format, isWithinInterval, parseISO, isPast, endOfDay, subDays, isValid, startOfQuarter, endOfQuarter } from "date-fns";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { QRCodeCanvas } from 'qrcode.react';
 import * as XLSX from 'xlsx';
@@ -254,7 +254,29 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
     participant: string;
   }>(defaultFilters);
   const [filteredReportData, setFilteredReportData] = useState<PerdiemRequest[]>([]);
-  
+  const [selectedQuarter, setSelectedQuarter] = useState<string>("all");
+  const quarterOptions = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const options: { value: string; label: string }[] = [];
+    for (let year = currentYear + 1; year >= 2023; year--) {
+      for (let q = 4; q >= 1; q--) {
+        options.push({ value: `${year}-Q${q}`, label: `${year} Q${q}` });
+      }
+    }
+    return options;
+  }, []);
+  const handleQuarterSelect = (value: string) => {
+    setSelectedQuarter(value);
+    if (value === "all") {
+      setFilters(f => ({ ...f, date: undefined }));
+      return;
+    }
+    const [yearStr, qStr] = value.split("-Q");
+    const from = startOfQuarter(new Date(Number(yearStr), (Number(qStr) - 1) * 3, 1));
+    const to = endOfQuarter(from);
+    setFilters(f => ({ ...f, date: { from, to } }));
+  };
+
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   
@@ -1635,7 +1657,17 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                     {/* Filter Section */}
                     <div className="p-4 border rounded-lg space-y-4">
                         <h3 className="font-medium">Filter Options</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                            <div>
+                                <Label htmlFor="quarter-filter">Quarter</Label>
+                                <Select value={selectedQuarter} onValueChange={handleQuarterSelect}>
+                                    <SelectTrigger id="quarter-filter"><SelectValue placeholder="Select Quarter" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All / Custom</SelectItem>
+                                        {quarterOptions.map(q => <SelectItem key={q.value} value={q.value}>{q.label}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                             <div>
                                 <Label htmlFor="date-range">Date Range</Label>
                                 <Popover>
@@ -1646,7 +1678,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar initialFocus mode="range" selected={filters.date} onSelect={(d) => setFilters(f => ({ ...f, date: d }))} numberOfMonths={2} />
+                                    <Calendar initialFocus mode="range" selected={filters.date} onSelect={(d) => { setSelectedQuarter("all"); setFilters(f => ({ ...f, date: d })); }} numberOfMonths={2} />
                                 </PopoverContent>
                                 </Popover>
                             </div>

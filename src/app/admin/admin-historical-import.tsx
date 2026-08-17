@@ -166,6 +166,8 @@ function toDateOnlyString(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+const DAY_FIRST_DATE = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+
 function splitDates(raw: unknown): string[] {
   if (raw === null || raw === undefined || raw === "") return [];
   // A date-formatted Excel cell arrives here as a JS Date (see the
@@ -180,7 +182,22 @@ function splitDates(raw: unknown): string[] {
   if (raw instanceof Date) {
     return isNaN(raw.getTime()) ? [] : [toDateOnlyString(raw)];
   }
-  return String(raw).split(/[,;|]/).map((d) => d.trim()).filter(Boolean);
+  return String(raw).split(/[,;|]/).map((d) => d.trim()).filter(Boolean).map((d) => {
+    // Some real files mix real Excel dates with plain TEXT dates (typed,
+    // not entered as dates) in the same column - a d/m/yyyy string never
+    // gets picked up by the `raw instanceof Date` branch above at all.
+    // Assumes day-first (d/m/yyyy), matching Kenyan/British convention
+    // (this app already assumes Kenya elsewhere, e.g. +254 phone
+    // normalization) - genuinely ambiguous for a file that actually uses
+    // US m/d/yyyy, but there's no per-file way to know that here; the new
+    // Date column in the Preview step (see the "preview" step below) is
+    // what actually catches a wrong guess before it's imported.
+    const m = d.match(DAY_FIRST_DATE);
+    if (!m) return d;
+    const day = Number(m[1]), month = Number(m[2]);
+    if (month < 1 || month > 12 || day < 1 || day > 31) return d;
+    return `${m[3]}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  });
 }
 
 /** Normalizes to the app's +254XXXXXXXXX convention regardless of input
