@@ -105,6 +105,7 @@ import { AdminManagement } from "./admin-management";
 import { AdminClientsOverview } from "./admin-clients-overview";
 import { AdminDocumentsTab } from "./admin-documents-tab";
 import { AdminSubmissionsTab } from "./admin-submissions-tab";
+import { AdminInsightsTab } from "./admin-insights";
 import { inviteAdmin, setParticipantDisabled } from "@/lib/admin-api-client";
 
 const dataProvider = supabaseDb;
@@ -1080,6 +1081,9 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
             <TabsTrigger value="venues" data-tour="tab-venues">Venues</TabsTrigger>
             <TabsTrigger value="reports" data-tour="tab-reports">Reports</TabsTrigger>
             <TabsTrigger value="analytics" data-tour="tab-analytics">Analytics</TabsTrigger>
+            {isMultiClientAdmin && (
+              <TabsTrigger value="insights" data-tour="tab-insights">Insights</TabsTrigger>
+            )}
             {currentAdmin && currentAdmin.accessTier !== 'client_user' && (
               <TabsTrigger value="management" data-tour="tab-management">Manage</TabsTrigger>
             )}
@@ -1885,6 +1889,18 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
         <TabsContent value="analytics">
             <AnalyticsTabContent requests={perdiemRequests} loading={loading} />
         </TabsContent>
+        {isMultiClientAdmin && (
+          <TabsContent value="insights">
+            <AdminInsightsTab
+              requests={perdiemRequests}
+              events={events}
+              participants={participants}
+              venues={venues}
+              clients={clients}
+              loading={loading}
+            />
+          </TabsContent>
+        )}
         {currentAdmin && currentAdmin.accessTier !== 'client_user' && (
           <TabsContent value="management">
             <AdminManagement

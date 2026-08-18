@@ -51,7 +51,11 @@ declare
   v_training_start text;
   v_training_end text;
   v_training_days int;
-  v_existing_request_id uuid;
+  -- text, not uuid - matches perdiem_requests.id (same as v_event_id/
+  -- v_venue_id above matching events.id/venues.id) - confirmed live via a
+  -- "operator does not exist: text = uuid" error on `where id =
+  -- v_existing_request_id` before this was corrected.
+  v_existing_request_id text;
   v_imported int := 0;
   v_updated int := 0;
   v_events_touched text[] := '{}';
@@ -112,7 +116,7 @@ begin
         training_start_date = least(training_start_date, v_training_start),
         training_end_date = greatest(training_end_date, v_training_end),
         number_of_training_days = coalesce(number_of_training_days, v_training_days)
-      where id = v_event_id;
+      where id::text = v_event_id;
     end if;
     v_events_touched := array_append(v_events_touched, v_event_id);
 
@@ -126,7 +130,7 @@ begin
         where client_id = target_client_id and right(phone_number, 9) = right(v_phone, 9) limit 1;
       if v_participant_id is not null then
         update public.events set allocated_participants = array_append(allocated_participants, v_participant_id::text)
-          where id = v_event_id and not (v_participant_id::text = any(allocated_participants));
+          where id::text = v_event_id and not (v_participant_id::text = any(allocated_participants));
       end if;
     end if;
 
@@ -143,9 +147,17 @@ begin
     -- Known limitation (accepted trade-off): since date is part of the key,
     -- a record whose Payment Date was blank on the first upload and filled
     -- in later won't be recognized as the same row - it inserts as new.
+    -- Cast the column to text (not v_event_id to uuid) - v_event_id is
+    -- declared text throughout this function (matching the existing
+    -- venues/events id-matching code above, which never needed the reverse
+    -- cast because INSERT/RETURNING INTO use assignment casts, not operator
+    -- resolution); casting the id column is always valid regardless of
+    -- perdiem_requests.event_id's actual declared type, whereas casting
+    -- v_event_id to uuid would risk a parse error if that ever isn't the
+    -- case.
     select id into v_existing_request_id from public.perdiem_requests
       where client_id = target_client_id
-        and event_id = v_event_id
+        and event_id::text = v_event_id
         and date = v_date
         and (
           (v_phone is not null and participant_phone is not null and right(participant_phone, 9) = right(v_phone, 9))

@@ -455,7 +455,51 @@ gaps never creates a duplicate or silently overwrites a real value.
 
 ---
 
-## 14. Regression basics (run before considering any change done)
+## 14. Insights tab (Super/Master Admin only)
+
+**Prerequisites:** Super or Master Admin login. Apeiro's test data from
+§13's historical-import test rounds (`apeiro-test-import-round1.xlsx` /
+`-round2-v2.xlsx`, 10 participants across 3 events) is enough for most of
+this section - re-run those uploads (after re-wiping per the standing
+convention) if the data isn't currently loaded.
+
+1. Log in as Super/Master Admin → confirm a new **Insights** tab appears
+   between Analytics and Manage. Log in as a Client Admin → confirm
+   **Insights** does NOT appear (only the existing simple Analytics tab
+   does) - this tab is Super/Master-only by design, not a replacement.
+2. Click through all 5 sub-tabs (Overview / Financial / Staff & Employer /
+   Training / Cross-Client) → confirm every chart renders with real data,
+   no blank/broken charts, and empty-state messages show instead of a
+   crash for any sub-section with no matching data.
+3. On any chart, click **PDF** → confirm a readable PDF downloads with the
+   chart image and a title.
+4. Toggle dark/light mode (Settings > Preferences) → re-open Insights →
+   confirm the glass/gradient card styling and all chart colors still look
+   correct in both themes → download the same chart's PDF in both themes →
+   confirm the exported image's background matches the current theme
+   (not a hardcoded white background) - this is the specific bug this
+   tab's PDF export was built to avoid, unlike the older Analytics tab's
+   JPEG export which still hardcodes white.
+5. On each sub-tab, click **Download Section (PDF)** → confirms a
+   multi-page PDF downloads with one chart per page.
+6. **Cross-Client section specifically needs 2+ clients with data** to be
+   meaningful - a single-client comparison is a degenerate case. Create one
+   throwaway test client via the Clients tab, run a small historical import
+   against it too (2-3 rows is enough), then confirm the Cross-Client
+   table/Bar/Radar/Line charts show both clients side by side. Delete the
+   throwaway client afterward via the existing self-service Delete Client
+   feature once done.
+7. Resize the browser narrow (or check on mobile) → confirm charts collapse
+   to a single column rather than overflowing.
+
+**Expected:** Insights is additive and Super/Master-only - it doesn't
+change anything about the existing Analytics tab or any other tab, doesn't
+affect Client Admins at all, and every chart degrades gracefully (empty
+state, not a crash) when its underlying data doesn't exist yet.
+
+---
+
+## 15. Regression basics (run before considering any change done)
 
 1. `npm run typecheck` - compare the error list to the known pre-existing
    ones (Badge `variant="success"` typing, `checkbox.tsx`/`sidebar.tsx`
@@ -490,4 +534,6 @@ gaps never creates a duplicate or silently overwrites a real value.
   `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
 - §13: off-plan historical import field-set expansion + gap-filling sync,
   see `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
-- §14: general project convention, not tied to one milestone.
+- §14: off-plan Super/Master Admin "Insights" analytics dashboard, see
+  `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
+- §15: general project convention, not tied to one milestone.

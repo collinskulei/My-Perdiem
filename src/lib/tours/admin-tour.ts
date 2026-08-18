@@ -45,6 +45,17 @@ export function buildAdminTourSteps({
     tabStep("analytics", "Analytics", "Platform-wide per diem trends and summaries.", setActiveTab),
   ];
 
+  if (isMultiClientAdmin) {
+    steps.push(
+      tabStep(
+        "insights",
+        "Insights",
+        "A full analytics view across every client - financials, staff/employer breakdowns, training trends, and cross-client comparisons, all exportable as PDF.",
+        setActiveTab
+      )
+    );
+  }
+
   if (canManage) {
     steps.push(
       tabStep(

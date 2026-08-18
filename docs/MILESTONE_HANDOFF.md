@@ -914,6 +914,87 @@ exercise the sync/gap-fill behavior against real re-uploads. See
 specific header-collision and gap-fill-vs-overwrite checks worth running
 before trusting this against Apeiro's real data.
 
+## Off-plan: Super/Master Admin "Insights" analytics dashboard — ✅ DONE (code, not browser-tested)
+
+Requested directly: "create a modern, Futuristic analytics dashboard with
+all the possible visualizations of the data for Super admin" - then, after
+a menu of ~20 chart/data-dimension combinations was presented and
+confirmed, "Safely add all. with modern aesthetic UI. and experience. Make
+sure all visualizations are downloadable as pdf."
+
+**Scope decisions confirmed via AskUserQuestion:** a **new** tab
+("Insights"), not a replacement of the existing basic "Analytics" tab
+every admin tier already sees (Client Admins are completely unaffected);
+organized as **sub-tabbed sections** rather than one long scroll.
+
+**What was built:**
+- New `src/app/admin/insights/` folder - `shared.tsx` (card/stat-card/
+  chart-card styling primitives, the `--chart-1..5` HSL token palette
+  convention that existed in the design system but had never actually been
+  used by a real chart before this, a single source of truth for the
+  status hex-color map that was previously duplicated separately in
+  `admin-dashboard.tsx`'s `AnalyticsTabContent` and `employee-dashboard.tsx`'s
+  `ANALYTICS_COLORS` - **note: those two older duplicates were deliberately
+  left as-is, not refactored to import from here, to keep this change
+  scoped; consolidating them is a small worthwhile follow-up, not done
+  now**), plus `overview.tsx`/`financial.tsx`/`staff-employer.tsx`/
+  `training.tsx`/`cross-client.tsx` (one component per sub-tab).
+- `src/app/admin/admin-insights.tsx` - the top-level `AdminInsightsTab`,
+  mounted in `admin-dashboard.tsx` gated by the existing `isMultiClientAdmin`
+  check (same gate as the "Clients"/"Submissions" tabs) - Super/Master
+  Admin only.
+- **~20 visualizations across 5 sections**, using 8 different recharts
+  chart types for variety (Pie/Donut, Bar, Line, Area, Radar, Scatter,
+  Treemap, Composed): Overview (5 stat cards, status Donut, 90-day trend
+  Area, top-clients-by-amount Bar, volume-vs-amount Composed chart,
+  client-spend-share Treemap); Financial (allowance-type breakdown,
+  average/amendment-delta stat cards, amount-by-status, amendment
+  original-vs-amended Scatter, spend-distribution histogram); Staff &
+  Employer (staff-category Pie, employer/job-group/designation Bar
+  breakdowns, staff-category-by-status stacked Bar); Training (duration
+  histogram, top venues/counties, events-over-time, training-days-vs-amount
+  Scatter); Cross-Client (sortable per-client rollup table, requests-per-
+  client Bar, multi-client comparison Radar chart, per-client activity
+  Line chart) - this last section is the one genuinely new capability only
+  Super/Master Admin can have, since it needs visibility across every
+  client at once.
+- **PDF export on every single chart** (not just the old tab's JPEG-only
+  pattern): `html-to-image` captures each chart card exactly like the old
+  "Download JPEG" button already did, but feeds the result into `jspdf`
+  (already a dependency, previously unused anywhere in `src/`) instead -
+  `downloadChartAsPdf()` per chart, `downloadSectionAsPdf()` per sub-tab
+  bundling every chart in that section into one multi-page PDF. Along the
+  way, fixed a latent bug the old JPEG export still has: it hardcodes a
+  `'white'` capture background, which produces illegible light-on-white
+  exports in dark mode - the new PDF export reads the chart's actual
+  rendered background color at capture time instead. The old tab's JPEG
+  buttons were intentionally left untouched to keep this change scoped.
+- **"Modern, futuristic" aesthetic** - the first glassmorphism/gradient/
+  glow visual language in this app (none existed before): `backdrop-blur-xl`
+  translucent cards, soft primary-color glow shadows that intensify on
+  hover, gradient-text stat numbers with an animated count-up (plain
+  `requestAnimationFrame`, no new dependency), staggered fade/slide-in card
+  entrances (via `tailwindcss-animate`'s already-registered utilities),
+  and glass-styled chart tooltips - all built from the existing HSL design
+  tokens so it inverts correctly with the dark/light toggle rather than
+  clashing with it.
+
+**Not built (explicit non-goals):** no changes to the existing "Analytics"
+tab's behavior for Client Admins; no new data-fetching (reuses whatever
+`admin-dashboard.tsx`'s existing `fetchAllData()` already loads); no
+consolidation of the pre-existing duplicated status-color maps in the two
+older files (noted above as a deferred follow-up).
+
+**Verified this session:** `npm run typecheck`/`npm run build` with a
+temporary placeholder `.env` - no new errors beyond the same pre-existing
+list tracked throughout this doc. **Not yet verified:** no browser tool
+this session, so none of the charts, the PDF export (including the
+dark/light background-color fix), or the glass/gradient visual styling has
+actually been click-tested. The Cross-Client section in particular needs
+a second client with real data to look meaningful - see
+`docs/TEST_GUIDE.md` §14 for the full manual test plan, including how to
+set up a throwaway second client for that specific check.
+
 ## Milestone 6 — Claude for Team MCP integration — ⬜ NOT STARTED
 
 Read-mostly MCP server (`list_clients`, `list_work_types`, `list_documents`,
