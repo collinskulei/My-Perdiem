@@ -821,6 +821,99 @@ pre-existing list as before this change). **Not yet verified:** an actual
 click-through in a browser (no browser tool this session) - add to the
 regression pass once one is available. See `docs/TEST_GUIDE.md` §12.
 
+## Off-plan: Historical import field-set expansion + gap-filling sync — ✅ DONE (code, not browser-tested)
+
+Apeiro's historical data was wiped (`supabase/one-off-wipe-apeiro-perdiem-data.sql`,
+confirmed run) ahead of a fresh re-import in a new, richer format. The user
+studied a template workbook and gave the complete target field list (see
+below), confirmed "every column is a query point," and raised a real gap:
+re-uploading the same underlying data (arriving with some cells still
+blank over time) needs to **fill gaps on existing records**, not
+duplicate them or clobber values that are already known.
+
+**Bug found and fixed independent of the new fields:** `HEADER_GUESSES`'
+`eventName` pattern (`/event|training/`) matched "Training Start Date"
+before "Training Description" in the new template's header row, since
+`guessMapping()` scans the whole header row per field with no
+"already-claimed" exclusion. Tightened to
+`/(event|training)(?!.*\b(start|end|days?|venue)\b)/` - verified against
+both the old and new header sets.
+
+**Full field set now supported** (spreadsheet column → storage):
+Payment Date, Name (title-prefixed sometimes, occasionally two names in
+one cell), Phone, Training Start/End Date, Number of Training Days, Event
+Venue, Training Description, Employer, DHA/MOH/KNH/SHA/Other Staff
+(Yes/blank), Transport Allowance, DSA Allowance, Total Amount. New
+`perdiem_requests` columns: `transport_allowance`, `dsa_allowance`,
+`employer`, `dha_staff`/`moh_staff`/`knh_staff`/`sha_staff`/`other_staff`
+(boolean, **never explicitly `false`** - only `true` or `null`/unknown, so
+a later more-complete upload can still fill them in - a stored `false`
+would otherwise block that gap-fill). New `events` columns (text, not
+`date` type - matches the existing `events.event_dates`/
+`perdiem_requests.date` convention of never letting one malformed value
+abort a whole import): `training_start_date`, `training_end_date`,
+`number_of_training_days`.
+
+**Long-format dates:** `splitDates()` (in `admin-historical-import.tsx`)
+gained a third fallback for spelled-out text dates ("17 August 2026",
+"Monday, August 17, 2026") - safe specifically because a spelled-out month
+name removes the day/month ambiguity that made a pure-numeric fallback
+risky, guarded by `isValid()` plus a sane year range (2000-2100).
+
+**Name handling:** titles (Mr/Mrs/Ms/Miss/Dr) are stripped only for
+internal matching purposes (server-side, in the new sync logic below) -
+the name is stored/displayed exactly as typed. A lightweight heuristic
+(`looksLikeTwoNames()`) flags a cell that might contain two people's names
+(" and "/" & ", or two title-prefixed segments) as a non-blocking warning
+in the Preview step - confirmed **no auto-split**, since dividing one
+recorded amount between two people can't be guessed safely.
+
+**Sync / gap-filling (the main new piece):** `import_historical_events()`
+(rewritten in `supabase/migrations/0011_historical_fields_and_sync.sql`)
+already had a select-or-insert pattern for `venues`/`events`; extended the
+same pattern to `perdiem_requests` itself. Match key (confirmed via
+AskUserQuestion): `client_id` + `event_id` + `date` + phone, falling back
+to a normalized name when phone is missing on either side. On a match,
+every fillable column updates via `coalesce(existing, new)` - never
+overwrites a value that's already set. Returns both `imported_count` (new
+rows) and `updated_count` (gap-filled rows) - surfaced in the import
+result dialog ("Imported N new... and filled in M existing records...").
+**Known, accepted limitation:** since Payment Date is part of the match
+key, a record whose Payment Date was blank on the first upload and filled
+in later won't be recognized as the same row - it inserts as new instead
+of merging (chosen over a date-less key, which risks wrongly merging
+distinct same-person/same-event payments on different days of a
+multi-day training).
+
+**Dashboard query points** (`src/app/admin/admin-dashboard.tsx`, Reports
+tab - applies to every admin tier, same shared component as the Quarter
+filter above): a second date-range filter for **Training Date Range**
+(distinct from the existing Payment Date range), min/max amount filters
+for **Transport Allowance** and **DSA Allowance**, and `Select` filters for
+**Employer** (distinct values from real data, not a static list) and
+**Staff Category**. `handleDownloadPerDiemReport`'s CSV export gained all
+of the above plus Number of Training Days, falling back to
+`event.eventDates` for older-format events without dedicated training
+dates.
+
+**Not built (explicit non-goals, confirmed with the user):** no
+participant account creation from this import - payments are still
+recorded against name/phone only, matching today's behavior; no changes
+to the live request wizard or amend dialog; dashboard/analytics
+refinement beyond these specific query points is the **next** milestone,
+not part of this one.
+
+**Verified this session:** `npm run typecheck`/`npm run build` with a
+temporary placeholder `.env` - no new errors beyond the same pre-existing
+list tracked throughout this doc. **Not yet verified:** the migration has
+not been applied to the live database (handed to the user to run in the
+Supabase SQL Editor, like every prior migration this session), and there
+is no browser tool this session to click-test the new filters or actually
+exercise the sync/gap-fill behavior against real re-uploads. See
+`docs/TEST_GUIDE.md` §13 for the full manual test plan, including the
+specific header-collision and gap-fill-vs-overwrite checks worth running
+before trusting this against Apeiro's real data.
+
 ## Milestone 6 — Claude for Team MCP integration — ⬜ NOT STARTED
 
 Read-mostly MCP server (`list_clients`, `list_work_types`, `list_documents`,

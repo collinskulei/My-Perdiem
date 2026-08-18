@@ -64,6 +64,9 @@ const EVENT_FIELDS: FieldMap = {
   checkedInParticipants: 'checked_in_participants',
   programUrl: 'program_url',
   letterUrl: 'letter_url',
+  trainingStartDate: 'training_start_date',
+  trainingEndDate: 'training_end_date',
+  numberOfTrainingDays: 'number_of_training_days',
 };
 
 const REQUEST_FIELDS: FieldMap = {
@@ -98,6 +101,14 @@ const REQUEST_FIELDS: FieldMap = {
   accommodationTotal: 'accommodation_total',
   outOfOfficeAllowance: 'out_of_office_allowance',
   totalPerdiem: 'total_perdiem',
+  transportAllowance: 'transport_allowance',
+  dsaAllowance: 'dsa_allowance',
+  employer: 'employer',
+  dhaStaff: 'dha_staff',
+  mohStaff: 'moh_staff',
+  knhStaff: 'knh_staff',
+  shaStaff: 'sha_staff',
+  otherStaff: 'other_staff',
 };
 
 // --- VENUES TABLE ---
@@ -806,12 +817,23 @@ export type HistoricalImportRow = {
   venueCity?: string;
   venueCounty?: string;
   eventDates?: string[];
+  trainingStartDate?: string;
+  trainingEndDate?: string;
+  numberOfTrainingDays?: number;
   participantName: string;
   participantPhone?: string;
   participantIdNumber?: string;
   status?: string;
   transactionCode?: string;
   notes?: string;
+  employer?: string;
+  // true when indicated, omitted (never false) when not - see PerdiemRequest
+  // in data.ts for why this matters to the importer's gap-filling sync.
+  dhaStaff?: boolean;
+  mohStaff?: boolean;
+  knhStaff?: boolean;
+  shaStaff?: boolean;
+  otherStaff?: boolean;
   totalPerdiem: number;
   mileageKm?: number;
   mileageTotal?: number;
@@ -820,25 +842,30 @@ export type HistoricalImportRow = {
   outOfOfficeAllowance?: number;
   airTicketCost?: number;
   groundTransferCost?: number;
+  transportAllowance?: number;
+  dsaAllowance?: number;
 };
 
 /**
  * Imports a batch of historical events + per-diem payments for a client in
  * one atomic call - the whole batch commits or none of it does. Restricted
  * to Super Admin and above (enforced by the RPC itself, not just the UI).
+ * Rows matching an existing payment record (same event + payment date +
+ * phone/name) fill in blanks on that record instead of duplicating it - see
+ * updatedCount vs importedCount in the result.
  * @param {string} clientId - The client this historical data belongs to.
  * @param {HistoricalImportRow[]} rows - The parsed, validated rows to import.
- * @returns {Promise<{ importedCount: number; eventCount: number }>}
+ * @returns {Promise<{ importedCount: number; updatedCount: number; eventCount: number }>}
  */
 export const importHistoricalEvents = async (
   clientId: string,
   rows: HistoricalImportRow[]
-): Promise<{ importedCount: number; eventCount: number }> => {
+): Promise<{ importedCount: number; updatedCount: number; eventCount: number }> => {
   const { data, error } = await supabase
     .rpc('import_historical_events', { target_client_id: clientId, rows })
-    .single<{ imported_count: number; event_count: number }>();
+    .single<{ imported_count: number; updated_count: number; event_count: number }>();
   if (error || !data) {
     throw error ?? new Error('Import did not return a result');
   }
-  return { importedCount: data.imported_count, eventCount: data.event_count };
+  return { importedCount: data.imported_count, updatedCount: data.updated_count, eventCount: data.event_count };
 };

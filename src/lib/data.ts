@@ -113,6 +113,11 @@ export type AppEvent = {
   checkedInParticipants?: { [participantId: string]: { [date: string]: number } }; // participantId: { date: checkInTimestamp }
   programUrl?: string; // URL to the program file in Supabase Storage
   letterUrl?: string; // URL to the letter file in Supabase Storage
+  // From historical import (see docs/MILESTONE_HANDOFF.md) - 'yyyy-MM-dd'
+  // strings, distinct from eventDates (individual dates attended/paid).
+  trainingStartDate?: string;
+  trainingEndDate?: string;
+  numberOfTrainingDays?: number;
 };
 
 
@@ -156,6 +161,19 @@ export type PerdiemRequest = {
   accommodationTotal?: number;
   outOfOfficeAllowance?: number;
   totalPerdiem: number;
+
+  // From historical import (see docs/MILESTONE_HANDOFF.md).
+  transportAllowance?: number;
+  dsaAllowance?: number;
+  employer?: string;
+  // Yes/blank in the source sheet - true when indicated, undefined
+  // (never false) when not, so a later, more complete upload can still
+  // fill it in without a stored `false` blocking the gap-fill.
+  dhaStaff?: boolean;
+  mohStaff?: boolean;
+  knhStaff?: boolean;
+  shaStaff?: boolean;
+  otherStaff?: boolean;
 };
 
 

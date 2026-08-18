@@ -385,7 +385,77 @@ respects it automatically.
 
 ---
 
-## 13. Regression basics (run before considering any change done)
+## 13. Historical import: full field set, dedicated filters, and gap-filling sync
+
+**Prerequisites:** Super/Master Admin; a small test spreadsheet matching the
+client's new format (Payment Date, Name, Phone, Training Start/End Date,
+Number of Training Days, Event Venue, Training Description, Employer, DHA/
+MOH/KNH/SHA/Other Staff, Transport Allowance, DSA Allowance, Total Amount -
+see docs/MILESTONE_HANDOFF.md for the full column list this maps to).
+
+**A. Header auto-guess correctness (the collision this hardening fixes)**
+1. Upload a sheet with headers in this order: `..., Training Start Date,
+   Training End date, Number of Training Days, Event Venue, Training
+   description, ...` → Map Columns step → confirm **Event Name** maps to
+   "Training description", NOT "Training Start Date" (the bug found and
+   fixed this round - the old broad `/event|training/` pattern matched the
+   wrong column here).
+2. Confirm **Training Start Date**, **Training End Date**, **Number of
+   Training Days** each auto-map to their own columns, not to Event Name.
+3. Confirm **Transport Allowance** and **DSA Allowance** each auto-map to
+   their own columns, not to the generic Amount/Total field (the old
+   catch-all pattern used to include a bare "dsa" match).
+4. Confirm **Employer** auto-maps from a "County/Employer" combined header,
+   and the five staff columns (DHA/MOH/KNH/SHA/Other) each auto-map
+   correctly.
+
+**B. Long-format dates**
+5. Use a Payment Date (or Training Start/End Date) column with spelled-out
+   values like "17 August 2026" or "Monday, August 17, 2026" → confirm the
+   Preview step shows a clean `yyyy-MM-dd` date, not a red "doesn't look
+   like a date" flag.
+
+**C. Name handling**
+6. Include one row with a title-prefixed name ("Mr John Doe") → confirm it
+   imports with the name exactly as typed (title kept, not stripped).
+7. Include one row with two names in one cell ("John Doe and Jane Smith") →
+   confirm the Preview step flags it with a visible warning badge, and that
+   the row can still be force-imported as-is (not blocked) - the warning is
+   for manual review, not a hard stop.
+
+**D. Sync / gap-filling across repeated uploads**
+8. Import a row with several blank cells (e.g. missing Employer, missing
+   DHA/MOH staff flags) → confirm it imports as 1 new record.
+9. Re-upload the **same** row (same event, payment date, and phone/name),
+   this time with the previously-blank cells filled in → confirm the result
+   shows it as an **updated** record (not a new one), and check the
+   dashboard afterward: the previously-blank fields are now filled in, and
+   nothing that was already set got overwritten or blanked.
+10. Re-upload the same row a third time with a *different* value in an
+    already-filled field (e.g. a different Employer) → confirm the existing
+    value is **kept**, not replaced (gap-fill only fills blanks, never
+    overwrites).
+11. Known limitation to confirm, not a bug: if Payment Date itself was blank
+    on the first upload and filled in on a later one, expect a **new**
+    record, not a merge - Payment Date is part of the matching key.
+
+**E. New Reports tab filters**
+12. Reports tab → confirm **Training Date Range**, **Employer**, **Staff
+    Category**, and **Transport/DSA Allowance min-max** filters all appear
+    and narrow the Approved/Paid/Rejected/Amended tables + CSV export
+    correctly, independent of each other and of the existing filters.
+13. Download a CSV → confirm it includes Employer, Staff Category, Training
+    Start/End, Number of Training Days, Transport Allowance, and DSA
+    Allowance columns.
+
+**Expected:** every new column from the client's format is captured,
+correctly separated from existing fields (no header-guess collisions),
+filterable on the Reports tab, and re-uploading the same data to fill in
+gaps never creates a duplicate or silently overwrites a real value.
+
+---
+
+## 14. Regression basics (run before considering any change done)
 
 1. `npm run typecheck` - compare the error list to the known pre-existing
    ones (Badge `variant="success"` typing, `checkbox.tsx`/`sidebar.tsx`
@@ -418,4 +488,6 @@ respects it automatically.
   `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
 - §12: off-plan Quarter filter (Reports tab), see
   `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
-- §13: general project convention, not tied to one milestone.
+- §13: off-plan historical import field-set expansion + gap-filling sync,
+  see `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
+- §14: general project convention, not tied to one milestone.

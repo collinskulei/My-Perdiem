@@ -61,22 +61,29 @@ import type { HistoricalImportRow } from "@/lib/supabase/database";
 
 type FieldKey =
   | "eventName" | "venueName" | "venueCity" | "venueCounty"
+  | "trainingStartDate" | "trainingEndDate" | "numberOfTrainingDays"
   | "participantName" | "participantPhone" | "participantIdNumber"
-  | "status" | "transactionCode" | "notes" | "totalPerdiem"
+  | "status" | "transactionCode" | "notes" | "employer" | "totalPerdiem"
   | "mileageKm" | "mileageTotal" | "accommodationNights" | "accommodationTotal"
-  | "outOfOfficeAllowance" | "airTicketCost" | "groundTransferCost";
+  | "outOfOfficeAllowance" | "airTicketCost" | "groundTransferCost"
+  | "transportAllowance" | "dsaAllowance"
+  | "dhaStaff" | "mohStaff" | "knhStaff" | "shaStaff" | "otherStaff";
 
 const FIELD_LABELS: Record<FieldKey, string> = {
   eventName: "Event Name (overrides batch default)",
   venueName: "Venue Name (overrides batch default)",
   venueCity: "Venue City",
   venueCounty: "Venue County",
+  trainingStartDate: "Training Start Date",
+  trainingEndDate: "Training End Date",
+  numberOfTrainingDays: "Number of Training Days",
   participantName: "Participant Name *",
   participantPhone: "Phone Number",
   participantIdNumber: "ID Number",
   status: "Status (overrides batch default)",
   transactionCode: "Transaction Code",
   notes: "Notes / Description",
+  employer: "Employer",
   totalPerdiem: "Amount / Total Per Diem *",
   mileageKm: "Mileage (km)",
   mileageTotal: "Mileage Total",
@@ -85,6 +92,13 @@ const FIELD_LABELS: Record<FieldKey, string> = {
   outOfOfficeAllowance: "Out of Office Allowance",
   airTicketCost: "Air Ticket Cost",
   groundTransferCost: "Ground Transfer Cost",
+  transportAllowance: "Transport Allowance",
+  dsaAllowance: "DSA Allowance",
+  dhaStaff: "DHA Staff (Yes/blank)",
+  mohStaff: "MOH Staff (Yes/blank)",
+  knhStaff: "KNH Staff (Yes/blank)",
+  shaStaff: "SHA Staff (Yes/blank)",
+  otherStaff: "Other Staff (Yes/blank)",
 };
 
 const REQUIRED_COLUMN_FIELDS: FieldKey[] = ["participantName", "totalPerdiem"];
@@ -98,13 +112,35 @@ const HEADER_GUESSES: [FieldKey, RegExp][] = [
   ["participantIdNumber", /id\s*number|national\s*id/],
   ["participantPhone", /phone|mobile|msisdn/],
   ["totalPerdiem", /total.*amount|grand.*total|net.*pay/],
-  ["eventName", /event|training/],
+  // These four must come before the generic eventName/venueName guesses
+  // below - "Training Start Date"/"Training End date"/"Number of Training
+  // Days"/"Event Venue" would otherwise each get misread as the event name
+  // (see the eventName pattern's own negative lookahead, added for the same
+  // reason - both fixes address one real collision found against a real
+  // client template).
+  ["trainingStartDate", /training.*start/],
+  ["trainingEndDate", /training.*end/],
+  ["numberOfTrainingDays", /training.*days/],
+  ["transportAllowance", /transport.*allowance/],
+  ["dsaAllowance", /\bdsa\b/],
+  ["dhaStaff", /\bdha\b/],
+  ["mohStaff", /\bmoh\b/],
+  ["knhStaff", /\bknh\b/],
+  ["shaStaff", /\bsha\b/],
+  ["otherStaff", /^\s*other\s*$/],
+  // Matches "event"/"training" as the event/training name, but not when
+  // followed later in the same header by "start"/"end"/"day(s)"/"venue" -
+  // those belong to the dedicated fields above instead (e.g. "Training
+  // Start Date" would otherwise match this before ever reaching "Training
+  // description").
+  ["eventName", /(event|training)(?!.*\b(start|end|days?|venue)\b)/],
   ["venueCity", /city/],
   // Deliberately excludes headers that also say "employer" (e.g.
   // "County/Employer", a participant's own org, not the event venue's
   // county) - a plain "employer" match would be a false positive here.
   ["venueCounty", /county(?!.*employer)/],
   ["venueName", /venue/],
+  ["employer", /employer/],
   ["participantName", /name/],
   ["status", /status/],
   ["transactionCode", /transaction|reference|mpesa|code/],
@@ -116,7 +152,7 @@ const HEADER_GUESSES: [FieldKey, RegExp][] = [
   ["outOfOfficeAllowance", /out.of.office/],
   ["airTicketCost", /ticket|flight|air/],
   ["groundTransferCost", /transfer|taxi|ground/],
-  ["totalPerdiem", /perdiem|per.diem|dsa|total|amount/],
+  ["totalPerdiem", /perdiem|per.diem|total|amount/],
   ["participantIdNumber", /\bid\b/],
 ];
 
@@ -193,11 +229,43 @@ function splitDates(raw: unknown): string[] {
     // Date column in the Preview step (see the "preview" step below) is
     // what actually catches a wrong guess before it's imported.
     const m = d.match(DAY_FIRST_DATE);
-    if (!m) return d;
-    const day = Number(m[1]), month = Number(m[2]);
-    if (month < 1 || month > 12 || day < 1 || day > 31) return d;
-    return `${m[3]}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    if (m) {
+      const day = Number(m[1]), month = Number(m[2]);
+      if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+        return `${m[3]}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      }
+      return d;
+    }
+    // A spelled-out long-format date ("17 August 2026", "Monday, August 17,
+    // 2026") isn't day-first-ambiguous the way a pure-numeric text date is -
+    // the month name pins it down - so it's safe to lean on the JS date
+    // parser here specifically, guarded by isValid() and a sane year range
+    // so genuine garbage still falls through to the Preview step's existing
+    // "doesn't look like a date" check instead of being silently accepted.
+    if (/[a-zA-Z]/.test(d)) {
+      const parsed = new Date(d);
+      if (!isNaN(parsed.getTime()) && parsed.getFullYear() >= 2000 && parsed.getFullYear() <= 2100) {
+        return toDateOnlyString(parsed);
+      }
+    }
+    return d;
   });
+}
+
+// Kept in sync with the title-stripping pattern in
+// 0011_historical_fields_and_sync.sql's import_historical_events(), which
+// normalizes names server-side for its own gap-filling match key.
+const TITLE_PREFIX = /^(mr|mrs|ms|miss|dr)\.?\s+/i;
+
+/** Heuristic only, not a parser: flags a participant-name cell that looks
+ * like it might actually name two different people (e.g. "John Doe and Jane
+ * Smith", or two separate title-prefixed segments) so it can be surfaced as
+ * a warning in the Preview step. Never auto-splits - dividing one recorded
+ * amount between two people can't be done safely without a human decision. */
+function looksLikeTwoNames(name: string): boolean {
+  if (/\b(and|&)\b/i.test(name)) return true;
+  const titleMatches = name.match(new RegExp(TITLE_PREFIX.source, "gi"));
+  return !!titleMatches && titleMatches.length >= 2;
 }
 
 /** Normalizes to the app's +254XXXXXXXXX convention regardless of input
@@ -220,7 +288,7 @@ export type BatchDefaults = {
   transactionCode: string;
 };
 
-type ValidatedRow = { row: HistoricalImportRow; errors: string[] };
+type ValidatedRow = { row: HistoricalImportRow; errors: string[]; warnings: string[] };
 
 function buildRows(
   dataRows: any[][],
@@ -243,6 +311,18 @@ function buildRows(
         const n = Number(v);
         return Number.isFinite(n) ? n : undefined;
       };
+      // Source columns are "Yes" or blank, never an explicit "No" - so this
+      // returns true when indicated and undefined (never false) otherwise.
+      // A stored `false` would block the RPC's gap-filling sync from later
+      // updating it to true once a more complete upload arrives.
+      const getYesFlag = (field: FieldKey): boolean | undefined => {
+        const v = get(field);
+        return v?.toUpperCase() === "YES" ? true : undefined;
+      };
+      const getDate = (field: FieldKey): string | undefined => {
+        const v = get(field);
+        return v === undefined ? undefined : splitDates(v)[0];
+      };
 
       const rowDates = dateColumnIndexes.flatMap((idx) => splitDates(r[idx]));
       const eventDates = rowDates.length > 0 ? rowDates : (defaults.eventDate ? [defaults.eventDate] : undefined);
@@ -253,12 +333,21 @@ function buildRows(
         venueCity: get("venueCity") ?? defaults.venueCity ?? undefined,
         venueCounty: get("venueCounty"),
         eventDates,
+        trainingStartDate: getDate("trainingStartDate"),
+        trainingEndDate: getDate("trainingEndDate"),
+        numberOfTrainingDays: getNum("numberOfTrainingDays"),
         participantName: get("participantName") ?? "",
         participantPhone: normalizePhone(get("participantPhone")),
         participantIdNumber: get("participantIdNumber"),
         status: get("status") ?? defaults.status ?? "Paid",
         transactionCode: get("transactionCode") ?? defaults.transactionCode ?? undefined,
         notes: get("notes"),
+        employer: get("employer"),
+        dhaStaff: getYesFlag("dhaStaff"),
+        mohStaff: getYesFlag("mohStaff"),
+        knhStaff: getYesFlag("knhStaff"),
+        shaStaff: getYesFlag("shaStaff"),
+        otherStaff: getYesFlag("otherStaff"),
         totalPerdiem: getNum("totalPerdiem") ?? NaN,
         mileageKm: getNum("mileageKm"),
         mileageTotal: getNum("mileageTotal"),
@@ -267,9 +356,12 @@ function buildRows(
         outOfOfficeAllowance: getNum("outOfOfficeAllowance"),
         airTicketCost: getNum("airTicketCost"),
         groundTransferCost: getNum("groundTransferCost"),
+        transportAllowance: getNum("transportAllowance"),
+        dsaAllowance: getNum("dsaAllowance"),
       };
 
       const errors: string[] = [];
+      const warnings: string[] = [];
       if (!row.eventName) errors.push("Missing event name (set a batch default or map a column)");
       if (!row.participantName) errors.push("Missing participant name");
       // Some real files put summary text ("<Event> — EVENT TOTAL",
@@ -279,9 +371,10 @@ function buildRows(
       // payment to a fake "participant". Real names essentially never
       // contain the word "total", so this is a safe, simple exclusion.
       else if (/\btotal\b/i.test(row.participantName)) errors.push("Looks like a total/summary row, not a participant - excluded");
+      else if (looksLikeTwoNames(row.participantName)) warnings.push("Looks like it might be two people in one cell - check before importing");
       if (Number.isNaN(row.totalPerdiem)) errors.push("Missing/invalid amount");
 
-      return { row, errors };
+      return { row, errors, warnings };
     });
 }
 
@@ -300,7 +393,7 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
     eventName: "", venueName: "", venueCity: "", eventDate: "", status: "Paid", transactionCode: "",
   });
   const [isImporting, setIsImporting] = useState(false);
-  const [result, setResult] = useState<{ importedCount: number; eventCount: number } | null>(null);
+  const [result, setResult] = useState<{ importedCount: number; updatedCount: number; eventCount: number } | null>(null);
 
   const reset = () => {
     setStep("upload");
@@ -371,7 +464,7 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
     try {
       const res = await supabaseDb.importHistoricalEvents(clientId, validRows.map((v) => v.row));
       setResult(res);
-      toast({ title: "Import complete", description: `${res.importedCount} payment records imported across ${res.eventCount} events.` });
+      toast({ title: "Import complete", description: `${res.importedCount} new, ${res.updatedCount} filled in, across ${res.eventCount} events.` });
     } catch (error: any) {
       toast({ title: "Import failed", description: error.message, variant: "destructive" });
     } finally {
@@ -564,7 +657,7 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
                     // check before confirming, not just after the fact.
                     const dateLooksValid = !eventDate || /^\d{4}-\d{2}-\d{2}$/.test(eventDate);
                     return (
-                      <TableRow key={i} className={v.errors.length > 0 ? "bg-destructive/5" : undefined}>
+                      <TableRow key={i} className={v.errors.length > 0 || v.warnings.length > 0 ? "bg-destructive/5" : undefined}>
                         <TableCell>{v.row.eventName || <span className="text-destructive">missing</span>}</TableCell>
                         <TableCell>
                           {eventDate ? (
@@ -579,6 +672,8 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
                         <TableCell>
                           {v.errors.length > 0 ? (
                             <Badge variant="destructive">{v.errors[0]}</Badge>
+                          ) : v.warnings.length > 0 ? (
+                            <Badge variant="destructive" title="Not blocked from import - review before confirming">{v.warnings[0]}</Badge>
                           ) : (
                             <Badge variant="secondary">{v.row.status}</Badge>
                           )}
@@ -605,7 +700,11 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
         {result && (
           <div className="py-6 text-center space-y-2">
             <CheckCircle2 className="h-10 w-10 text-green-600 mx-auto" />
-            <p className="font-medium">Imported {result.importedCount} payment records across {result.eventCount} events.</p>
+            <p className="font-medium">
+              Imported {result.importedCount} new payment record{result.importedCount === 1 ? "" : "s"}
+              {result.updatedCount > 0 && <> and filled in {result.updatedCount} existing record{result.updatedCount === 1 ? "" : "s"}</>}
+              {" "}across {result.eventCount} events.
+            </p>
             <Button onClick={() => setIsOpen(false)}>Done</Button>
           </div>
         )}

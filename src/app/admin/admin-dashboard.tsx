@@ -123,7 +123,18 @@ const dutyStations = Object.keys(dutyStationCoordinates);
 
 const defaultNewVenue = { name: "", city: "", county: "Nairobi", latitude: "0", longitude: "0" };
 const defaultNewEvent = { name: "", facilitator: "", venueId: "", allocatedParticipants: [] as string[], checkinStartTime: "10:00", checkinEndTime: "17:00", jobGroupAllowances: { ...OUT_OF_OFFICE_RATES } };
-const defaultFilters = { date: undefined, county: "all", dutyStation: "all", participant: "all" };
+const defaultFilters = {
+  date: undefined, county: "all", dutyStation: "all", participant: "all",
+  trainingDate: undefined, employer: "all", staffCategory: "all",
+  transportMin: "", transportMax: "", dsaMin: "", dsaMax: "",
+};
+const STAFF_CATEGORIES = [
+  { value: "dha", label: "DHA", field: "dhaStaff" as const },
+  { value: "moh", label: "MOH", field: "mohStaff" as const },
+  { value: "knh", label: "KNH", field: "knhStaff" as const },
+  { value: "sha", label: "SHA", field: "shaStaff" as const },
+  { value: "other", label: "Other", field: "otherStaff" as const },
+];
 
 const designations = [
     "Medical Director", "Chief Nursing Officer", "Resident Doctor", "Registered Nurse", "Clinical Officer",
@@ -252,6 +263,13 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
     county: string;
     dutyStation: string;
     participant: string;
+    trainingDate: DateRange | undefined;
+    employer: string;
+    staffCategory: string;
+    transportMin: string;
+    transportMax: string;
+    dsaMin: string;
+    dsaMax: string;
   }>(defaultFilters);
   const [filteredReportData, setFilteredReportData] = useState<PerdiemRequest[]>([]);
   const [selectedQuarter, setSelectedQuarter] = useState<string>("all");
@@ -375,6 +393,41 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
 
         if (filters.participant !== 'all') {
             data = data.filter(req => req.participantId === filters.participant);
+        }
+
+        if (filters.trainingDate?.from && filters.trainingDate.to) {
+            const eventsInRange = new Set(
+                events
+                    .filter(e => e.trainingStartDate && e.trainingEndDate && isWithinInterval(new Date(e.trainingStartDate), { start: filters.trainingDate!.from!, end: filters.trainingDate!.to! }))
+                    .map(e => e.id)
+            );
+            data = data.filter(req => eventsInRange.has(req.eventId));
+        }
+
+        if (filters.employer !== 'all') {
+            data = data.filter(req => req.employer === filters.employer);
+        }
+
+        if (filters.staffCategory !== 'all') {
+            const field = STAFF_CATEGORIES.find(c => c.value === filters.staffCategory)?.field;
+            if (field) data = data.filter(req => req[field] === true);
+        }
+
+        if (filters.transportMin !== '') {
+            const min = Number(filters.transportMin);
+            data = data.filter(req => (req.transportAllowance ?? 0) >= min);
+        }
+        if (filters.transportMax !== '') {
+            const max = Number(filters.transportMax);
+            data = data.filter(req => (req.transportAllowance ?? 0) <= max);
+        }
+        if (filters.dsaMin !== '') {
+            const min = Number(filters.dsaMin);
+            data = data.filter(req => (req.dsaAllowance ?? 0) >= min);
+        }
+        if (filters.dsaMax !== '') {
+            const max = Number(filters.dsaMax);
+            data = data.filter(req => (req.dsaAllowance ?? 0) <= max);
         }
 
         setFilteredReportData(data);
@@ -719,23 +772,32 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
             participantJobGroup: participant?.jobGroup || 'N/A',
             participantRole: participant?.designation || 'N/A',
             eventLocation: event?.venueName || 'N/A',
-            eventStartDate: event?.eventDates?.[0] || 'N A',
-            eventEndDate: event?.eventDates?.[(event.eventDates || []).length - 1] || 'N A',
+            // Falls back to eventDates (individual dates attended/paid) for
+            // older-format imported events that predate the dedicated
+            // training date fields - see docs/MILESTONE_HANDOFF.md.
+            eventStartDate: event?.trainingStartDate || event?.eventDates?.[0] || 'N A',
+            eventEndDate: event?.trainingEndDate || event?.eventDates?.[(event.eventDates || []).length - 1] || 'N A',
             eventFacilitator: event?.facilitator || 'N A',
             eventAttendance: daysAttended,
+            numberOfTrainingDays: event?.numberOfTrainingDays ?? 'N/A',
+            staffCategory: STAFF_CATEGORIES.find(c => req[c.field])?.label || '',
         };
     });
 
     const columns = [
-        "date", "participantName", "participantDutyStation", "participantRole", "participantJobGroup",
-        "eventName", "eventLocation", "eventStartDate", "eventEndDate", "eventFacilitator",
-        "eventAttendance", "mileageTotal", "accommodationTotal", "outOfOfficeAllowance", 
+        "date", "participantName", "participantPhone", "employer", "staffCategory",
+        "participantDutyStation", "participantRole", "participantJobGroup",
+        "eventName", "eventLocation", "eventStartDate", "eventEndDate", "numberOfTrainingDays", "eventFacilitator",
+        "eventAttendance", "mileageTotal", "accommodationTotal", "outOfOfficeAllowance",
+        "transportAllowance", "dsaAllowance",
         "totalPerdiem", "status", "transactionCode"
     ];
     const columnHeaders = [
-        "Request Date", "Participant Name", "Duty Station", "Designation", "Job Group", 
-        "Event", "Event Location", "Event Start", "Event End", "Facilitator",
+        "Payment Date", "Participant Name", "Phone Number", "Employer", "Staff Category",
+        "Duty Station", "Designation", "Job Group",
+        "Event", "Event Location", "Training Start", "Training End", "Number of Training Days", "Facilitator",
         "Attendance (Days)", "Mileage (Ksh)", "Accommodation (Ksh)", "Allowance (Ksh)",
+        "Transport Allowance (Ksh)", "DSA Allowance (Ksh)",
         "Total Amount (Ksh)", "Status", "Transaction Code"
     ];
     const csvData = toCSV(detailedData, columns, columnHeaders);
@@ -825,6 +887,13 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
 
 
   const nonAdminParticipants = useMemo(() => participants.filter(p => p.accessTier === 'client_user'), [participants]);
+  // From historical import's "Employer" field (see docs/MILESTONE_HANDOFF.md)
+  // - distinct values actually present, rather than a static list like
+  // kenyanCounties, since employer names are free text from the source sheet.
+  const employerOptions = useMemo(
+    () => Array.from(new Set(perdiemRequests.map(r => r.employer).filter((e): e is string => !!e))).sort(),
+    [perdiemRequests]
+  );
 
   const isMultiClientAdmin = currentAdmin?.accessTier === 'super_admin' || currentAdmin?.accessTier === 'master_admin';
 
@@ -1711,6 +1780,56 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                                         {nonAdminParticipants.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                            <div>
+                                <Label htmlFor="training-date-range">Training Date Range</Label>
+                                <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button id="training-date-range" variant={"outline"} className={cn("w-full justify-start text-left font-normal", !filters.trainingDate && "text-muted-foreground")}>
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {filters.trainingDate?.from ? (filters.trainingDate.to ? (<>{format(filters.trainingDate.from, "LLL dd, y")} - {format(filters.trainingDate.to, "LLL dd, y")}</>) : (format(filters.trainingDate.from, "LLL dd, y"))) : (<span>Pick a training date range</span>)}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar initialFocus mode="range" selected={filters.trainingDate} onSelect={(d) => setFilters(f => ({ ...f, trainingDate: d }))} numberOfMonths={2} />
+                                </PopoverContent>
+                                </Popover>
+                            </div>
+                            <div>
+                                <Label htmlFor="employer-filter">Employer</Label>
+                                <Select value={filters.employer} onValueChange={(v) => setFilters(f => ({ ...f, employer: v }))}>
+                                    <SelectTrigger id="employer-filter"><SelectValue placeholder="Select Employer" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Employers</SelectItem>
+                                        {employerOptions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <Label htmlFor="staff-category-filter">Staff Category</Label>
+                                <Select value={filters.staffCategory} onValueChange={(v) => setFilters(f => ({ ...f, staffCategory: v }))}>
+                                    <SelectTrigger id="staff-category-filter"><SelectValue placeholder="Select Category" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Categories</SelectItem>
+                                        {STAFF_CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <Label>Transport Allowance (Ksh)</Label>
+                                <div className="flex gap-2">
+                                    <Input type="number" placeholder="Min" value={filters.transportMin} onChange={(e) => setFilters(f => ({ ...f, transportMin: e.target.value }))} />
+                                    <Input type="number" placeholder="Max" value={filters.transportMax} onChange={(e) => setFilters(f => ({ ...f, transportMax: e.target.value }))} />
+                                </div>
+                            </div>
+                            <div>
+                                <Label>DSA Allowance (Ksh)</Label>
+                                <div className="flex gap-2">
+                                    <Input type="number" placeholder="Min" value={filters.dsaMin} onChange={(e) => setFilters(f => ({ ...f, dsaMin: e.target.value }))} />
+                                    <Input type="number" placeholder="Max" value={filters.dsaMax} onChange={(e) => setFilters(f => ({ ...f, dsaMax: e.target.value }))} />
+                                </div>
                             </div>
                         </div>
                     </div>
