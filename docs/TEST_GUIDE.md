@@ -489,8 +489,18 @@ convention) if the data isn't currently loaded.
    table/Bar/Radar/Line charts show both clients side by side. Delete the
    throwaway client afterward via the existing self-service Delete Client
    feature once done.
-7. Resize the browser narrow (or check on mobile) → confirm charts collapse
-   to a single column rather than overflowing.
+7. Resize the browser narrow (or check on mobile, including the 320-375px
+   phone-width range specifically, not just tablet width) → confirm: charts
+   collapse to a single column rather than overflowing; stat card numbers
+   (e.g. "Total Paid Out") shrink and wrap rather than spilling past the
+   card edge, especially at the 5-per-row breakpoint (~1024-1280px, right
+   where Overview's stat row goes from 2 to 5 columns and each card is
+   briefly at its narrowest); every chart card's title + "PDF" button wrap
+   onto two lines instead of squeezing/overlapping; the Cross-Client rollup
+   table scrolls horizontally inside its own container rather than
+   widening the page. This same check applies to the older "Analytics"
+   tab's two chart cards and stat cards too - both got the same wrap/shrink
+   treatment in this pass.
 
 **Expected:** Insights is additive and Super/Master-only - it doesn't
 change anything about the existing Analytics tab or any other tab, doesn't

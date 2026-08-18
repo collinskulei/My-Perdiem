@@ -99,12 +99,15 @@ export function StatCard({ icon: Icon, label, value, formatter, delay = 0 }: {
   const animated = useCountUp(value);
   return (
     <InsightCard style={{ animationDelay: `${delay}ms` }}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
-        <Icon className="h-4 w-4 text-primary" />
+        <Icon className="h-4 w-4 shrink-0 text-primary" />
       </CardHeader>
       <CardContent>
-        <p className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-[hsl(var(--chart-4))] bg-clip-text text-transparent">
+        {/* Shrinks at lg specifically because StatCard's caller (5-per-row
+        at that breakpoint) gives each card its narrowest width right there
+        - widening again at xl once there's more room per card. */}
+        <p className="text-xl sm:text-2xl md:text-3xl lg:text-xl xl:text-2xl 2xl:text-3xl font-bold break-words bg-gradient-to-r from-primary to-[hsl(var(--chart-4))] bg-clip-text text-transparent">
           {formatter ? formatter(animated) : Math.round(animated).toLocaleString()}
         </p>
       </CardContent>
@@ -185,7 +188,7 @@ export function ChartCard({ title, chartRef, filename, children, extra }: {
   return (
     <InsightCard>
       <div ref={chartRef}>
-        <CardHeader className="flex-row items-center justify-between">
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
           <CardTitle className="text-base">{title}</CardTitle>
           <div className="flex items-center gap-2">
             {extra}
@@ -195,7 +198,7 @@ export function ChartCard({ title, chartRef, filename, children, extra }: {
             </Button>
           </div>
         </CardHeader>
-        <CardContent>{children}</CardContent>
+        <CardContent className="overflow-x-auto">{children}</CardContent>
       </div>
     </InsightCard>
   );

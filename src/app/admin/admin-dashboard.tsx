@@ -2309,7 +2309,7 @@ function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[]
             <CardDescription>All per diem requests submitted.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl md:text-4xl font-bold">{chartData.requestsCount}</p>
+            <p className="text-2xl sm:text-3xl md:text-4xl font-bold break-words">{chartData.requestsCount}</p>
           </CardContent>
         </Card>
         <Card>
@@ -2318,14 +2318,14 @@ function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[]
             <CardDescription>The total amount for all paid per diems.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl md:text-4xl font-bold">{formatCurrency(chartData.totalPaid)}</p>
+            <p className="text-2xl sm:text-3xl md:text-4xl font-bold break-words">{formatCurrency(chartData.totalPaid)}</p>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card ref={pieChartRef}>
-          <CardHeader className="flex-row items-center justify-between">
+          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
             <CardTitle>Requests by Status</CardTitle>
              <Button
                 variant="outline"
@@ -2336,7 +2336,7 @@ function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[]
                 Download JPEG
             </Button>
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-x-auto">
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie data={chartData.pieChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
@@ -2351,7 +2351,7 @@ function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[]
           </CardContent>
         </Card>
         <Card ref={barChartRef}>
-          <CardHeader className="flex-row items-center justify-between">
+          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
             <CardTitle>Requests in Last 30 Days</CardTitle>
             <Button
                 variant="outline"
@@ -2362,7 +2362,7 @@ function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[]
                 Download JPEG
             </Button>
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-x-auto">
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={chartData.last30Days}>
                 <CartesianGrid strokeDasharray="3 3" />
