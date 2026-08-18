@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase/client";
 import * as supabaseDb from "@/lib/supabase/database";
 import type { AccessTier } from "@/lib/data";
+import { useAdminTab } from "./admin-tab-context";
 
 /**
  * The sidebar is the only navigation surface (see docs/MILESTONE_HANDOFF.md
@@ -51,7 +52,10 @@ import type { AccessTier } from "@/lib/data";
 export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: string }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'requests';
+  // Instant, click-driven source of truth for which tab is showing - see
+  // admin-tab-context.tsx for why this exists instead of just reading
+  // searchParams (would otherwise wait on a server round-trip per click).
+  const { activeTab, setActiveTab } = useAdminTab();
   const [accessTier, setAccessTier] = useState<AccessTier | null>(null);
 
   useEffect(() => {
@@ -91,7 +95,7 @@ export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: str
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <Link href={basePath}>
+        <Link href={basePath} onClick={() => setActiveTab('requests')}>
           <SidebarMenuButton isActive={isLinkActive(basePath, null)}>
             <Home />
             Dashboard
@@ -99,7 +103,7 @@ export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: str
         </Link>
       </SidebarMenuItem>
       <SidebarMenuItem>
-        <Link href={`${basePath}?tab=requests`}>
+        <Link href={`${basePath}?tab=requests`} onClick={() => setActiveTab('requests')}>
           <SidebarMenuButton isActive={isLinkActive(basePath, 'requests')} data-tour="tab-requests">
             <ClipboardList />
             Per Diem Requests
@@ -112,14 +116,16 @@ export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: str
         <Accordion type="single" collapsible defaultValue="events">
           <AccordionItem value="events" className="border-none">
             <AccordionTrigger data-tour="tab-events-group" className={groupTriggerClass(eventsGroupActive)}>
-              <CalendarDays className="h-4 w-4 shrink-0" />
-              Events
+              <span className="flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 shrink-0" />
+                Events
+              </span>
             </AccordionTrigger>
             <AccordionContent className="pb-0">
               <SidebarMenuSub>
                 <SidebarMenuSubItem>
                   <SidebarMenuSubButton asChild isActive={isLinkActive(basePath, 'events')}>
-                    <Link href={`${basePath}?tab=events`} data-tour="tab-events">
+                    <Link href={`${basePath}?tab=events`} data-tour="tab-events" onClick={() => setActiveTab('events')}>
                       <CalendarDays />
                       Events
                     </Link>
@@ -127,7 +133,7 @@ export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: str
                 </SidebarMenuSubItem>
                 <SidebarMenuSubItem>
                   <SidebarMenuSubButton asChild isActive={isLinkActive(basePath, 'checkins')}>
-                    <Link href={`${basePath}?tab=checkins`} data-tour="tab-checkins">
+                    <Link href={`${basePath}?tab=checkins`} data-tour="tab-checkins" onClick={() => setActiveTab('checkins')}>
                       <ClipboardCheck />
                       Event Check-ins
                     </Link>
@@ -140,7 +146,7 @@ export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: str
       </SidebarMenuItem>
 
       <SidebarMenuItem>
-        <Link href={`${basePath}?tab=participants`}>
+        <Link href={`${basePath}?tab=participants`} onClick={() => setActiveTab('participants')}>
           <SidebarMenuButton isActive={isLinkActive(basePath, 'participants')} data-tour="tab-participants">
             <Users />
             Participants
@@ -148,7 +154,7 @@ export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: str
         </Link>
       </SidebarMenuItem>
       <SidebarMenuItem>
-        <Link href={`${basePath}?tab=venues`}>
+        <Link href={`${basePath}?tab=venues`} onClick={() => setActiveTab('venues')}>
           <SidebarMenuButton isActive={isLinkActive(basePath, 'venues')} data-tour="tab-venues">
             <MapPin />
             Venues
@@ -161,14 +167,16 @@ export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: str
         <Accordion type="single" collapsible defaultValue="reports">
           <AccordionItem value="reports" className="border-none">
             <AccordionTrigger data-tour="tab-reports-group" className={groupTriggerClass(reportsGroupActive)}>
-              <FileText className="h-4 w-4 shrink-0" />
-              Reports
+              <span className="flex items-center gap-2">
+                <FileText className="h-4 w-4 shrink-0" />
+                Reports
+              </span>
             </AccordionTrigger>
             <AccordionContent className="pb-0">
               <SidebarMenuSub>
                 <SidebarMenuSubItem>
                   <SidebarMenuSubButton asChild isActive={isLinkActive(basePath, 'reports')}>
-                    <Link href={`${basePath}?tab=reports`} data-tour="tab-reports">
+                    <Link href={`${basePath}?tab=reports`} data-tour="tab-reports" onClick={() => setActiveTab('reports')}>
                       <FileText />
                       Reports
                     </Link>
@@ -176,7 +184,7 @@ export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: str
                 </SidebarMenuSubItem>
                 <SidebarMenuSubItem>
                   <SidebarMenuSubButton asChild isActive={isLinkActive(basePath, 'analytics')}>
-                    <Link href={`${basePath}?tab=analytics`} data-tour="tab-analytics">
+                    <Link href={`${basePath}?tab=analytics`} data-tour="tab-analytics" onClick={() => setActiveTab('analytics')}>
                       <BarChart />
                       Analytics
                     </Link>
@@ -185,7 +193,7 @@ export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: str
                 {isMultiClientAdmin && (
                   <SidebarMenuSubItem>
                     <SidebarMenuSubButton asChild isActive={isLinkActive(basePath, 'insights')}>
-                      <Link href={`${basePath}?tab=insights`} data-tour="tab-insights">
+                      <Link href={`${basePath}?tab=insights`} data-tour="tab-insights" onClick={() => setActiveTab('insights')}>
                         <Sparkles />
                         Insights
                       </Link>
@@ -200,7 +208,7 @@ export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: str
 
       {accessTier === 'client_admin' && (
         <SidebarMenuItem>
-          <Link href={`${basePath}?tab=documents`}>
+          <Link href={`${basePath}?tab=documents`} onClick={() => setActiveTab('documents')}>
             <SidebarMenuButton isActive={isLinkActive(basePath, 'documents')} data-tour="tab-documents">
               <FileStack />
               Documents
@@ -215,14 +223,16 @@ export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: str
           <Accordion type="single" collapsible defaultValue="manage">
             <AccordionItem value="manage" className="border-none">
               <AccordionTrigger data-tour="tab-manage-group" className={groupTriggerClass(manageGroupActive)}>
-                <ShieldCheck className="h-4 w-4 shrink-0" />
-                Manage
+                <span className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 shrink-0" />
+                  Manage
+                </span>
               </AccordionTrigger>
               <AccordionContent className="pb-0">
                 <SidebarMenuSub>
                   <SidebarMenuSubItem>
                     <SidebarMenuSubButton asChild isActive={isLinkActive(basePath, 'management')}>
-                      <Link href={`${basePath}?tab=management`} data-tour="tab-management">
+                      <Link href={`${basePath}?tab=management`} data-tour="tab-management" onClick={() => setActiveTab('management')}>
                         <ShieldCheck />
                         Manage
                       </Link>
@@ -231,7 +241,7 @@ export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: str
                   {isMultiClientAdmin && (
                     <SidebarMenuSubItem>
                       <SidebarMenuSubButton asChild isActive={isLinkActive(basePath, 'clients')}>
-                        <Link href={`${basePath}?tab=clients`} data-tour="tab-clients">
+                        <Link href={`${basePath}?tab=clients`} data-tour="tab-clients" onClick={() => setActiveTab('clients')}>
                           <Building2 />
                           Clients
                         </Link>
@@ -241,7 +251,7 @@ export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: str
                   {isMultiClientAdmin && (
                     <SidebarMenuSubItem>
                       <SidebarMenuSubButton asChild isActive={isLinkActive(basePath, 'submissions')}>
-                        <Link href={`${basePath}?tab=submissions`} data-tour="tab-submissions">
+                        <Link href={`${basePath}?tab=submissions`} data-tour="tab-submissions" onClick={() => setActiveTab('submissions')}>
                           <FileStack />
                           Submissions
                         </Link>

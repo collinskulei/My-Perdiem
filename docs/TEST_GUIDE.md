@@ -541,10 +541,22 @@ and Master Admin to check the tier-specific gating differences.
    targets.
 7. On the Participants tab, search by a participant's **phone number**
    (not just name or ID number) → confirm they show up in the results.
+8. Click rapidly between several sidebar items (e.g. Requests → Venues →
+   Reports → Events) → confirm each one switches the visible content
+   **instantly**, with no perceptible delay waiting for a network
+   round-trip. (This was a real regression from removing the tab strip -
+   fixed via a shared `AdminTabProvider` context in `admin-layout.tsx` so
+   sidebar clicks update the active tab synchronously instead of waiting
+   on the `force-dynamic` page to re-render with a new `currentTab` prop.)
+9. Use the browser's back/forward buttons after clicking through a few
+   tabs → confirm the sidebar and content both end up showing the correct
+   tab (this path still goes through the slower prop-sync, which is
+   expected/acceptable - only sidebar clicks need to be instant).
 
 **Expected:** navigation is now sidebar-only with no loss of functionality
 - every tab/deep-link/tour step still works, Insights is finally reachable
-from the sidebar, and participant search covers phone number too.
+from the sidebar, participant search covers phone number too, and sidebar
+clicks feel instant rather than waiting on a server round-trip.
 
 ---
 

@@ -18,6 +18,7 @@ import { Logo } from "@/components/logo";
 import { LogOut } from "lucide-react";
 import { AdminHeader } from './admin-header';
 import { AdminSidebarNavigation } from './admin-sidebar-navigation';
+import { AdminTabProvider } from './admin-tab-context';
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signOutEverywhere } from "@/lib/supabase/auth";
@@ -46,34 +47,36 @@ export function AdminLayoutClient({
   };
 
   return (
-    <SidebarProvider>
-      <Sidebar>
-        <SidebarHeader>
-          <div className="flex items-center gap-2">
-            <Logo />
-          </div>
-        </SidebarHeader>
-        <SidebarContent>
-          <AdminSidebarNavigation basePath={basePath} />
-        </SidebarContent>
-        <SidebarFooter>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton onClick={handleLogout}>
-                <LogOut />
-                Logout
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-           <div className="text-center text-xs text-sidebar-foreground/60 p-2 mt-2">
-            <p>Myperdiem provided by <Link href="https://www.tuque.africa" target="_blank" rel="noopener noreferrer" className="underline hover:text-sidebar-foreground">Tuque Consulting</Link></p>
-          </div>
-        </SidebarFooter>
-      </Sidebar>
-      <SidebarInset>
-        <AdminHeader loginPath={loginPath} portalLabel={portalLabel} />
-        <main className="flex-1 p-4 sm:p-6">{children}</main>
-      </SidebarInset>
-    </SidebarProvider>
+    <AdminTabProvider>
+      <SidebarProvider>
+        <Sidebar>
+          <SidebarHeader>
+            <div className="flex items-center gap-2">
+              <Logo />
+            </div>
+          </SidebarHeader>
+          <SidebarContent>
+            <AdminSidebarNavigation basePath={basePath} />
+          </SidebarContent>
+          <SidebarFooter>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={handleLogout}>
+                  <LogOut />
+                  Logout
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+             <div className="text-center text-xs text-sidebar-foreground/60 p-2 mt-2">
+              <p>Myperdiem provided by <Link href="https://www.tuque.africa" target="_blank" rel="noopener noreferrer" className="underline hover:text-sidebar-foreground">Tuque Consulting</Link></p>
+            </div>
+          </SidebarFooter>
+        </Sidebar>
+        <SidebarInset>
+          <AdminHeader loginPath={loginPath} portalLabel={portalLabel} />
+          <main className="flex-1 p-4 sm:p-6">{children}</main>
+        </SidebarInset>
+      </SidebarProvider>
+    </AdminTabProvider>
   );
 }

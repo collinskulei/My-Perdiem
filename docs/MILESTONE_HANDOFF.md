@@ -1071,13 +1071,38 @@ rather than carried forward.
 tab strip wasn't restructured into a two-level design - it was removed
 outright, so there was nothing left there to redesign.
 
+**Follow-up fix, same session: sidebar clicks felt slow.** Removing the
+tab strip surfaced a real regression - the sidebar's plain `<Link
+href="...?tab=X">` was left as the *only* way tabs change, and every one
+of the four dashboard routes is `export const dynamic = "force-dynamic"`.
+That meant every click waited on a full server round-trip (new
+`searchParams` → `page.tsx` re-renders → new `currentTab` prop →
+`useEffect` → `setState`) before the content switched, instead of the old
+`TabsList`'s `onValueChange`, which used to update local state
+synchronously on click. Confirmed via investigation that this was *not* a
+full remount/data-refetch issue - `fetchAllData()` still only runs once
+per mount - purely a round-trip latency problem. Fixed with a new
+`src/app/admin/admin-tab-context.tsx` (`AdminTabProvider`/`useAdminTab`),
+provided in `admin-layout.tsx` above both the sidebar and the dashboard
+content (their nearest common ancestor). The sidebar's `onClick` now calls
+`setActiveTab` synchronously (instant, no network wait) while the
+`<Link>`'s own navigation still updates the URL in the background for
+bookmarking/back-forward support; `admin-dashboard.tsx` reads `activeTab`
+from the same context instead of separate local state, keeping its
+existing `currentTab`-prop-sync `useEffect` as a correction path for
+browser back/forward and direct URL visits (which don't go through the
+instant click path). Also removed the now-fully-dead `handleTabChange`/
+`useRouter` (nothing renders a `TabsList` to trigger `onValueChange`
+anymore).
+
 **Verified this session:** `npm run typecheck`/`npm run build` with a
 temporary placeholder `.env` - no new errors beyond the same pre-existing
 list tracked throughout this doc. **Not yet verified:** no browser tool
 this session, so the accordion expand/collapse behavior, every sub-item's
-navigation, and the full "Guide me" walkthrough against the new sidebar
-targets haven't been click-tested. See `docs/TEST_GUIDE.md` §15 for the
-full manual test plan.
+navigation, the full "Guide me" walkthrough against the new sidebar
+targets, and the actual felt responsiveness of the instant-switch fix
+haven't been click-tested. See `docs/TEST_GUIDE.md` §15 for the full
+manual test plan.
 
 ## Milestone 6 — Claude for Team MCP integration — ⬜ NOT STARTED
 

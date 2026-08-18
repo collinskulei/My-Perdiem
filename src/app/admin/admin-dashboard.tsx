@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2, QrCode, Upload, File as FileIcon, X, Wallet, Paperclip, Info, Trash2, Search } from "lucide-react";
 import Image from "next/image";
@@ -106,6 +106,7 @@ import { AdminClientsOverview } from "./admin-clients-overview";
 import { AdminDocumentsTab } from "./admin-documents-tab";
 import { AdminSubmissionsTab } from "./admin-submissions-tab";
 import { AdminInsightsTab } from "./admin-insights";
+import { useAdminTab } from "./admin-tab-context";
 import { inviteAdmin, setParticipantDisabled } from "@/lib/admin-api-client";
 
 const dataProvider = supabaseDb;
@@ -208,10 +209,12 @@ const downloadCSV = (csvData: string, filename: string) => {
 }
 
 export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab: string; basePath?: string }) {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [activeTab, setActiveTab] = useState(currentTab);
+  // Shared with the sidebar (see admin-tab-context.tsx) so a sidebar click
+  // switches this instantly instead of waiting on a server round-trip for
+  // a new `currentTab` prop.
+  const { activeTab, setActiveTab } = useAdminTab();
   const [currentAdmin, setCurrentAdmin] = useState<Participant | null>(null);
   const { registerTour } = useTour();
   const [venues, setVenues] = useState<Venue[]>([]);
@@ -316,12 +319,11 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
 
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  
-  const handleTabChange = (value: string) => {
-    setActiveTab(value);
-    router.push(`${basePath}?tab=${value}`, { scroll: false });
-  };
 
+  // Correction path for browser back/forward and direct URL visits, which
+  // don't go through the sidebar's instant onClick (see admin-tab-context.tsx)
+  // - still subject to the server round-trip, but sidebar clicks no longer
+  // need to wait on it.
   useEffect(() => {
     setActiveTab(currentTab);
   }, [currentTab]);
@@ -1090,7 +1092,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
         <p className="text-sm text-muted-foreground">Signed in as Admin</p>
       </div>
       <ClientOnly>
-      <Tabs value={activeTab} onValueChange={handleTabChange}>
+      <Tabs value={activeTab}>
         <TabsContent value="requests">
           <Card>
             <CardHeader><CardTitle>Perdiem Requests</CardTitle><CardDescription>Overview of all submitted per diem requests.</CardDescription></CardHeader>
