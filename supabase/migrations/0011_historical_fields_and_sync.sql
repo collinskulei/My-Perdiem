@@ -26,7 +26,12 @@ alter table public.events
   add column if not exists training_end_date text,
   add column if not exists number_of_training_days integer;
 
-create or replace function public.import_historical_events(
+-- The return shape is changing (added updated_count), and Postgres won't
+-- let CREATE OR REPLACE change a function's OUT-parameter row type - the
+-- old two-column version must be dropped first.
+drop function if exists public.import_historical_events(uuid, jsonb);
+
+create function public.import_historical_events(
   target_client_id uuid,
   rows jsonb
 )
