@@ -995,6 +995,90 @@ a second client with real data to look meaningful - see
 `docs/TEST_GUIDE.md` §14 for the full manual test plan, including how to
 set up a throwaway second client for that specific check.
 
+## Off-plan: Sidebar regrouping, dropped tab strip, participant phone search — ✅ DONE (code, not browser-tested)
+
+Requested directly: "Enable query of participants' all details by number
+or name. On dashboard menu put event checkins as a sub-item of events.
+clients and submissions should be sub items of 'Manage'. analytics and
+insights should fall under reports as sub items." Follow-up
+AskUserQuestion confirmed: the **sidebar** is the navigation surface to
+restructure (not the in-page tab strip, which was instead **removed**
+entirely per the user's explicit follow-up "remove the horizontal tab
+strip to ensure better UI"); collapsible accordion groups; and for
+participant search, just add phone number to the existing name/ID match.
+
+**Real gap found during exploration:** the sidebar (`admin-sidebar-navigation.tsx`)
+and the in-page `TabsList` (`admin-dashboard.tsx`) were two independently-
+maintained navigation lists that had already drifted apart - the sidebar
+was missing an "Insights" entry entirely. Fixed as part of this regroup
+rather than carried forward.
+
+**What was built:**
+- `src/app/admin/admin-dashboard.tsx`: removed the entire horizontal
+  `TabsList`/`TabsTrigger` block. `<Tabs value={activeTab}
+  onValueChange={handleTabChange}>` still wraps every `TabsContent`
+  unchanged - Radix doesn't require a rendered `TabsList` for
+  programmatically-controlled content, so the URL round-trip,
+  `handleTabChange`, and `admin-clients-overview.tsx`'s
+  `?tab=participants&clientId=` deep link all keep working with zero
+  changes. Added a `TAB_LABELS` lookup and made the existing page-level
+  `<h1>` (previously a static "Dashboard") show the current section's name
+  instead, so removing the strip doesn't lose the "you are here" cue.
+- `src/app/admin/admin-sidebar-navigation.tsx`: regrouped into three
+  independent single-item `Accordion`s (`@/components/ui/accordion`,
+  already installed/present in the repo but unused anywhere until now) -
+  **Events** (Events, Event Check-ins), **Reports** (Reports, Analytics,
+  Insights - gated Super/Master Admin, fixing the gap above), **Manage**
+  (Manage, Clients - gated Super/Master, Submissions - gated Super/Master).
+  Sub-items use the existing `SidebarMenuSub`/`SidebarMenuSubItem`/
+  `SidebarMenuSubButton` primitives from `src/components/ui/sidebar.tsx`,
+  which already existed for exactly this purpose but were unused
+  elsewhere. Each group's `AccordionItem` is nested inside its own
+  `SidebarMenuItem` (not the other way around) specifically so
+  `SidebarMenu`'s `<ul>` still gets valid `<li>` children directly.
+  **Group headers are pure expand/collapse toggles, not links** - nesting
+  a `<Link>`'s `<a>` inside `AccordionTrigger`'s `<button>` (or vice versa)
+  is invalid HTML/broken click semantics, so each group's own page is
+  reached via the identically-named sub-item listed inside it once
+  expanded (e.g. click "Events" to expand, then click the "Events"
+  sub-item) - a deliberate, common sidebar pattern, not an oversight.
+  **Every group defaults open** rather than starting collapsed:
+  `AccordionContent` uses Radix's default (non-`forceMount`) behavior, so
+  a *collapsed* section's contents unmount from the DOM entirely - the
+  "Guide me" tour needs every target present without first expanding
+  anything, so starting open sidesteps that instead of adding
+  forceMount/CSS-visibility machinery. Still fully "collapsible" per the
+  request - the user just doesn't start collapsed. **Known, accepted
+  limitation:** if a user manually collapses a group and later lands
+  directly on one of its nested tabs (e.g. browser back button), that
+  section stays collapsed with its active item hidden until manually
+  re-expanded - a minor rough edge, not a regression from the old flat list.
+- `src/lib/tours/admin-tour.ts`: **no functional changes needed** - every
+  `data-tour="tab-X"` attribute was moved onto the corresponding new
+  sidebar element using the exact same value strings the tour's generic
+  `tabStep()` helper already targets, so every step keeps working
+  unchanged. Only the file's header comment was updated since it
+  previously (and now inaccurately) described targeting `TabsTrigger`
+  buttons specifically.
+- `admin-dashboard.tsx`'s `filteredParticipants`: added `p.phoneNumber.includes(searchTerm)`
+  to the existing name/ID-number filter, and updated the search
+  placeholder text. The "Edit" dialog (already reachable via the
+  Participants table's row menu) already surfaces every other detail
+  (phone, duty station, job group, designation, organization, plus a
+  per-diem balance summary) - no new detail view was needed.
+
+**Not built (explicit non-goal, confirmed with the user):** the in-page
+tab strip wasn't restructured into a two-level design - it was removed
+outright, so there was nothing left there to redesign.
+
+**Verified this session:** `npm run typecheck`/`npm run build` with a
+temporary placeholder `.env` - no new errors beyond the same pre-existing
+list tracked throughout this doc. **Not yet verified:** no browser tool
+this session, so the accordion expand/collapse behavior, every sub-item's
+navigation, and the full "Guide me" walkthrough against the new sidebar
+targets haven't been click-tested. See `docs/TEST_GUIDE.md` §15 for the
+full manual test plan.
+
 ## Milestone 6 — Claude for Team MCP integration — ⬜ NOT STARTED
 
 Read-mostly MCP server (`list_clients`, `list_work_types`, `list_documents`,

@@ -1,12 +1,16 @@
 /**
  * @file Step definitions for the admin "Guide me" tour, shared by all three
  * admin tiers (client_admin/super_admin/master_admin) since they all render
- * the same src/app/admin/admin-dashboard.tsx. Steps target the TabsTrigger
- * buttons via data-tour attributes (always mounted regardless of the active
- * tab - see participant-tour.ts's file comment for why that avoids any
- * render-timing issues), and the "management"/"clients"/"documents"/
- * "submissions" steps are only included for the tiers that can actually see
- * those tabs, matching the same gates admin-dashboard.tsx itself uses.
+ * the same src/app/admin/admin-dashboard.tsx. The horizontal TabsList that
+ * used to carry these data-tour attributes was removed in favor of the
+ * sidebar as the single navigation surface (see admin-sidebar-navigation.tsx)
+ * - steps now target the sidebar's links/buttons via the same data-tour
+ * attributes, unchanged by that move since the tab value strings didn't
+ * change. Each sidebar group (Events, Reports, Manage) defaults open so
+ * every target stays queryable without first expanding anything. The
+ * "management"/"clients"/"documents"/"submissions"/"insights" steps are
+ * only included for the tiers that can actually see those items, matching
+ * the same gates admin-sidebar-navigation.tsx itself uses.
  */
 import type { DriveStep } from "driver.js";
 import type { AccessTier } from "@/lib/data";

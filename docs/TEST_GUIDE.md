@@ -509,7 +509,46 @@ state, not a crash) when its underlying data doesn't exist yet.
 
 ---
 
-## 15. Regression basics (run before considering any change done)
+## 15. Sidebar regrouping, dropped tab strip, phone search
+
+**Prerequisites:** Any admin tier - repeat for Client Admin, Super Admin,
+and Master Admin to check the tier-specific gating differences.
+
+1. Open any admin portal → confirm the horizontal tab strip that used to
+   sit above the page content is gone, and a page heading matching the
+   current section ("Perdiem Requests", "Events", "Event Check-ins", etc.)
+   appears where it used to be.
+2. In the sidebar, confirm three collapsible sections exist and **start
+   expanded**: **Events** (Events, Event Check-ins), **Reports** (Reports,
+   Analytics, Insights - Insights only for Super/Master Admin, previously
+   missing from the sidebar entirely), **Manage** (Manage, Clients,
+   Submissions - Clients/Submissions only for Super/Master Admin, Manage
+   itself for every tier except client_user).
+3. Click each section's header → confirm it collapses/expands independently
+   of the other two, and that the header itself does **not** navigate (it's
+   a pure toggle - the group's own page is one of the items listed inside
+   it once expanded).
+4. Click every sub-item → confirm it navigates to the correct tab and the
+   sidebar highlights the right item as active.
+5. From the Clients tab, click "View Participants" (or equivalent) for a
+   specific client → confirm the `?tab=participants&clientId=...` deep
+   link still pre-filters the Participants list correctly (this link is
+   unrelated to the sidebar change but depends on the `participants` tab
+   value staying the same, which it does).
+6. Run the "Guide me" walkthrough end to end → confirm every step still
+   highlights the correct sidebar item (including the now-nested
+   Checkins/Analytics/Insights/Clients/Submissions steps) with no missing
+   targets.
+7. On the Participants tab, search by a participant's **phone number**
+   (not just name or ID number) → confirm they show up in the results.
+
+**Expected:** navigation is now sidebar-only with no loss of functionality
+- every tab/deep-link/tour step still works, Insights is finally reachable
+from the sidebar, and participant search covers phone number too.
+
+---
+
+## 16. Regression basics (run before considering any change done)
 
 1. `npm run typecheck` - compare the error list to the known pre-existing
    ones (Badge `variant="success"` typing, `checkbox.tsx`/`sidebar.tsx`
@@ -546,4 +585,7 @@ state, not a crash) when its underlying data doesn't exist yet.
   see `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
 - §14: off-plan Super/Master Admin "Insights" analytics dashboard, see
   `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
-- §15: general project convention, not tied to one milestone.
+- §15: off-plan sidebar regrouping (Events/Reports/Manage sub-items),
+  dropped horizontal tab strip, and participant phone search, see
+  `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
+- §16: general project convention, not tied to one milestone.

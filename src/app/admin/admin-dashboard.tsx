@@ -129,6 +129,24 @@ const defaultFilters = {
   trainingDate: undefined, employer: "all", staffCategory: "all",
   transportMin: "", transportMax: "", dsaMin: "", dsaMax: "",
 };
+// Now the admin dashboard's page heading source, since the sidebar (see
+// admin-sidebar-navigation.tsx) is the only navigation surface - the
+// horizontal TabsList that used to communicate "you are here" was removed.
+const TAB_LABELS: Record<string, string> = {
+  requests: "Perdiem Requests",
+  events: "Events",
+  checkins: "Event Check-ins",
+  participants: "Participants",
+  venues: "Venues",
+  reports: "Reports",
+  analytics: "Analytics",
+  insights: "Insights",
+  management: "Manage",
+  clients: "Clients",
+  documents: "Documents",
+  submissions: "Submissions",
+};
+
 const STAFF_CATEGORIES = [
   { value: "dha", label: "DHA", field: "dhaStaff" as const },
   { value: "moh", label: "MOH", field: "mohStaff" as const },
@@ -909,7 +927,8 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
     const searchTerm = participantSearch.toLowerCase();
     return data.filter(p =>
       p.name.toLowerCase().includes(searchTerm) ||
-      p.idNumber.includes(searchTerm)
+      p.idNumber.includes(searchTerm) ||
+      p.phoneNumber.includes(searchTerm)
     );
   }, [participants, participantSearch, participantClientFilter, isMultiClientAdmin]);
 
@@ -1067,37 +1086,11 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
     <>
     <div className="grid flex-1 items-start gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Dashboard</h1>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{TAB_LABELS[activeTab] ?? "Dashboard"}</h1>
         <p className="text-sm text-muted-foreground">Signed in as Admin</p>
       </div>
       <ClientOnly>
       <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <div className="overflow-x-auto pb-2">
-            <TabsList>
-            <TabsTrigger value="requests" data-tour="tab-requests">Perdiem Requests</TabsTrigger>
-            <TabsTrigger value="events" data-tour="tab-events">Events</TabsTrigger>
-            <TabsTrigger value="checkins" data-tour="tab-checkins">Event Check-ins</TabsTrigger>
-            <TabsTrigger value="participants" data-tour="tab-participants">Participants</TabsTrigger>
-            <TabsTrigger value="venues" data-tour="tab-venues">Venues</TabsTrigger>
-            <TabsTrigger value="reports" data-tour="tab-reports">Reports</TabsTrigger>
-            <TabsTrigger value="analytics" data-tour="tab-analytics">Analytics</TabsTrigger>
-            {isMultiClientAdmin && (
-              <TabsTrigger value="insights" data-tour="tab-insights">Insights</TabsTrigger>
-            )}
-            {currentAdmin && currentAdmin.accessTier !== 'client_user' && (
-              <TabsTrigger value="management" data-tour="tab-management">Manage</TabsTrigger>
-            )}
-            {isMultiClientAdmin && (
-              <TabsTrigger value="clients" data-tour="tab-clients">Clients</TabsTrigger>
-            )}
-            {currentAdmin?.accessTier === 'client_admin' && (
-              <TabsTrigger value="documents" data-tour="tab-documents">Documents</TabsTrigger>
-            )}
-            {isMultiClientAdmin && (
-              <TabsTrigger value="submissions" data-tour="tab-submissions">Submissions</TabsTrigger>
-            )}
-            </TabsList>
-        </div>
         <TabsContent value="requests">
           <Card>
             <CardHeader><CardTitle>Perdiem Requests</CardTitle><CardDescription>Overview of all submitted per diem requests.</CardDescription></CardHeader>
@@ -1588,7 +1581,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                   <div className="relative flex-1">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
-                          placeholder="Search by name or ID number..."
+                          placeholder="Search by name, ID number, or phone..."
                           className="pl-10"
                           value={participantSearch}
                           onChange={(e) => setParticipantSearch(e.target.value)}
