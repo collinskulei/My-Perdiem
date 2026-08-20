@@ -103,6 +103,13 @@ const FIELD_LABELS: Record<FieldKey, string> = {
 
 const REQUIRED_COLUMN_FIELDS: FieldKey[] = ["participantName", "totalPerdiem"];
 
+// The RPC call does several queries per row inside one database
+// transaction - large files (thousands of rows) sent in a single call can
+// exceed Supabase's statement timeout and fail with nothing committed.
+// Splitting into batches keeps each call well within that limit; see
+// handleConfirmImport and the matching note on importHistoricalEvents.
+const IMPORT_BATCH_SIZE = 500;
+
 // Ordered so more specific patterns (e.g. "id number", "total amount") are
 // tried before looser ones that would otherwise win on a technicality - e.g.
 // bare "id" also matching "Paid", or a generic "amount"/"allowance" pattern
@@ -393,6 +400,7 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
     eventName: "", venueName: "", venueCity: "", eventDate: "", status: "Paid", transactionCode: "",
   });
   const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState<{ rowsDone: number; rowsTotal: number } | null>(null);
   const [result, setResult] = useState<{ importedCount: number; updatedCount: number; eventCount: number } | null>(null);
 
   const reset = () => {
@@ -406,6 +414,7 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
     setDateColumns(new Set());
     setDefaults({ eventName: "", venueName: "", venueCity: "", eventDate: "", status: "Paid", transactionCode: "" });
     setResult(null);
+    setImportProgress(null);
   };
 
   /** Reads the chosen sheet out of the already-loaded workbook, auto-detects
@@ -461,19 +470,45 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
 
   const handleConfirmImport = async () => {
     setIsImporting(true);
+    setImportProgress({ rowsDone: 0, rowsTotal: validRows.length });
+    const rows = validRows.map((v) => v.row);
+    let importedCount = 0;
+    let updatedCount = 0;
+    const eventIds = new Set<string>();
     try {
-      const res = await supabaseDb.importHistoricalEvents(clientId, validRows.map((v) => v.row));
-      setResult(res);
-      toast({ title: "Import complete", description: `${res.importedCount} new, ${res.updatedCount} filled in, across ${res.eventCount} events.` });
+      for (let i = 0; i < rows.length; i += IMPORT_BATCH_SIZE) {
+        const batch = rows.slice(i, i + IMPORT_BATCH_SIZE);
+        const res = await supabaseDb.importHistoricalEvents(clientId, batch);
+        importedCount += res.importedCount;
+        updatedCount += res.updatedCount;
+        res.eventIds.forEach((id) => eventIds.add(id));
+        setImportProgress({ rowsDone: Math.min(i + batch.length, rows.length), rowsTotal: rows.length });
+      }
+      const finalResult = { importedCount, updatedCount, eventCount: eventIds.size };
+      setResult(finalResult);
+      toast({ title: "Import complete", description: `${finalResult.importedCount} new, ${finalResult.updatedCount} filled in, across ${finalResult.eventCount} events.` });
     } catch (error: any) {
-      toast({ title: "Import failed", description: error.message, variant: "destructive" });
+      // Large files are split into batches (see IMPORT_BATCH_SIZE) so one
+      // failure doesn't need to lose everything - whatever batches already
+      // succeeded are already committed, and the gap-filling sync makes
+      // re-running the whole import safe (already-imported rows are
+      // recognized and filled/no-op'd, never duplicated).
+      const doneSoFar = importedCount + updatedCount;
+      toast({
+        title: "Import failed partway through",
+        description: doneSoFar > 0
+          ? `${error.message} - ${doneSoFar} rows were already saved before this happened and are safe. You can re-run the same import; already-saved rows won't be duplicated.`
+          : `${error.message} - nothing was saved yet, safe to retry.`,
+        variant: "destructive",
+      });
     } finally {
       setIsImporting(false);
+      setImportProgress(null);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) reset(); }}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open && isImporting) return; setIsOpen(open); if (!open) reset(); }}>
       <DialogTrigger asChild>
         <Button size="sm" variant="outline" onClick={(e) => e.stopPropagation()}>
           <Upload className="mr-2 h-4 w-4" />
@@ -687,8 +722,14 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
             {validated.length > 50 && (
               <p className="text-xs text-muted-foreground">Showing first 50 of {validated.length} rows.</p>
             )}
+            {importProgress && (
+              <p className="text-sm text-muted-foreground">
+                Importing... {importProgress.rowsDone} of {importProgress.rowsTotal} rows
+                {importProgress.rowsTotal > IMPORT_BATCH_SIZE && " (large files are sent in batches - this may take a little while, don't close this dialog)"}
+              </p>
+            )}
             <DialogFooter>
-              <Button variant="outline" onClick={() => setStep("map")}>Back</Button>
+              <Button variant="outline" onClick={() => setStep("map")} disabled={isImporting}>Back</Button>
               <Button onClick={handleConfirmImport} disabled={isImporting || validRows.length === 0}>
                 {isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Import {validRows.length} Records

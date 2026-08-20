@@ -7,9 +7,13 @@
  */
 "use client";
 
+import { useMemo, useState } from "react";
+import { ListFilter } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import type { PerdiemRequest, AppEvent, Participant, Venue, Client } from "@/lib/data";
-import { InsightsLoadingSkeleton } from "./insights/shared";
+import { InsightsLoadingSkeleton, InsightCard } from "./insights/shared";
 import { ParticipantLookup } from "./insights/participant-lookup";
 import { OverviewSection } from "./insights/overview";
 import { FinancialSection } from "./insights/financial";
@@ -25,6 +29,28 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
   clients: Client[];
   loading: boolean;
 }) {
+  // "Event type" - there's no dedicated type/category field on events, so
+  // this filters by the event's own name (e.g. "TOT", "EUT - County
+  // Sub-Counties", "Workshop/Conference - Sarova Stanley"), same approach
+  // as the equivalent Reports tab filter. Applied once here and cascaded
+  // to every sub-section + the participant lookup below, rather than each
+  // section needing its own copy of this filter.
+  const [eventType, setEventType] = useState("all");
+
+  const eventTypeOptions = useMemo(
+    () => Array.from(new Set(requests.map(r => r.eventName).filter((e): e is string => !!e))).sort(),
+    [requests]
+  );
+
+  const filteredRequests = useMemo(
+    () => eventType === "all" ? requests : requests.filter(r => r.eventName === eventType),
+    [requests, eventType]
+  );
+  const filteredEvents = useMemo(
+    () => eventType === "all" ? events : events.filter(e => e.name === eventType),
+    [events, eventType]
+  );
+
   if (loading) {
     return <InsightsLoadingSkeleton />;
   }
@@ -40,7 +66,26 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
         </p>
       </div>
 
-      <ParticipantLookup requests={requests} clients={clients} />
+      <InsightCard>
+        <div className="flex flex-wrap items-end gap-4 p-4">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <ListFilter className="h-4 w-4 text-primary" />
+            Filter everything below by:
+          </div>
+          <div className="w-full max-w-xs space-y-1.5">
+            <Label htmlFor="insights-event-type">Event Type</Label>
+            <Select value={eventType} onValueChange={setEventType}>
+              <SelectTrigger id="insights-event-type"><SelectValue placeholder="All Event Types" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Event Types</SelectItem>
+                {eventTypeOptions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </InsightCard>
+
+      <ParticipantLookup requests={filteredRequests} clients={clients} />
 
       <Tabs defaultValue="overview">
         <div className="overflow-x-auto pb-2">
@@ -54,19 +99,19 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
         </div>
 
         <TabsContent value="overview">
-          <OverviewSection requests={requests} events={events} participants={participants} clients={clients} />
+          <OverviewSection requests={filteredRequests} events={filteredEvents} participants={participants} clients={clients} />
         </TabsContent>
         <TabsContent value="financial">
-          <FinancialSection requests={requests} />
+          <FinancialSection requests={filteredRequests} />
         </TabsContent>
         <TabsContent value="staff-employer">
-          <StaffEmployerSection requests={requests} participants={participants} />
+          <StaffEmployerSection requests={filteredRequests} participants={participants} />
         </TabsContent>
         <TabsContent value="training">
-          <TrainingSection requests={requests} events={events} venues={venues} />
+          <TrainingSection requests={filteredRequests} events={filteredEvents} venues={venues} />
         </TabsContent>
         <TabsContent value="cross-client">
-          <CrossClientSection requests={requests} events={events} participants={participants} clients={clients} />
+          <CrossClientSection requests={filteredRequests} events={filteredEvents} participants={participants} clients={clients} />
         </TabsContent>
       </Tabs>
     </div>

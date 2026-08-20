@@ -1266,6 +1266,142 @@ scroll-spy behavior, mobile sidebar collapse, and a full non-technical
 read-through haven't been click-tested. See `docs/TEST_GUIDE.md` §18 for
 the full manual test plan.
 
+## Off-plan: Event Type filter (Reports + Insights) and Reports tab reorder — ✅ DONE (code, not browser-tested)
+
+Requested directly: "On insights and reports allow query by Event type.
+then on reports put 'paid' before 'approved' on the tabs."
+
+**Design decision:** there's no dedicated "type"/category field on events
+in the data model - `work_types` (managed per-client in the Clients tab)
+turned out, on inspection, to be a standalone reference list with no
+actual link to any event or request (confirmed via a full-codebase search
+- no `work_type_id` anywhere). So "Event Type" filters by the event's own
+`name` instead (e.g. "TOT", "EUT - County Sub-Counties", "Workshop/
+Conference - Sarova Stanley") - in this client's real data, the training
+type is already encoded directly in the event name, so this is accurate
+today. If a real distinct event-type taxonomy is wanted later, that's a
+bigger schema change, not something to guess at now.
+
+**What was built:**
+- **Reports tab** (`admin-dashboard.tsx`): new "Event Type" `Select`
+  filter (distinct event names present in the data, same pattern as the
+  existing Employer filter) in the Filter Options grid, filtering
+  `filteredReportData` by exact `eventName` match.
+- **Reports sub-tab order**: swapped to **Paid, Approved, Rejected,
+  Amended** (previously Approved, Paid, Rejected, Amended), and the
+  default-shown tab changed from Approved to Paid to match.
+- **Insights tab** (`admin-insights.tsx`): a single "Filter everything
+  below by: Event Type" control above the Participant Lookup card, using
+  the same distinct-event-name approach. Rather than threading a filter
+  into all five sub-tab section components individually, the filter is
+  applied once here - `filteredRequests`/`filteredEvents` are computed at
+  this top level and passed down to `ParticipantLookup` and every
+  section (Overview/Financial/Staff & Employer/Training/Cross-Client), so
+  picking an event type narrows every chart across the whole tab from one
+  place.
+- Deliberately **not** added to the simpler "Analytics" tab (visible to
+  every admin tier) - the request specifically named "insights and
+  reports," not analytics.
+
+**Verified this session:** `npm run typecheck`/`npm run build` with a
+temporary placeholder `.env` - no new errors beyond the same pre-existing
+list tracked throughout this doc. **Not yet verified:** no browser tool
+this session - picking an event type and confirming every Insights chart
+actually narrows together hasn't been click-tested. See
+`docs/TEST_GUIDE.md` §19 for the full manual test plan.
+
+## Off-plan: Fix event-matching to include venue, not just name (`supabase/migrations/0012_event_match_includes_venue.sql`)
+
+Found while cross-checking a real TaifaCare Q2 2025 file against the app
+before the user committed to importing it: `import_historical_events()`
+matched/created an "event" by name alone. Some source files use a generic
+training-type name ("Workshop/Conference", "TOT", "EUT") with the actual
+venue in its own separate column, rather than folding the venue into the
+name the way earlier files did ("Workshop/Conference - Enashipai Resort &
+SPA"). Quantified via a standalone script against the real file: 308 rows
+all named "Workshop/Conference" actually spanned **7 different real
+venues**, all merged into one event whose stored venue/training-dates only
+ever reflected whichever row was processed first - "Total Events" only
+increased by 3 for the whole quarter instead of reflecting the ~14 real
+distinct venues involved.
+
+**Fix:** event matching now keys on name **and** venue together
+(`venue_id is not distinct from v_venue_id`, NULL-safe so the
+venue-folded-into-name convention still groups correctly, since those rows
+never populate a separate venue and so consistently have a NULL
+`v_venue_id`). Nothing else in the function changed - same gap-filling
+sync, same new-field handling as `0011_historical_fields_and_sync.sql`.
+Return shape is unchanged, so this one is a plain `CREATE OR REPLACE`
+(no `DROP FUNCTION` needed this time, unlike 0011's history).
+
+**Important - not retroactive:** events already created under the old,
+too-generic matching (from the Q1 and Q2 test/real uploads earlier this
+session) keep their wrong venue/training-date data - this fix only
+changes matching behavior for rows processed *after* it's applied. The
+user was advised to wipe and do a clean re-import of all quarters once
+every file has been reviewed, rather than trying to patch already-tangled
+event relationships in place.
+
+**Verified this session:** none - this is a pure SQL migration, no
+TypeScript touched, so `npm run typecheck`/`npm run build` don't exercise
+it. Not yet applied to the live database as of writing - handed to the
+user to run in the Supabase SQL Editor, same as every prior migration.
+
+## Off-plan: Batched historical import (fixes large-file timeouts)
+
+Reported directly: uploading a 7000+ row file failed with a timeout.
+Root cause: `import_historical_events()` runs the entire spreadsheet as
+one atomic database transaction, doing several queries per row (venue
+lookup/insert, event lookup/insert, participant phone match, existing-
+request lookup for the gap-fill sync, insert/update) - for 7000+ rows
+that's tens of thousands of statements in one transaction, well past
+Supabase's statement timeout. The whole call then fails and rolls back
+with nothing committed - confirmed by walking through the exact
+mechanics rather than guessing.
+
+**What was built:**
+- `supabase/migrations/0013_import_returns_event_ids.sql`: the only
+  functional change to `import_historical_events()` itself - it now
+  returns the actual touched event ids (`event_ids text[]`) instead of a
+  pre-aggregated `event_count int`, so a caller making multiple batched
+  calls can union the ids for an accurate final count instead of summing
+  per-batch counts (which would double-count any event touched by more
+  than one batch, e.g. a large training whose attendees span a batch
+  boundary). Everything else in the function - the gap-filling sync, the
+  name+venue event matching from 0012, the full field set - is unchanged.
+- `src/lib/supabase/database.ts`'s `importHistoricalEvents()`: updated
+  return type to match (`eventIds: string[]` instead of `eventCount`).
+  Doc comment updated to state plainly that this is now a **per-batch**
+  call, not "send everything at once."
+- `src/app/admin/admin-historical-import.tsx`: `handleConfirmImport` now
+  splits `validRows` into batches of `IMPORT_BATCH_SIZE = 500` and calls
+  the RPC once per batch sequentially, accumulating imported/updated
+  counts and unioning event ids across batches for the final summary. A
+  progress line ("Importing... N of M rows") shows during multi-batch
+  imports, and the dialog can no longer be closed mid-import (previously
+  possible, low-stakes for a single fast call, more worth guarding now
+  that a large import can take a while). On a partial failure, the error
+  toast explicitly states how many rows were already safely saved and
+  that re-running the whole import is safe - the existing gap-filling
+  sync means already-committed rows are recognized and filled/no-op'd,
+  never duplicated, so recovery from any failure point is just "try
+  again," not a manual cleanup.
+
+**Not built:** no change to the actual per-row logic or the statement
+timeout itself - batching was chosen over increasing the timeout because
+it's a client-side fix requiring no elevated database configuration
+access, and keeps every individual transaction short regardless of how
+large a file gets, rather than picking a new fixed ceiling that could
+eventually be hit again by an even larger file.
+
+**Verified this session:** `npm run typecheck`/`npm run build` with a
+temporary placeholder `.env` - no new errors beyond the same pre-existing
+list tracked throughout this doc. **Not yet verified:** the migration has
+not been applied live, and there's no browser tool this session to
+actually exercise a real large-file import end to end or trigger a
+mid-import failure to confirm the recovery messaging. See
+`docs/TEST_GUIDE.md` §21 for the full manual test plan.
+
 ## Milestone 6 — Claude for Team MCP integration — ⬜ NOT STARTED
 
 Read-mostly MCP server (`list_clients`, `list_work_types`, `list_documents`,

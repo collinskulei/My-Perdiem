@@ -654,7 +654,91 @@ needing to sign in first.
 
 ---
 
-## 19. Regression basics (run before considering any change done)
+## 19. Event Type filter (Reports + Insights) and Reports tab order
+
+**Prerequisites:** A client with requests across at least two differently-named events (e.g. Apeiro's test data spanning "Workshop/Conference - Sarova Stanley", "Workshop/Conference - Enashipai Resort & SPA", "EUT - County Sub-Counties").
+
+1. **Reports tab** → Filter Options → confirm a new **Event Type** dropdown
+   lists every distinct event name present in the data. Pick one → confirm
+   the Approved/Paid/Rejected/Amended tables and the participant-search
+   summary bar all narrow to just that event.
+2. Confirm the sub-tab order is now **Paid, Approved, Rejected, Amended**
+   (Paid first) and that Paid is the tab shown by default when opening
+   Reports.
+3. **Insights tab** → confirm a new "Filter everything below by: Event
+   Type" card appears above the Participant Lookup and the sub-tabs. Pick
+   an event type → confirm the Participant Lookup's results AND every
+   chart across all 5 sub-tabs (Overview/Financial/Staff & Employer/
+   Training/Cross-Client) update to reflect only that event type. Set it
+   back to "All Event Types" → confirm everything returns to the full
+   data set.
+4. Confirm the basic "Analytics" tab (visible to every admin tier) was
+   **not** changed - no Event Type filter was added there, only to Reports
+   and Insights, matching what was asked.
+
+**Expected:** Event Type filtering works consistently on both Reports and
+Insights, cascading to every chart/table in Insights from one control
+rather than needing to be set separately per section.
+
+---
+
+## 20. Event-matching includes venue (historical import)
+
+**Prerequisites:** a test file where the same generic training name (e.g.
+"Workshop/Conference") appears with two or more different venues in a
+separate "Event Venue" column.
+
+1. Run `0012_event_match_includes_venue.sql` in the Supabase SQL Editor.
+2. Import such a file → confirm a **separate event is created per distinct
+   venue**, not one event shared across all of them - "Total Events" (on
+   the Overview/Insights dashboard) should reflect the real number of
+   distinct venues, not just distinct names.
+3. Re-import a file using the **older** convention (venue folded directly
+   into the event name, e.g. "Workshop/Conference - Enashipai Resort &
+   SPA", nothing in a separate venue column) → confirm rows for the same
+   named event still correctly group into one event as before - this
+   fix must not split that older convention apart.
+4. If any data was already imported under the old matching (before this
+   fix), confirm its events still show the old, merged venue/training-date
+   info - this fix is not retroactive; wiping and re-importing is the way
+   to correct already-imported data.
+
+**Expected:** an event is now uniquely identified by name + venue
+together, matching what a source file with a generic training-type naming
+convention actually intends.
+
+---
+
+## 21. Batched historical import (large files, 1000+ rows)
+
+**Prerequisites:** run `0013_import_returns_event_ids.sql` in the Supabase
+SQL Editor first. A test file with more than 500 rows (the batch size) -
+reuse/extend the test workbooks from §13/§15 if needed.
+
+1. Upload a file with well over 500 rows → confirm the Preview step's
+   Import button shows a progress line ("Importing... N of M rows") while
+   it runs, and that it completes successfully rather than timing out.
+2. Confirm the final result ("N new, M filled in, across X events") shows
+   sensible totals - specifically that the event count is NOT inflated by
+   double-counting an event that happens to be touched by more than one
+   batch (a training with 600+ attendees spanning a batch boundary is a
+   good test case).
+3. Try closing the dialog (click outside, or Escape) while a large import
+   is mid-progress → confirm it does not close until the import finishes.
+4. If you can force a failure partway (e.g. disconnect network mid-import)
+   → confirm the error toast explicitly says how many rows were already
+   safely saved, and that re-running the same import afterward correctly
+   picks up where it left off without duplicating the already-saved rows
+   (thanks to the existing gap-filling sync).
+
+**Expected:** imports of any size complete without timing out, split
+transparently into batches behind the scenes, with accurate final totals
+and a safe, simple recovery story (just re-run it) if something does go
+wrong partway.
+
+---
+
+## 22. Regression basics (run before considering any change done)
 
 1. `npm run typecheck` - compare the error list to the known pre-existing
    ones (Badge `variant="success"` typing, `checkbox.tsx`/`sidebar.tsx`
@@ -701,4 +785,10 @@ needing to sign in first.
   `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
 - §18: off-plan public `/documentation` user guide, see
   `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
-- §19: general project convention, not tied to one milestone.
+- §19: off-plan Event Type filter (Reports + Insights) and Reports tab
+  reorder, see `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
+- §20: off-plan event-matching-includes-venue fix for historical import,
+  see `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
+- §21: off-plan batched historical import (fixes large-file timeouts), see
+  `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
+- §22: general project convention, not tied to one milestone.

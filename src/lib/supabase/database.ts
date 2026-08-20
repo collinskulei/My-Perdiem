@@ -847,25 +847,39 @@ export type HistoricalImportRow = {
 };
 
 /**
- * Imports a batch of historical events + per-diem payments for a client in
- * one atomic call - the whole batch commits or none of it does. Restricted
+ * Imports one batch of historical events + per-diem payments for a client
+ * in one atomic call - this batch commits or none of it does. Restricted
  * to Super Admin and above (enforced by the RPC itself, not just the UI).
  * Rows matching an existing payment record (same event + payment date +
  * phone/name) fill in blanks on that record instead of duplicating it - see
  * updatedCount vs importedCount in the result.
+ *
+ * Callers with more than a few hundred rows should split into multiple
+ * calls (see admin-historical-import.tsx's BATCH_SIZE) rather than pass
+ * everything at once - the whole call is one database transaction doing
+ * several queries per row, and a large-enough single call will exceed
+ * Supabase's statement timeout and fail with nothing committed. Splitting
+ * into batches is safe: the gap-filling sync means retrying/re-running any
+ * batch (or the whole import) never duplicates rows already committed by
+ * an earlier batch.
+ *
+ * Returns eventIds (not a pre-summed count) specifically so a caller
+ * batching multiple calls can union them into an accurate total - summing
+ * per-batch counts would double-count any event touched by more than one
+ * batch.
  * @param {string} clientId - The client this historical data belongs to.
- * @param {HistoricalImportRow[]} rows - The parsed, validated rows to import.
- * @returns {Promise<{ importedCount: number; updatedCount: number; eventCount: number }>}
+ * @param {HistoricalImportRow[]} rows - The parsed, validated rows to import (one batch).
+ * @returns {Promise<{ importedCount: number; updatedCount: number; eventIds: string[] }>}
  */
 export const importHistoricalEvents = async (
   clientId: string,
   rows: HistoricalImportRow[]
-): Promise<{ importedCount: number; updatedCount: number; eventCount: number }> => {
+): Promise<{ importedCount: number; updatedCount: number; eventIds: string[] }> => {
   const { data, error } = await supabase
     .rpc('import_historical_events', { target_client_id: clientId, rows })
-    .single<{ imported_count: number; updated_count: number; event_count: number }>();
+    .single<{ imported_count: number; updated_count: number; event_ids: string[] }>();
   if (error || !data) {
     throw error ?? new Error('Import did not return a result');
   }
-  return { importedCount: data.imported_count, updatedCount: data.updated_count, eventCount: data.event_count };
+  return { importedCount: data.imported_count, updatedCount: data.updated_count, eventIds: data.event_ids ?? [] };
 };

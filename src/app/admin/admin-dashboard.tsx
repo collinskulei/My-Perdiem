@@ -129,7 +129,7 @@ const defaultNewEvent = { name: "", facilitator: "", venueId: "", allocatedParti
 const defaultFilters = {
   date: undefined, county: "all", dutyStation: "all", participant: "",
   trainingDate: undefined, employer: "all", staffCategory: "all",
-  transportMin: "", transportMax: "", dsaMin: "", dsaMax: "",
+  transportMin: "", transportMax: "", dsaMin: "", dsaMax: "", eventType: "all",
 };
 // Now the admin dashboard's page heading source, since the sidebar (see
 // admin-sidebar-navigation.tsx) is the only navigation surface - the
@@ -293,6 +293,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
     transportMax: string;
     dsaMin: string;
     dsaMax: string;
+    eventType: string;
   }>(defaultFilters);
   const [filteredReportData, setFilteredReportData] = useState<PerdiemRequest[]>([]);
   const [selectedQuarter, setSelectedQuarter] = useState<string>("all");
@@ -437,6 +438,10 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
 
         if (filters.employer !== 'all') {
             data = data.filter(req => req.employer === filters.employer);
+        }
+
+        if (filters.eventType !== 'all') {
+            data = data.filter(req => req.eventName === filters.eventType);
         }
 
         if (filters.staffCategory !== 'all') {
@@ -923,6 +928,15 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
   // kenyanCounties, since employer names are free text from the source sheet.
   const employerOptions = useMemo(
     () => Array.from(new Set(perdiemRequests.map(r => r.employer).filter((e): e is string => !!e))).sort(),
+    [perdiemRequests]
+  );
+  // "Event type" - there's no dedicated type/category field on events, so
+  // this filters by the event's own name (e.g. "TOT", "EUT - County
+  // Sub-Counties", "Workshop/Conference - Sarova Stanley") - in practice
+  // this client's naming already encodes the training type directly in
+  // the name. Distinct values actually present, same pattern as employerOptions.
+  const eventTypeOptions = useMemo(
+    () => Array.from(new Set(perdiemRequests.map(r => r.eventName).filter((e): e is string => !!e))).sort(),
     [perdiemRequests]
   );
 
@@ -1806,6 +1820,16 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                                 </Popover>
                             </div>
                             <div>
+                                <Label htmlFor="event-type-filter">Event Type</Label>
+                                <Select value={filters.eventType} onValueChange={(v) => setFilters(f => ({ ...f, eventType: v }))}>
+                                    <SelectTrigger id="event-type-filter"><SelectValue placeholder="Select Event Type" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Event Types</SelectItem>
+                                        {eventTypeOptions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
                                 <Label htmlFor="employer-filter">Employer</Label>
                                 <Select value={filters.employer} onValueChange={(v) => setFilters(f => ({ ...f, employer: v }))}>
                                     <SelectTrigger id="employer-filter"><SelectValue placeholder="Select Employer" /></SelectTrigger>
@@ -1860,32 +1884,32 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                     )}
 
                     {/* Reports Sub-tabs */}
-                    <Tabs defaultValue="approved">
+                    <Tabs defaultValue="paid">
                         <div className="overflow-x-auto pb-2">
                             <TabsList>
-                                <TabsTrigger value="approved">Approved</TabsTrigger>
                                 <TabsTrigger value="paid">Paid</TabsTrigger>
+                                <TabsTrigger value="approved">Approved</TabsTrigger>
                                 <TabsTrigger value="rejected">Rejected</TabsTrigger>
                                 <TabsTrigger value="amended">Amended</TabsTrigger>
                             </TabsList>
                         </div>
-                        
-                        <TabsContent value="approved">
-                           <ReportTabContent 
-                             title="Approved Perdiems" 
-                             data={filteredReportData.filter(r => r.status === 'Approved')}
-                             loading={loading}
-                             onDownload={() => handleDownloadPerDiemReport(filteredReportData.filter(r => r.status === 'Approved'), 'approved_perdiems')}
-                           />
-                        </TabsContent>
 
                          <TabsContent value="paid">
-                           <ReportTabContent 
-                             title="Paid Perdiems" 
+                           <ReportTabContent
+                             title="Paid Perdiems"
                              data={filteredReportData.filter(r => r.status === 'Paid' || r.status === 'Confirmed')}
                              loading={loading}
                              onDownload={() => handleDownloadPerDiemReport(filteredReportData.filter(r => r.status === 'Paid' || r.status === 'Confirmed'), 'paid_perdiems')}
                              isPaidReport={true}
+                           />
+                        </TabsContent>
+
+                        <TabsContent value="approved">
+                           <ReportTabContent
+                             title="Approved Perdiems"
+                             data={filteredReportData.filter(r => r.status === 'Approved')}
+                             loading={loading}
+                             onDownload={() => handleDownloadPerDiemReport(filteredReportData.filter(r => r.status === 'Approved'), 'approved_perdiems')}
                            />
                         </TabsContent>
                          <TabsContent value="rejected">
