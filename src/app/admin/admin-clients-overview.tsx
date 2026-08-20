@@ -8,7 +8,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { Loader2, PlusCircle, Trash2, UserPlus, Users, ShieldCheck, ChevronDown, ChevronUp, FolderCog } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, UserPlus, Users, ShieldCheck, ChevronDown, ChevronUp, FolderCog, LayoutDashboard } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -212,6 +212,12 @@ function ClientWidget({
             <Link href={`${basePath}?tab=participants&clientId=${client.id}`}>
               <Users className="mr-2 h-4 w-4" />
               View Participants
+            </Link>
+          </Button>
+          <Button size="sm" variant="outline" asChild>
+            <Link href={`/${client.slug}-admin/dashboard`}>
+              <LayoutDashboard className="mr-2 h-4 w-4" />
+              Dashboard
             </Link>
           </Button>
           <HistoricalImportDialog clientId={client.id} clientName={client.name} />

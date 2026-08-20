@@ -4,7 +4,15 @@
  * session that isn't access_tier = 'client_admin', or a client_id whose
  * slug doesn't match this URL's [clientSlug], all bounce back to this
  * client's own login page - never to a different client's portal.
- * (TEMPORARY testing exception for master_admin - see inline comments.)
+ *
+ * Two intentionally different exceptions to that rule:
+ * - super_admin is let through **permanently** - requested directly, so a
+ *   "Dashboard" button in the Clients tab widget
+ *   (admin-clients-overview.tsx) can take a Super Admin into any client's
+ *   dashboard exactly as that client's own Client Admin sees it. Do not
+ *   remove this when the temporary bypass below is eventually revoked.
+ * - master_admin is let through as a TEMPORARY testing exception (see
+ *   inline comment) - revoke before launch.
  */
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
@@ -31,14 +39,24 @@ export default async function ClientAdminDashboardLayout({
     .eq('id', user.id)
     .single();
 
+  // Permanent: super_admin can view/manage any client's dashboard (see the
+  // file comment above) - unconditional, like master_admin below, since a
+  // Super Admin's own client_id is null and the whole point is to reach a
+  // client that isn't theirs.
+  //
   // TEMPORARY (testing only, revoke before launch): master_admin is also let
   // through, and skips the client-slug match below entirely (they have no
   // client_id) - see the matching note in
   // src/components/admin-login-form.tsx. To revoke, drop the
   // `&& participant.access_tier !== 'master_admin'` clause and the
   // `if (participant.access_tier === 'client_admin')` wrapper below (making
-  // its contents unconditional again).
-  if (!participant || (participant.access_tier !== 'client_admin' && participant.access_tier !== 'master_admin')) {
+  // its contents unconditional again) - do NOT also drop the super_admin
+  // clause, which is permanent, not part of this temporary exception.
+  if (!participant || (
+    participant.access_tier !== 'client_admin' &&
+    participant.access_tier !== 'master_admin' &&
+    participant.access_tier !== 'super_admin'
+  )) {
     redirect(loginPath);
   }
 

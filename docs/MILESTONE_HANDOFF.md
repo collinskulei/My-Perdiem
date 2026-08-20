@@ -45,7 +45,12 @@ planned it). Use this file to pick up work from any workspace/session.
   `src/components/admin-login-form.tsx`,
   `src/app/super-admin/dashboard/layout.tsx`, and
   `src/app/client-admin/[clientSlug]/dashboard/layout.tsx`. Revoke by
-  reverting each marked block to its plain equality check.
+  reverting each marked block to its plain equality check. **Note:**
+  `client-admin/[clientSlug]/dashboard/layout.tsx` also has a *separate,
+  permanent* `super_admin` allowance sitting right next to the temporary
+  `master_admin` one (see the "Dashboard button" off-plan entry below) -
+  clearly commented as permanent, not matched by the
+  `"TEMPORARY (testing only"` grep, and must survive this revoke.
 - `0008_client_slug.sql` (adds `clients.slug` + the `get_client_by_slug` RPC)
   has been applied to the live project (per the user, this session - not
   independently re-verified from outside since this workspace has no `.env`/
@@ -1151,6 +1156,56 @@ list tracked throughout this doc. **Not yet verified:** no browser tool
 this session - the search matching, the conditional summary bar, and the
 cross-client results table haven't been click-tested. See
 `docs/TEST_GUIDE.md` §16 for the full manual test plan.
+
+## Off-plan: "Dashboard" button on the Clients tab widget + permanent Super Admin client-dashboard access — ✅ DONE (code, not browser-tested)
+
+Requested directly: "On super admin dashboard, inside client widget ad a
+button 'Dashboard' This should take the super admin to admins dashboard as
+they experience it."
+
+**Real gap found:** a Super Admin navigating to `/<clientSlug>-admin/dashboard`
+today gets bounced straight back to that client's own login page - the
+route's access check (`src/app/client-admin/[clientSlug]/dashboard/layout.tsx`)
+only ever admitted `client_admin` (with a slug match) and, via the existing
+*temporary* testing bypass, `master_admin` - `super_admin` was never in the
+list. A plain link button would have silently failed.
+
+**What was built:**
+- `src/app/client-admin/[clientSlug]/dashboard/layout.tsx`: added a
+  **permanent**, clearly-separate `super_admin` allowance (unconditional,
+  same as `master_admin`'s existing bypass, since Super Admin's own
+  `client_id` is null and the whole point is reaching a client that isn't
+  theirs) - deliberately worded and positioned so it is *not* matched by
+  the `"TEMPORARY (testing only"` grep used elsewhere in this doc to find
+  and revoke the real testing bypass, so a future cleanup pass doesn't
+  accidentally remove this too. `client_admin`'s own slug-match check is
+  untouched - this only adds a new tier to the allow-list, nothing about
+  the existing tiers' checks changed.
+- `src/app/admin/admin-clients-overview.tsx`'s `ClientWidget`: new
+  "Dashboard" button (next to "View Participants") linking to
+  `` `/${client.slug}-admin/dashboard` ``.
+
+**Scope note:** this grants Super Admin *full* interactive access to a
+client's dashboard (approve/reject/pay, edit participants, etc.), not a
+read-only preview - consistent with a Super Admin's existing platform-wide
+authority (they can already act on any client's data via RPCs gated by
+`is_super_admin_or_above()`), not a new privilege class. One thing this
+does **not** do: it doesn't hide Super-Admin-only sidebar items (Insights/
+Clients/Submissions) while viewing a client's dashboard this way, since
+the sidebar/dashboard still read the logged-in user's *real* access tier
+(`super_admin`), not a per-view override - so the experience is the
+client's real scoped data plus a few extra nav items a real Client Admin
+wouldn't have, not a byte-for-byte impersonation view. Building a true
+tier-override "view as" mode was out of scope for what was asked.
+
+**Verified this session:** `npm run typecheck`/`npm run build` with a
+temporary placeholder `.env` - no new errors beyond the same pre-existing
+list tracked throughout this doc. **Not yet verified:** no browser tool
+this session - clicking the button and confirming a real Super Admin
+session actually lands on the client's dashboard (rather than bouncing to
+login) hasn't been click-tested, nor has the negative case (Client Admin
+from a different client still can't reach it). See `docs/TEST_GUIDE.md`
+§17 for the full manual test plan.
 
 ## Milestone 6 — Claude for Team MCP integration — ⬜ NOT STARTED
 

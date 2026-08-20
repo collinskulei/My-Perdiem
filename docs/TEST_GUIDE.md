@@ -596,7 +596,36 @@ details - matching what was asked for directly.
 
 ---
 
-## 17. Regression basics (run before considering any change done)
+## 17. "Dashboard" button on the Clients tab widget (Super Admin → client's dashboard)
+
+**Prerequisites:** Super Admin login; at least one real client with a slug.
+
+1. Log in as Super Admin → Clients tab → open any client's widget → confirm
+   a new **Dashboard** button appears alongside "View Participants" and
+   the historical import button.
+2. Click it → confirm it navigates to `/<that-client's-slug>-admin/dashboard`
+   and actually loads that client's dashboard (not bounced back to a login
+   page) - showing that client's own requests/events/participants, not an
+   aggregated cross-client view.
+3. Confirm a **Client Admin** logging in normally still only ever reaches
+   their own client's dashboard - this change doesn't loosen anything for
+   that tier, only adds an allowance for `super_admin`.
+4. Confirm a Client Admin from a **different** client still cannot reach
+   this client's dashboard by guessing the URL (the existing slug-match
+   check for `client_admin` is untouched - only `super_admin`/`master_admin`
+   skip it, both by design).
+
+**Expected:** Super Admin can now enter any client's dashboard directly
+from the Clients tab, with full access exactly as that client's own Client
+Admin would have it. This is a **permanent** access-control change (see
+the comment in `src/app/client-admin/[clientSlug]/dashboard/layout.tsx`),
+distinct from the existing temporary master_admin testing bypass in the
+same file - don't let a future cleanup of that bypass accidentally remove
+this too.
+
+---
+
+## 18. Regression basics (run before considering any change done)
 
 1. `npm run typecheck` - compare the error list to the known pre-existing
    ones (Badge `variant="success"` typing, `checkbox.tsx`/`sidebar.tsx`
@@ -638,4 +667,7 @@ details - matching what was asked for directly.
   `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
 - §16: off-plan participant lookup (name/phone, total paid) on Reports and
   Analytics/Insights, see `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
-- §17: general project convention, not tied to one milestone.
+- §17: off-plan "Dashboard" button on the Clients tab widget + permanent
+  Super Admin access to any client's dashboard, see
+  `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
+- §18: general project convention, not tied to one milestone.
