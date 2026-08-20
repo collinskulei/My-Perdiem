@@ -1104,6 +1104,54 @@ targets, and the actual felt responsiveness of the instant-switch fix
 haven't been click-tested. See `docs/TEST_GUIDE.md` §15 for the full
 manual test plan.
 
+## Off-plan: Participant lookup (name/phone, total paid) on Reports and Analytics/Insights — ✅ DONE (code, not browser-tested)
+
+Requested directly: "On analytics and on reporting, always allow for
+filtering reports by Name/number of paid participants. Such that one can
+see how much in total they have been paid and all payment details
+available."
+
+**Real gap found:** the Reports tab's existing "Participant" filter was a
+`<Select>` dropdown populated only from `nonAdminParticipants` (registered
+`client_user` accounts) matched by `participantId`. Historical-import
+payment records for people with no app account (`participantId` null -
+the majority of a client's data after a bulk import, per this session's
+historical-import work) could **never** be found by it at all, dropdown or
+otherwise.
+
+**What was built:**
+- **Reports tab** (`admin-dashboard.tsx`): the "Participant" filter is now
+  a free-text search (name or phone) matched directly against each
+  request's own `participantName`/`participantPhone` snapshot - this finds
+  every payment record regardless of whether the person has an account.
+  `defaultFilters.participant` changed from `"all"` to `""` accordingly.
+  When a search is active, a summary bar appears above the existing
+  Approved/Paid/Rejected/Amended tables showing matching request count,
+  **Total Paid**, and **Total Across All Statuses** - the tables
+  themselves already provide "all payment details available" once
+  filtered, so no new table was needed there.
+- New `src/app/admin/insights/participant-lookup.tsx` (`ParticipantLookup`)
+  - a self-contained search card (search box, total-paid/total-all stat
+  pair, and a compact results table including a **Client** column since
+  this searches across every client) - same name/phone matching logic as
+  the Reports tab fix, intentionally not shared as a common utility since
+  three lines of filter logic didn't justify an abstraction, per this
+  repo's stated preference. Mounted in two places: always visible above
+  Insights' sub-tabs (`admin-insights.tsx`), and above the stat cards in
+  the existing basic "Analytics" tab (`AnalyticsTabContent`, which every
+  admin tier sees) - `AnalyticsTabContent` gained a `clients` prop to
+  support this.
+
+**Not built:** no changes to the underlying data model - this is purely a
+smarter filter/search over data that was already being fetched.
+
+**Verified this session:** `npm run typecheck`/`npm run build` with a
+temporary placeholder `.env` - no new errors beyond the same pre-existing
+list tracked throughout this doc. **Not yet verified:** no browser tool
+this session - the search matching, the conditional summary bar, and the
+cross-client results table haven't been click-tested. See
+`docs/TEST_GUIDE.md` §16 for the full manual test plan.
+
 ## Milestone 6 — Claude for Team MCP integration — ⬜ NOT STARTED
 
 Read-mostly MCP server (`list_clients`, `list_work_types`, `list_documents`,

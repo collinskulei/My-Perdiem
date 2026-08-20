@@ -10,6 +10,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { PerdiemRequest, AppEvent, Participant, Venue, Client } from "@/lib/data";
 import { InsightsLoadingSkeleton } from "./insights/shared";
+import { ParticipantLookup } from "./insights/participant-lookup";
 import { OverviewSection } from "./insights/overview";
 import { FinancialSection } from "./insights/financial";
 import { StaffEmployerSection } from "./insights/staff-employer";
@@ -38,6 +39,8 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
           A full analytics view across every client - financials, staff/employer breakdowns, training trends, and cross-client comparisons.
         </p>
       </div>
+
+      <ParticipantLookup requests={requests} clients={clients} />
 
       <Tabs defaultValue="overview">
         <div className="overflow-x-auto pb-2">

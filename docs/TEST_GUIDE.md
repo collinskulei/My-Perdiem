@@ -560,7 +560,43 @@ clicks feel instant rather than waiting on a server round-trip.
 
 ---
 
-## 16. Regression basics (run before considering any change done)
+## 16. Participant lookup on Reports and Analytics/Insights
+
+**Prerequisites:** A client with both a registered participant (has an app
+account) and at least one historical-import-only payment record (no
+account - e.g. Apeiro's test data from §13/§15).
+
+1. **Reports tab** - in the "Participant" filter, it's now a text search
+   box, not a dropdown. Search by a **registered** participant's name →
+   confirm their requests show up. Search by a **historical-import-only**
+   participant's name or phone (someone with no app account) → confirm
+   their requests ALSO show up - the old dropdown only ever listed
+   registered accounts and could never find these.
+2. With a search active, confirm a summary bar appears above the
+   Approved/Paid/Rejected/Amended tables showing: matching request count,
+   **Total Paid**, and **Total Across All Statuses** - and that it
+   disappears when the search is cleared.
+3. **Analytics tab** (every admin tier) and **Insights tab** (Super/Master
+   Admin) - confirm a "Participant Lookup" card appears (Insights: always
+   visible above the sub-tabs; Analytics: above the stat cards). Search the
+   same name/phone → confirm it shows Total Paid, Total Across All
+   Statuses, and a table of every matching payment record. On Insights
+   specifically, confirm the results table includes a **Client** column
+   and can find a participant regardless of which client they belong to
+   (cross-client search) - this only makes sense to verify once a second
+   client has data (see §14's note on setting up a throwaway second
+   client).
+4. Search something with no matches → confirm a clean "No matching
+   participant found" message, not an empty table or an error.
+
+**Expected:** every place that shows payment reports can find *any*
+participant by name or phone regardless of whether they have an app
+account, and immediately shows their total paid alongside full payment
+details - matching what was asked for directly.
+
+---
+
+## 17. Regression basics (run before considering any change done)
 
 1. `npm run typecheck` - compare the error list to the known pre-existing
    ones (Badge `variant="success"` typing, `checkbox.tsx`/`sidebar.tsx`
@@ -600,4 +636,6 @@ clicks feel instant rather than waiting on a server round-trip.
 - §15: off-plan sidebar regrouping (Events/Reports/Manage sub-items),
   dropped horizontal tab strip, and participant phone search, see
   `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
-- §16: general project convention, not tied to one milestone.
+- §16: off-plan participant lookup (name/phone, total paid) on Reports and
+  Analytics/Insights, see `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
+- §17: general project convention, not tied to one milestone.

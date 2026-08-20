@@ -106,6 +106,7 @@ import { AdminClientsOverview } from "./admin-clients-overview";
 import { AdminDocumentsTab } from "./admin-documents-tab";
 import { AdminSubmissionsTab } from "./admin-submissions-tab";
 import { AdminInsightsTab } from "./admin-insights";
+import { ParticipantLookup } from "./insights/participant-lookup";
 import { useAdminTab } from "./admin-tab-context";
 import { inviteAdmin, setParticipantDisabled } from "@/lib/admin-api-client";
 
@@ -126,7 +127,7 @@ const dutyStations = Object.keys(dutyStationCoordinates);
 const defaultNewVenue = { name: "", city: "", county: "Nairobi", latitude: "0", longitude: "0" };
 const defaultNewEvent = { name: "", facilitator: "", venueId: "", allocatedParticipants: [] as string[], checkinStartTime: "10:00", checkinEndTime: "17:00", jobGroupAllowances: { ...OUT_OF_OFFICE_RATES } };
 const defaultFilters = {
-  date: undefined, county: "all", dutyStation: "all", participant: "all",
+  date: undefined, county: "all", dutyStation: "all", participant: "",
   trainingDate: undefined, employer: "all", staffCategory: "all",
   transportMin: "", transportMax: "", dsaMin: "", dsaMax: "",
 };
@@ -412,8 +413,17 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
             data = data.filter(req => req.participantId !== null && participantIds.includes(req.participantId));
         }
 
-        if (filters.participant !== 'all') {
-            data = data.filter(req => req.participantId === filters.participant);
+        if (filters.participant.trim() !== '') {
+            // Matches on the request's own name/phone snapshot, not just a
+            // registered account's participantId - historical-import rows
+            // for people with no app account (participantId null) only
+            // ever have a name/phone to search by, and this must still
+            // find them.
+            const q = filters.participant.trim().toLowerCase();
+            data = data.filter(req =>
+                req.participantName.toLowerCase().includes(q) ||
+                (req.participantPhone ?? '').includes(q)
+            );
         }
 
         if (filters.trainingDate?.from && filters.trainingDate.to) {
@@ -1771,14 +1781,13 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                                 </Select>
                             </div>
                             <div>
-                                <Label htmlFor="participant-filter">Participant</Label>
-                                <Select value={filters.participant} onValueChange={(v) => setFilters(f => ({ ...f, participant: v }))}>
-                                    <SelectTrigger><SelectValue placeholder="Select Participant" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Participants</SelectItem>
-                                        {nonAdminParticipants.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
+                                <Label htmlFor="participant-filter">Participant (name or phone)</Label>
+                                <Input
+                                    id="participant-filter"
+                                    placeholder="Search by name or phone..."
+                                    value={filters.participant}
+                                    onChange={(e) => setFilters(f => ({ ...f, participant: e.target.value }))}
+                                />
                             </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -1833,6 +1842,23 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                         </div>
                     </div>
 
+                    {filters.participant.trim() !== '' && (
+                        <div className="p-4 border rounded-lg bg-muted/30 flex flex-wrap items-center gap-x-8 gap-y-2">
+                            <div>
+                                <p className="text-sm text-muted-foreground">Matching requests for &quot;{filters.participant}&quot;</p>
+                                <p className="text-2xl font-bold">{filteredReportData.length}</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-muted-foreground">Total Paid</p>
+                                <p className="text-2xl font-bold">{formatCurrency(filteredReportData.filter(r => r.status === 'Paid' || r.status === 'Confirmed').reduce((sum, r) => sum + r.totalPerdiem, 0))}</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-muted-foreground">Total Across All Statuses</p>
+                                <p className="text-2xl font-bold">{formatCurrency(filteredReportData.reduce((sum, r) => sum + r.totalPerdiem, 0))}</p>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Reports Sub-tabs */}
                     <Tabs defaultValue="approved">
                         <div className="overflow-x-auto pb-2">
@@ -1882,7 +1908,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
             </Card>
         </TabsContent>
         <TabsContent value="analytics">
-            <AnalyticsTabContent requests={perdiemRequests} loading={loading} />
+            <AnalyticsTabContent requests={perdiemRequests} clients={clients} loading={loading} />
         </TabsContent>
         {isMultiClientAdmin && (
           <TabsContent value="insights">
@@ -2207,7 +2233,7 @@ function AmendedReportTabContent({ title, data, loading }: { title: string, data
 }
 
 
-function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[], loading: boolean }) {
+function AnalyticsTabContent({ requests, clients, loading }: { requests: PerdiemRequest[], clients: Client[], loading: boolean }) {
   const pieChartRef = useRef<HTMLDivElement>(null);
   const barChartRef = useRef<HTMLDivElement>(null);
   
@@ -2296,6 +2322,8 @@ function AnalyticsTabContent({ requests, loading }: { requests: PerdiemRequest[]
         <h2 className="text-2xl font-bold tracking-tight">Analytics Overview</h2>
         <p className="text-muted-foreground">A high-level view of per diem request trends.</p>
       </div>
+
+      <ParticipantLookup requests={requests} clients={clients} />
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card>
