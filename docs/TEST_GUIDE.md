@@ -438,13 +438,23 @@ see docs/MILESTONE_HANDOFF.md for the full column list this maps to).
 11. Known limitation to confirm, not a bug: if Payment Date itself was blank
     on the first upload and filled in on a later one, expect a **new**
     record, not a merge - Payment Date is part of the matching key.
+12. Upload two rows for the same person, same event, same payment date, and
+    same phone number, but with two genuinely *different* amounts (Total
+    Perdiem) → confirm both import as **new** records (2 new, not 1 new + 1
+    filled), and the dashboard shows both amounts as separate payments -
+    amount is part of the matching key, so a real difference means a real
+    second payment, not a duplicate to merge.
+13. Re-upload that same pair of rows unchanged (same amounts) a second time
+    → confirm both are now recognized as **filled in** (updated), not
+    duplicated again - amount only breaks the match when it actually
+    differs.
 
 **E. New Reports tab filters**
-12. Reports tab → confirm **Training Date Range**, **Employer**, **Staff
+14. Reports tab → confirm **Training Date Range**, **Employer**, **Staff
     Category**, and **Transport/DSA Allowance min-max** filters all appear
     and narrow the Approved/Paid/Rejected/Amended tables + CSV export
     correctly, independent of each other and of the existing filters.
-13. Download a CSV → confirm it includes Employer, Staff Category, Training
+15. Download a CSV → confirm it includes Employer, Staff Category, Training
     Start/End, Number of Training Days, Transport Allowance, and DSA
     Allowance columns.
 

@@ -851,8 +851,12 @@ export type HistoricalImportRow = {
  * in one atomic call - this batch commits or none of it does. Restricted
  * to Super Admin and above (enforced by the RPC itself, not just the UI).
  * Rows matching an existing payment record (same event + payment date +
- * phone/name) fill in blanks on that record instead of duplicating it - see
- * updatedCount vs importedCount in the result.
+ * phone/name + amount, where amount only counts as a mismatch if both
+ * sides are non-blank and differ) fill in blanks on that record instead of
+ * duplicating it - see updatedCount vs importedCount in the result. A real
+ * second payment (same event/date/phone but a different amount) inserts as
+ * a new row instead of silently absorbing the second amount into the first
+ * record.
  *
  * Callers with more than a few hundred rows should split into multiple
  * calls (see admin-historical-import.tsx's BATCH_SIZE) rather than pass

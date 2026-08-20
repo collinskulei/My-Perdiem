@@ -890,6 +890,18 @@ of merging (chosen over a date-less key, which risks wrongly merging
 distinct same-person/same-event payments on different days of a
 multi-day training).
 
+**Amount added to the match key** (`supabase/migrations/0014_dedup_matches_on_amount.sql`):
+the original key above didn't look at `total_perdiem`, so two genuinely
+separate payments to the same person/event/date/phone (e.g. Eleanor Kemunto
+and Hillary Bitok in the Q1 file - same event/date/phone, different
+amounts) were wrongly collapsed into one record, silently dropping the
+second amount. Fix: the existing-record lookup now also requires
+`total_perdiem` to match (rounded to 2 decimals, to absorb float
+round-off) or be blank on either side - a genuine amount mismatch inserts
+as a new row instead of merging. A true duplicate (identical in every
+field including amount, e.g. Paul Saunyi Lila in the same file) still
+merges into one record as before.
+
 **Dashboard query points** (`src/app/admin/admin-dashboard.tsx`, Reports
 tab - applies to every admin tier, same shared component as the Quarter
 filter above): a second date-range filter for **Training Date Range**
