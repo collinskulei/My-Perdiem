@@ -31,16 +31,17 @@ export const STATUS_COLORS: Record<string, string> = {
   Confirmed: "#22c55e",
 };
 
-// Cycles through the design system's --chart-1..5 tokens for categorical
-// breakdowns that don't already have a status-style color convention -
-// these tokens exist in globals.css/tailwind.config.ts but weren't actually
-// used by any real chart before this.
+// A fixed green/blue/gray palette for categorical breakdowns that don't
+// already have a status-style color convention - deliberately NOT the
+// design system's --chart-1..5 tokens, since --chart-4/--chart-5 resolve
+// to purple/pink in dark mode. Fixed hex values (not theme-dependent) so
+// the palette looks the same, and never purple, in either theme.
 export const CHART_PALETTE = [
-  "hsl(var(--chart-1))",
-  "hsl(var(--chart-2))",
-  "hsl(var(--chart-3))",
-  "hsl(var(--chart-4))",
-  "hsl(var(--chart-5))",
+  "#3b82f6", // blue
+  "#10b981", // green
+  "#0ea5e9", // sky blue
+  "#64748b", // slate gray
+  "#059669", // deeper green
 ];
 
 export function paletteColor(index: number): string {
@@ -107,7 +108,7 @@ export function StatCard({ icon: Icon, label, value, formatter, delay = 0 }: {
         {/* Shrinks at lg specifically because StatCard's caller (5-per-row
         at that breakpoint) gives each card its narrowest width right there
         - widening again at xl once there's more room per card. */}
-        <p className="text-xl sm:text-2xl md:text-3xl lg:text-xl xl:text-2xl 2xl:text-3xl font-bold break-words bg-gradient-to-r from-primary to-[hsl(var(--chart-4))] bg-clip-text text-transparent">
+        <p className="text-xl sm:text-2xl md:text-3xl lg:text-xl xl:text-2xl 2xl:text-3xl font-bold break-words bg-gradient-to-r from-primary to-[#3b82f6] bg-clip-text text-transparent">
           {formatter ? formatter(animated) : Math.round(animated).toLocaleString()}
         </p>
       </CardContent>
@@ -215,7 +216,7 @@ export function SectionHeader({ icon: Icon, title, description, onDownloadSectio
       <div className="space-y-1">
         <div className="flex items-center gap-2">
           <Icon className="h-5 w-5 text-primary" />
-          <h3 className="text-xl font-bold tracking-tight bg-gradient-to-r from-primary to-[hsl(var(--chart-4))] bg-clip-text text-transparent">{title}</h3>
+          <h3 className="text-xl font-bold tracking-tight bg-gradient-to-r from-primary to-[#3b82f6] bg-clip-text text-transparent">{title}</h3>
         </div>
         <p className="text-sm text-muted-foreground">{description}</p>
         <div className="h-0.5 w-24 bg-gradient-to-r from-primary to-transparent rounded-full" />

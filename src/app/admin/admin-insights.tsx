@@ -32,7 +32,7 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h2 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-[hsl(var(--chart-4))] bg-clip-text text-transparent">
+        <h2 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-[#3b82f6] bg-clip-text text-transparent">
           Insights
         </h2>
         <p className="text-muted-foreground">
