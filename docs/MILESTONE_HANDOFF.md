@@ -1207,6 +1207,65 @@ login) hasn't been click-tested, nor has the negative case (Client Admin
 from a different client still can't reach it). See `docs/TEST_GUIDE.md`
 §17 for the full manual test plan.
 
+## Off-plan: Public `/documentation` user guide — ✅ DONE (code, not browser-tested)
+
+Requested directly: "Add a page for Documentation with menus and side bars
+that covers everything about the app functionalities and features and
+capabilities. Add it as a page /documentation. Should be very
+comprehensible and neat with no tech jargon for users are non technical."
+
+**What was built:** `src/app/documentation/` - a single public page (no
+auth guard; the middleware's route matcher doesn't gate it, confirmed by
+reading `src/middleware.ts`) at `/documentation`, statically generated
+(confirmed via the build output - 6.97 kB, no server-side data needed).
+Structure:
+- `page.tsx` - the shell: a `Sidebar`/`SidebarInset` layout (reusing the
+  same `src/components/ui/sidebar.tsx` primitives the admin portals use,
+  for visual consistency) with a simple header (logo, "Sign In" link) and
+  one long scrollable content area.
+- `documentation-sidebar.tsx` - grouped navigation (Getting Started, For
+  Participants, For Administrators, For Super Administrators, For Master
+  Administrators, Features & Tips, plus a standalone FAQ link), built the
+  same way as the main app's regrouped admin sidebar (independent
+  single-item `Accordion`s, default-open) - and a small
+  `IntersectionObserver`-based scroll-spy (no new dependency) that
+  highlights whichever section is currently in view as the reader
+  scrolls.
+- `documentation-ui.tsx` - small shared presentational building blocks
+  (`DocSection`, `DocSteps`, `DocList`, `DocNote`, `RoleTag`) used
+  consistently across every content file, each section anchored with a
+  stable `id` and `scroll-mt-24` so the sticky header never covers a
+  heading you've jumped to.
+- `sections-getting-started.tsx`, `sections-participants.tsx`,
+  `sections-client-admin.tsx`, `sections-super-admin.tsx`,
+  `sections-master-admin.tsx`, `sections-features-faq.tsx` - the actual
+  content, one file per audience, covering every feature built across
+  this entire session in plain language: signing in, account types,
+  submitting/tracking a per diem request and what each part of the
+  payment means, event check-ins, managing participants/venues/events,
+  approving/paying/amending requests, event check-in reports, Reports
+  filtering (including the participant name/phone search and quarter
+  shortcut), Analytics, historical data import (including the gap-filling
+  sync behavior, described as "safe to re-upload" without the technical
+  matching-key details), OneDrive document submissions, managing clients,
+  the per-client "Dashboard" button, safe client deletion, the
+  Submissions queue, Insights (all five sections), cross-organization
+  participant lookup, Master Admin oversight, the "Guide me" tour,
+  downloads, and a closing FAQ.
+
+**Deliberately excluded (per "no tech jargon" and "non technical"):** no
+mention of databases, RLS, APIs, tokens, RPCs, or any implementation
+detail anywhere in the content - every explanation is phrased as what a
+reader sees and clicks, never how it works underneath.
+
+**Verified this session:** `npm run typecheck`/`npm run build` with a
+temporary placeholder `.env` - no new errors beyond the same pre-existing
+list tracked throughout this doc; confirmed the route builds as a static
+page. **Not yet verified:** no browser tool this session - the
+scroll-spy behavior, mobile sidebar collapse, and a full non-technical
+read-through haven't been click-tested. See `docs/TEST_GUIDE.md` §18 for
+the full manual test plan.
+
 ## Milestone 6 — Claude for Team MCP integration — ⬜ NOT STARTED
 
 Read-mostly MCP server (`list_clients`, `list_work_types`, `list_documents`,

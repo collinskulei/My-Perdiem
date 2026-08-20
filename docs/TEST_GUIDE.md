@@ -625,7 +625,36 @@ this too.
 
 ---
 
-## 18. Regression basics (run before considering any change done)
+## 18. Documentation page (`/documentation`)
+
+**Prerequisites:** none - this page is public, no sign-in needed.
+
+1. Visit `/documentation` directly (while signed out) → confirm it loads
+   without redirecting to sign-in, and without any technical
+   errors/jargon in the content itself.
+2. Confirm the left sidebar shows grouped sections (Getting Started, For
+   Participants, For Administrators, For Super Administrators, For Master
+   Administrators, Features & Tips) plus a standalone FAQ link, each
+   group expandable/collapsible.
+3. Click several sidebar links → confirm the page scrolls to the matching
+   section, and the clicked item highlights as active in the sidebar as
+   you scroll past its section.
+4. On a narrow/mobile screen, confirm the sidebar collapses behind the
+   hamburger toggle in the header, and reopens correctly.
+5. Toggle dark/light mode (if you're signed in and have a preference set)
+   → confirm the page still looks correct in both themes (it inherits the
+   app's global theme provider).
+6. Read through a few sections as a non-technical reader would - confirm
+   there's no jargon (no mentions of databases, APIs, RLS, tokens, etc.) -
+   only plain descriptions of what a person sees and clicks.
+
+**Expected:** a single, comprehensible, non-technical reference page
+covering every account type and feature, reachable by anyone without
+needing to sign in first.
+
+---
+
+## 19. Regression basics (run before considering any change done)
 
 1. `npm run typecheck` - compare the error list to the known pre-existing
    ones (Badge `variant="success"` typing, `checkbox.tsx`/`sidebar.tsx`
@@ -670,4 +699,6 @@ this too.
 - §17: off-plan "Dashboard" button on the Clients tab widget + permanent
   Super Admin access to any client's dashboard, see
   `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
-- §18: general project convention, not tied to one milestone.
+- §18: off-plan public `/documentation` user guide, see
+  `docs/MILESTONE_HANDOFF.md`'s "Off-plan" section.
+- §19: general project convention, not tied to one milestone.
