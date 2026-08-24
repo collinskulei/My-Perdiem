@@ -29,6 +29,32 @@ function fromRow<T>(row: Record<string, any>, fieldMap: FieldMap): T {
   return obj as T;
 }
 
+// PostgREST caps an unpaginated `select('*')` at 1000 rows by default, so
+// any table that can grow past that (perdiem_requests, events, participants)
+// needs to page through with .range() or silently truncates - see
+// MILESTONE_HANDOFF.md's note on the Insights dashboard undercount this caused.
+const FETCH_ALL_PAGE_SIZE = 1000;
+
+async function fetchAllRows(table: string): Promise<Record<string, any>[]> {
+  const rows: Record<string, any>[] = [];
+  let from = 0;
+  for (;;) {
+    const { data, error } = await supabase.from(table).select('*').range(from, from + FETCH_ALL_PAGE_SIZE - 1);
+    if (error) {
+      throw error;
+    }
+    if (!data || data.length === 0) {
+      break;
+    }
+    rows.push(...data);
+    if (data.length < FETCH_ALL_PAGE_SIZE) {
+      break;
+    }
+    from += FETCH_ALL_PAGE_SIZE;
+  }
+  return rows;
+}
+
 const PARTICIPANT_FIELDS: FieldMap = {
   id: 'id',
   name: 'name',
@@ -166,12 +192,13 @@ export const addVenue = async (venue: VenueData): Promise<string> => {
  * @returns {Promise<Participant[]>} A promise that resolves to an array of participant objects.
  */
 export const getParticipants = async (): Promise<Participant[]> => {
-  const { data, error } = await supabase.from('participants').select('*');
-  if (error) {
+  try {
+    const data = await fetchAllRows('participants');
+    return data.map((row) => fromRow<Participant>(row, PARTICIPANT_FIELDS));
+  } catch (error) {
     console.error("Error fetching participants: ", error);
     return [];
   }
-  return (data ?? []).map((row) => fromRow<Participant>(row, PARTICIPANT_FIELDS));
 };
 
 /**
@@ -347,12 +374,13 @@ export const addEventWithId = async (eventId: string, event: Partial<AppEvent>):
  * @returns {Promise<AppEvent[]>}
  */
 export const getEvents = async (): Promise<AppEvent[]> => {
-  const { data, error } = await supabase.from('events').select('*');
-  if (error) {
+  try {
+    const data = await fetchAllRows('events');
+    return data.map((row) => fromRow<AppEvent>(row, EVENT_FIELDS));
+  } catch (error) {
     console.error("Error fetching events: ", error);
     return [];
   }
-  return (data ?? []).map((row) => fromRow<AppEvent>(row, EVENT_FIELDS));
 };
 
 /**
@@ -448,12 +476,13 @@ export const checkInToEvent = async (eventId: string, participantId: string, dat
  * @returns {Promise<PerdiemRequest[]>} A promise that resolves to an array of per diem request objects.
  */
 export const getPerDiemRequests = async (): Promise<PerdiemRequest[]> => {
-  const { data, error } = await supabase.from('perdiem_requests').select('*');
-  if (error) {
+  try {
+    const data = await fetchAllRows('perdiem_requests');
+    return data.map((row) => fromRow<PerdiemRequest>(row, REQUEST_FIELDS));
+  } catch (error) {
     console.error("Error fetching per diem requests: ", error);
     return [];
   }
-  return (data ?? []).map((row) => fromRow<PerdiemRequest>(row, REQUEST_FIELDS));
 };
 
 /**
