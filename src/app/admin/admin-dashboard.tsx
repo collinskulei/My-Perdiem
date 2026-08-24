@@ -1749,7 +1749,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                     {/* Filter Section */}
                     <div className="p-4 border rounded-lg space-y-4">
                         <h3 className="font-medium">Filter Options</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
                             <div>
                                 <Label htmlFor="quarter-filter">Quarter</Label>
                                 <Select value={selectedQuarter} onValueChange={handleQuarterSelect}>
@@ -1804,7 +1804,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                                 />
                             </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
                             <div>
                                 <Label htmlFor="training-date-range">Training Date Range</Label>
                                 <Popover>

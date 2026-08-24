@@ -115,7 +115,7 @@ export function OverviewSection({ requests, events, participants, clients }: {
         ], "overview-insights")}
       />
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-6 grid-cols-2 sm:grid-cols-3 xl:grid-cols-5">
         <StatCard icon={ClipboardList} label="Total Requests" value={data.totalRequests} delay={0} />
         <StatCard icon={Wallet} label="Total Paid Out" value={data.totalPaidOut} formatter={formatCurrency} delay={50} />
         <StatCard icon={Users} label="Total Participants" value={data.totalParticipants} delay={100} />

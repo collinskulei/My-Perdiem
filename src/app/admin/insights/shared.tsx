@@ -105,10 +105,14 @@ export function StatCard({ icon: Icon, label, value, formatter, delay = 0 }: {
         <Icon className="h-4 w-4 shrink-0 text-primary" />
       </CardHeader>
       <CardContent>
-        {/* Shrinks at lg specifically because StatCard's caller (5-per-row
-        at that breakpoint) gives each card its narrowest width right there
-        - widening again at xl once there's more room per card. */}
-        <p className="text-xl sm:text-2xl md:text-3xl lg:text-xl xl:text-2xl 2xl:text-3xl font-bold break-words bg-gradient-to-r from-primary to-[#3b82f6] bg-clip-text text-transparent">
+        {/* whitespace-nowrap+truncate instead of wrapping - a wrapped value
+        like "Ksh 44,41" / "5,600.00" splitting mid-number is worse than an
+        ellipsis, and the caller sizes the grid (2/3/5-per-row) so there's
+        enough room per card that truncation shouldn't normally trigger.
+        Shrinks at xl specifically because that's the narrowest per-card
+        width (5-per-row kicks in there) - widening again at 2xl once
+        there's more room per card. */}
+        <p className="text-2xl md:text-3xl xl:text-lg 2xl:text-2xl font-bold truncate tabular-nums bg-gradient-to-r from-primary to-[#3b82f6] bg-clip-text text-transparent" title={formatter ? formatter(animated) : Math.round(animated).toLocaleString()}>
           {formatter ? formatter(animated) : Math.round(animated).toLocaleString()}
         </p>
       </CardContent>
