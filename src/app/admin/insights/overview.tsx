@@ -115,9 +115,15 @@ export function OverviewSection({ requests, events, participants, clients }: {
         ], "overview-insights")}
       />
 
-      <div className="grid gap-6 grid-cols-2 sm:grid-cols-3 xl:grid-cols-5">
+      {/* Requests/Paid Out get their own row - those two values can grow
+      long (request counts and KES amounts in the millions), so they're
+      given half a row each instead of competing for space with the three
+      short-integer cards below. */}
+      <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
         <StatCard icon={ClipboardList} label="Total Requests" value={data.totalRequests} delay={0} />
         <StatCard icon={Wallet} label="Total Paid Out" value={data.totalPaidOut} formatter={formatCurrency} delay={50} />
+      </div>
+      <div className="grid gap-6 grid-cols-1 sm:grid-cols-3">
         <StatCard icon={Users} label="Total Participants" value={data.totalParticipants} delay={100} />
         <StatCard icon={CalendarDays} label="Total Events" value={data.totalEvents} delay={150} />
         <StatCard icon={Building2} label="Active Clients" value={data.activeClients} delay={200} />
