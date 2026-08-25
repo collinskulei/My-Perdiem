@@ -902,6 +902,49 @@ as a new row instead of merging. A true duplicate (identical in every
 field including amount, e.g. Paul Saunyi Lila in the same file) still
 merges into one record as before.
 
+**Repeat payments now get flagged, not just silently inserted**
+(`supabase/migrations/0015_flag_repeat_payments.sql`): the amount-fix above
+stops a repeat payment from being merged away, but a plain "2 new records"
+result gave no signal that anything unusual happened - it looked identical
+to any other row. `import_historical_events()` now separately checks for
+an identity match (client+event+date+phone/name) ignoring amount; when one
+exists but the amount differs, both the new row and the pre-existing one
+get a new `flag_reason` column set (e.g. "Repeat payment: same
+participant, event, date and phone/name as another payment of KES X (this
+payment: KES Y)..."), instead of importing silently. A true duplicate
+(identity AND amount match) still merges via the existing gap-fill path,
+unflagged. Surfaced in `src/app/admin/admin-dashboard.tsx`'s Reports tab:
+an amber warning icon + reason text next to the participant name in
+`ReportTabContent`, a new **Flag Status** filter ("All Records" /
+"Flagged Only"), and a "Flag Reason" column in the CSV export. `PerdiemRequest.flagReason`
+(`src/lib/data.ts`) / `REQUEST_FIELDS.flagReason` (`src/lib/supabase/database.ts`)
+map it through like any other field.
+
+**Admin gets to choose merge vs. separate, per conflict** (`supabase/migrations/0016_manual_merge_decision.sql`):
+0015 always auto-decided a repeat payment's fate (flag + insert separate).
+That's a safe default but takes the call away from the admin doing the
+import, who often knows whether two same-day payments to one person are
+genuinely distinct or a data-entry mistake that should be merged. The
+import dialog's Preview step (`src/app/admin/admin-historical-import.tsx`)
+now detects these conflicts client-side - `detectConflicts()` groups by a
+coarser identity key (participant + event + date, via phone-last-9 or
+normalized name; deliberately skips venue, unlike the RPC's own event_id
+match, since this only needs to catch likely conflicts for a human to
+review) checked against **both** other rows in the same file and every
+existing record for the client (fetched once via the new
+`getPerDiemRequestsByClient()`, not just what's in the file). Each
+conflicting row gets its own "Record as separate payment" (default,
+matches the 0015 behavior) / "Merge into existing record" dropdown in a
+panel above the preview table. The chosen rows carry a `mergeDecision:
+'merge' | 'separate'` key (`HistoricalImportRow.mergeDecision`); the RPC
+now checks this and lets it override its own automatic amount-based call
+in either direction - 'merge' forces a gap-fill merge even though amounts
+differ (never overwrites the existing amount, same gap-fill semantics as
+everywhere else), 'separate' forces its own row even if amounts happen to
+match. Rows with no conflict detected carry no `mergeDecision` and are
+completely unaffected - the automatic 0014/0015 heuristic still runs for
+the overwhelming majority of ordinary rows.
+
 **Dashboard query points** (`src/app/admin/admin-dashboard.tsx`, Reports
 tab - applies to every admin tier, same shared component as the Quarter
 filter above): a second date-range filter for **Training Date Range**

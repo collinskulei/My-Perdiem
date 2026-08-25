@@ -23,7 +23,7 @@
  */
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import * as XLSX from "xlsx";
 import { Loader2, Upload, AlertTriangle, CheckCircle2 } from "lucide-react";
 
@@ -58,6 +58,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import * as supabaseDb from "@/lib/supabase/database";
 import type { HistoricalImportRow } from "@/lib/supabase/database";
+import type { PerdiemRequest } from "@/lib/data";
 
 type FieldKey =
   | "eventName" | "venueName" | "venueCity" | "venueCounty"
@@ -286,6 +287,60 @@ function normalizePhone(raw: string | undefined): string | undefined {
   return raw.trim() || undefined;
 }
 
+/** Same participant + event + payment date, identified by phone (last 9
+ * digits) if present, else normalized name - deliberately coarser than the
+ * RPC's own identity match (which also narrows by venue via event_id) since
+ * this only needs to catch likely repeat payments for a human to review,
+ * not make the actual merge/insert decision. */
+function conflictIdentityKey(eventName: string, date: string | undefined, phone: string | undefined, name: string): string {
+  const person = phone ? `p:${phone.replace(/\D/g, "").slice(-9)}` : `n:${name.toLowerCase().trim().replace(TITLE_PREFIX, "")}`;
+  return `${eventName.toLowerCase().trim()}|${date ?? ""}|${person}`;
+}
+
+const AMOUNT_EPSILON_CENTS = 1; // absorbs float round-off, same tolerance as the RPC's round-to-2-decimals check
+
+/** A row in the file that identity-matches another payment (either another
+ * row in the same file, or one already saved for this client) at a
+ * genuinely different amount - needs an explicit merge/separate decision
+ * rather than letting the RPC's default heuristic decide silently. */
+type Conflict = { rowIndex: number; amount: number; otherAmounts: number[] };
+
+function detectConflicts(
+  validRows: ValidatedRow[],
+  existing: PerdiemRequest[]
+): Conflict[] {
+  const groups = new Map<string, { existingAmounts: number[]; fileEntries: { rowIndex: number; amount: number }[] }>();
+
+  for (const req of existing) {
+    const key = conflictIdentityKey(req.eventName, req.date, req.participantPhone, req.participantName);
+    const g = groups.get(key) ?? { existingAmounts: [], fileEntries: [] };
+    g.existingAmounts.push(req.totalPerdiem);
+    groups.set(key, g);
+  }
+
+  validRows.forEach((v, rowIndex) => {
+    const key = conflictIdentityKey(v.row.eventName, v.row.eventDates?.[0], v.row.participantPhone, v.row.participantName);
+    const g = groups.get(key) ?? { existingAmounts: [], fileEntries: [] };
+    g.fileEntries.push({ rowIndex, amount: v.row.totalPerdiem });
+    groups.set(key, g);
+  });
+
+  const conflicts: Conflict[] = [];
+  for (const g of groups.values()) {
+    for (const entry of g.fileEntries) {
+      const others = [
+        ...g.existingAmounts,
+        ...g.fileEntries.filter((e) => e.rowIndex !== entry.rowIndex).map((e) => e.amount),
+      ];
+      const differing = Array.from(new Set(others.filter((a) => Math.abs(Math.round(a * 100) - Math.round(entry.amount * 100)) > AMOUNT_EPSILON_CENTS)));
+      if (differing.length > 0) {
+        conflicts.push({ rowIndex: entry.rowIndex, amount: entry.amount, otherAmounts: differing });
+      }
+    }
+  }
+  return conflicts;
+}
+
 export type BatchDefaults = {
   eventName: string;
   venueName: string;
@@ -402,6 +457,12 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState<{ rowsDone: number; rowsTotal: number } | null>(null);
   const [result, setResult] = useState<{ importedCount: number; updatedCount: number; eventCount: number } | null>(null);
+  // For the Preview step's repeat-payment resolution - null until fetched
+  // (once per dialog open), so the conflict check below can tell "still
+  // loading" apart from "this client genuinely has zero existing records".
+  const [existingForClient, setExistingForClient] = useState<PerdiemRequest[] | null>(null);
+  const [loadingExisting, setLoadingExisting] = useState(false);
+  const [mergeDecisions, setMergeDecisions] = useState<Record<number, "merge" | "separate">>({});
 
   const reset = () => {
     setStep("upload");
@@ -415,6 +476,8 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
     setDefaults({ eventName: "", venueName: "", venueCity: "", eventDate: "", status: "Paid", transactionCode: "" });
     setResult(null);
     setImportProgress(null);
+    setExistingForClient(null);
+    setMergeDecisions({});
   };
 
   /** Reads the chosen sheet out of the already-loaded workbook, auto-detects
@@ -468,10 +531,32 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
   const validRows = validated.filter((v) => v.errors.length === 0);
   const invalidRows = validated.filter((v) => v.errors.length > 0);
 
+  // Fetched once per dialog open, when the admin first reaches Preview -
+  // needed to detect a repeat payment against records already saved for
+  // this client, not just other rows in the same file.
+  useEffect(() => {
+    if (step !== "preview" || existingForClient !== null) return;
+    setLoadingExisting(true);
+    supabaseDb.getPerDiemRequestsByClient(clientId)
+      .then(setExistingForClient)
+      .finally(() => setLoadingExisting(false));
+  }, [step, clientId, existingForClient]);
+
+  const conflicts = useMemo(
+    () => detectConflicts(validRows, existingForClient ?? []),
+    [validRows, existingForClient]
+  );
+
   const handleConfirmImport = async () => {
     setIsImporting(true);
     setImportProgress({ rowsDone: 0, rowsTotal: validRows.length });
-    const rows = validRows.map((v) => v.row);
+    // Only rows the conflict check actually flagged carry a mergeDecision -
+    // every other row is left as-is, so the RPC's existing automatic
+    // amount-based decision applies unchanged (see 0016_manual_merge_decision.sql).
+    const rows = validRows.map((v, i) => {
+      const decision = mergeDecisions[i];
+      return decision ? { ...v.row, mergeDecision: decision } : v.row;
+    });
     let importedCount = 0;
     let updatedCount = 0;
     const eventIds = new Set<string>();
@@ -670,6 +755,51 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
                 <span className="flex items-center gap-1 text-destructive"><AlertTriangle className="h-4 w-4" />{invalidRows.length} rows will be skipped</span>
               )}
             </div>
+
+            {loadingExisting && (
+              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Checking for repeat payments against existing records...
+              </p>
+            )}
+
+            {conflicts.length > 0 && (
+              <div className="rounded-md border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-3 space-y-3">
+                <p className="text-sm font-medium flex items-center gap-1.5 text-amber-800 dark:text-amber-300">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  {conflicts.length} possible repeat payment{conflicts.length === 1 ? "" : "s"} detected - same participant,
+                  event and date as another payment already recorded (in this file or already saved), but a different
+                  amount. Choose how to handle each before importing:
+                </p>
+                <div className="space-y-2 max-h-56 overflow-y-auto">
+                  {conflicts.map((c) => {
+                    const row = validRows[c.rowIndex].row;
+                    return (
+                      <div key={c.rowIndex} className="flex flex-wrap items-center justify-between gap-2 text-sm border-t pt-2 first:border-t-0 first:pt-0">
+                        <div className="min-w-0">
+                          <span className="font-medium">{row.participantName}</span>
+                          {" — "}{row.eventName} ({row.eventDates?.[0] ?? "no date"})
+                          <div className="text-xs text-muted-foreground">
+                            This payment: KES {c.amount.toLocaleString()} · Other{c.otherAmounts.length > 1 ? "s" : ""} recorded: KES {c.otherAmounts.map((a) => a.toLocaleString()).join(", ")}
+                          </div>
+                        </div>
+                        <Select
+                          value={mergeDecisions[c.rowIndex] ?? "separate"}
+                          onValueChange={(v) => setMergeDecisions((d) => ({ ...d, [c.rowIndex]: v as "merge" | "separate" }))}
+                        >
+                          <SelectTrigger className="w-[240px] shrink-0"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="separate">Record as separate payment</SelectItem>
+                            <SelectItem value="merge">Merge into existing record</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="overflow-x-auto max-h-64 border rounded-md">
               <Table>
                 <TableHeader>

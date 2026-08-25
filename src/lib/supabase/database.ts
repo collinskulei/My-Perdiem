@@ -35,11 +35,15 @@ function fromRow<T>(row: Record<string, any>, fieldMap: FieldMap): T {
 // MILESTONE_HANDOFF.md's note on the Insights dashboard undercount this caused.
 const FETCH_ALL_PAGE_SIZE = 1000;
 
-async function fetchAllRows(table: string): Promise<Record<string, any>[]> {
+async function fetchAllRows(table: string, applyFilter?: (query: any) => any): Promise<Record<string, any>[]> {
   const rows: Record<string, any>[] = [];
   let from = 0;
   for (;;) {
-    const { data, error } = await supabase.from(table).select('*').range(from, from + FETCH_ALL_PAGE_SIZE - 1);
+    let query = supabase.from(table).select('*').range(from, from + FETCH_ALL_PAGE_SIZE - 1);
+    if (applyFilter) {
+      query = applyFilter(query);
+    }
+    const { data, error } = await query;
     if (error) {
       throw error;
     }
@@ -104,6 +108,7 @@ const REQUEST_FIELDS: FieldMap = {
   participantIdNumber: 'participant_id_number',
   importedAt: 'imported_at',
   notes: 'notes',
+  flagReason: 'flag_reason',
   eventId: 'event_id',
   eventName: 'event_name',
   location: 'location',
@@ -481,6 +486,25 @@ export const getPerDiemRequests = async (): Promise<PerdiemRequest[]> => {
     return data.map((row) => fromRow<PerdiemRequest>(row, REQUEST_FIELDS));
   } catch (error) {
     console.error("Error fetching per diem requests: ", error);
+    return [];
+  }
+};
+
+/**
+ * Fetches every per diem request for one client - used by the historical
+ * import dialog's Preview step to detect repeat payments (same
+ * participant/event/date, different amount) against records already in the
+ * database, not just other rows in the file being uploaded, before asking
+ * the admin to resolve each one (see HistoricalImportRow.mergeDecision).
+ * @param {string} clientId
+ * @returns {Promise<PerdiemRequest[]>}
+ */
+export const getPerDiemRequestsByClient = async (clientId: string): Promise<PerdiemRequest[]> => {
+  try {
+    const data = await fetchAllRows('perdiem_requests', (q) => q.eq('client_id', clientId));
+    return data.map((row) => fromRow<PerdiemRequest>(row, REQUEST_FIELDS));
+  } catch (error) {
+    console.error("Error fetching per diem requests for client: ", error);
     return [];
   }
 };
@@ -873,6 +897,16 @@ export type HistoricalImportRow = {
   groundTransferCost?: number;
   transportAllowance?: number;
   dsaAllowance?: number;
+  // Set by the import dialog's Preview step when this row identity-matches
+  // (same participant/event/date/phone) another payment at a different
+  // amount, and the admin was asked to resolve it explicitly instead of the
+  // RPC's default heuristic (flag + insert separate) deciding silently -
+  // 'merge' forces a gap-fill merge into the matching record even though
+  // amounts differ, 'separate' forces its own row (and gets flag_reason
+  // set) even if an automatic amount-match would otherwise have merged it.
+  // Omitted (the common case, no conflict detected) leaves the RPC's
+  // existing automatic amount-based decision untouched.
+  mergeDecision?: 'merge' | 'separate';
 };
 
 /**
@@ -885,7 +919,8 @@ export type HistoricalImportRow = {
  * duplicating it - see updatedCount vs importedCount in the result. A real
  * second payment (same event/date/phone but a different amount) inserts as
  * a new row instead of silently absorbing the second amount into the first
- * record.
+ * record - both that new row and the original get `flagReason` set so it
+ * surfaces for manual review instead of looking like an ordinary import.
  *
  * Callers with more than a few hundred rows should split into multiple
  * calls (see admin-historical-import.tsx's BATCH_SIZE) rather than pass

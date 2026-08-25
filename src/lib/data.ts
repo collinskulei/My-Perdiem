@@ -136,6 +136,10 @@ export type PerdiemRequest = {
   participantIdNumber?: string;
   importedAt?: string;
   notes?: string;
+  // Set by the historical importer when this row is a repeat payment (same
+  // participant/event/date/phone as another record, different amount) -
+  // kept as its own record rather than merged, but called out for review.
+  flagReason?: string;
   eventId: string;
   eventName: string;
   location: string;

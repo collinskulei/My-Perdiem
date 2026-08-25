@@ -448,13 +448,50 @@ see docs/MILESTONE_HANDOFF.md for the full column list this maps to).
     → confirm both are now recognized as **filled in** (updated), not
     duplicated again - amount only breaks the match when it actually
     differs.
+14. Re-check the same-person/event/date/phone-but-different-amount pair from
+    step 12 on the Reports tab → confirm **both** rows show an amber warning
+    icon next to the participant name with a "Repeat payment..." explanation
+    underneath (naming the other payment's amount), and that the **Flag
+    Status** filter's "Flagged Only" option narrows the table down to just
+    these rows. Confirm the CSV export includes a populated "Flag Reason"
+    column for both rows.
+15. Upload a third row for that same person/event/date/phone with a *third*
+    distinct amount → confirm it imports as a **new** (not filled) record
+    and is also flagged - repeat payments beyond the first pair still get
+    called out, not silently accepted as normal after the first flag.
+16. Upload two rows for a *different* person/event/date/phone combination
+    with the *same* amount (a true duplicate, e.g. identical in every
+    column) → confirm this still merges as a **filled in** record with no
+    flag - the flag is specific to a genuine amount mismatch, not triggered
+    just because an identity match exists.
+
+**D2. Manual merge/separate decision (Preview step)**
+17. Upload a file with two rows for the same person/event/date/phone but
+    different amounts (same as step 12's case) → on the Preview step,
+    confirm a "possible repeat payment detected" panel appears listing both
+    the row's own amount and the other amount it conflicts with, with a
+    dropdown defaulted to **"Record as separate payment"**.
+18. Leave the default and confirm the import → both rows import as
+    **new** and flagged, same outcome as step 12 (default behavior
+    unchanged when the admin doesn't override it).
+19. Repeat with the dropdown switched to **"Merge into existing record"**
+    before confirming → confirm the second row is now counted as
+    **filled in** (not new), its amount stays as the first row's amount
+    (gap-fill never overwrites), and neither row gets a flag - an explicit
+    admin choice to merge suppresses the flag entirely.
+20. Upload a *second, separate* file later with one row matching a
+    person/event/date/phone already saved from an earlier import (from step
+    12 or 18), at a different amount → confirm the Preview step still
+    detects the conflict **against the existing database record**, not
+    just other rows in the same file, and offers the same merge/separate
+    choice.
 
 **E. New Reports tab filters**
-14. Reports tab → confirm **Training Date Range**, **Employer**, **Staff
+21. Reports tab → confirm **Training Date Range**, **Employer**, **Staff
     Category**, and **Transport/DSA Allowance min-max** filters all appear
     and narrow the Approved/Paid/Rejected/Amended tables + CSV export
     correctly, independent of each other and of the existing filters.
-15. Download a CSV → confirm it includes Employer, Staff Category, Training
+22. Download a CSV → confirm it includes Employer, Staff Category, Training
     Start/End, Number of Training Days, Transport Allowance, and DSA
     Allowance columns.
 

@@ -36,20 +36,42 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
   // to every sub-section + the participant lookup below, rather than each
   // section needing its own copy of this filter.
   const [eventType, setEventType] = useState("all");
+  // County isn't a field on events/requests directly - it lives on the
+  // venue (see Venue.county), so this resolves county -> matching venues ->
+  // events held at those venues -> requests for those events, same
+  // indirection the Reports tab's County filter already uses.
+  const [county, setCounty] = useState("all");
 
   const eventTypeOptions = useMemo(
     () => Array.from(new Set(requests.map(r => r.eventName).filter((e): e is string => !!e))).sort(),
     [requests]
   );
+  const countyOptions = useMemo(
+    () => Array.from(new Set(venues.map(v => v.county).filter((c): c is string => !!c))).sort(),
+    [venues]
+  );
 
-  const filteredRequests = useMemo(
-    () => eventType === "all" ? requests : requests.filter(r => r.eventName === eventType),
-    [requests, eventType]
-  );
-  const filteredEvents = useMemo(
-    () => eventType === "all" ? events : events.filter(e => e.name === eventType),
-    [events, eventType]
-  );
+  // null (not just "all") when unfiltered, so filteredRequests/filteredEvents
+  // below can tell "no county filter applied" apart from "this county has
+  // zero matching events" without an extra branch at each call site.
+  const eventIdsInCounty = useMemo(() => {
+    if (county === "all") return null;
+    const venueIds = new Set(venues.filter(v => v.county === county).map(v => v.id));
+    return new Set(events.filter(e => venueIds.has(e.venueId)).map(e => e.id));
+  }, [county, venues, events]);
+
+  const filteredRequests = useMemo(() => {
+    let data = requests;
+    if (eventType !== "all") data = data.filter(r => r.eventName === eventType);
+    if (eventIdsInCounty) data = data.filter(r => eventIdsInCounty.has(r.eventId));
+    return data;
+  }, [requests, eventType, eventIdsInCounty]);
+  const filteredEvents = useMemo(() => {
+    let data = events;
+    if (eventType !== "all") data = data.filter(e => e.name === eventType);
+    if (eventIdsInCounty) data = data.filter(e => eventIdsInCounty.has(e.id));
+    return data;
+  }, [events, eventType, eventIdsInCounty]);
 
   if (loading) {
     return <InsightsLoadingSkeleton />;
@@ -79,6 +101,16 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
               <SelectContent>
                 <SelectItem value="all">All Event Types</SelectItem>
                 {eventTypeOptions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-full max-w-xs space-y-1.5">
+            <Label htmlFor="insights-county">County</Label>
+            <Select value={county} onValueChange={setCounty}>
+              <SelectTrigger id="insights-county"><SelectValue placeholder="All Counties" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Counties</SelectItem>
+                {countyOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>

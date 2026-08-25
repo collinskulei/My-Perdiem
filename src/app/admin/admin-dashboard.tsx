@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2, QrCode, Upload, File as FileIcon, X, Wallet, Paperclip, Info, Trash2, Search } from "lucide-react";
+import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2, QrCode, Upload, File as FileIcon, X, Wallet, Paperclip, Info, Trash2, Search, AlertTriangle } from "lucide-react";
 import Image from "next/image";
 import { DateRange } from "react-day-picker";
 import { format, isWithinInterval, parseISO, isPast, endOfDay, subDays, isValid, startOfQuarter, endOfQuarter } from "date-fns";
@@ -130,6 +130,7 @@ const defaultFilters = {
   date: undefined, county: "all", dutyStation: "all", participant: "",
   trainingDate: undefined, employer: "all", staffCategory: "all",
   transportMin: "", transportMax: "", dsaMin: "", dsaMax: "", eventType: "all",
+  flagStatus: "all",
 };
 // Now the admin dashboard's page heading source, since the sidebar (see
 // admin-sidebar-navigation.tsx) is the only navigation surface - the
@@ -294,6 +295,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
     dsaMin: string;
     dsaMax: string;
     eventType: string;
+    flagStatus: string;
   }>(defaultFilters);
   const [filteredReportData, setFilteredReportData] = useState<PerdiemRequest[]>([]);
   const [selectedQuarter, setSelectedQuarter] = useState<string>("all");
@@ -464,6 +466,10 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
         if (filters.dsaMax !== '') {
             const max = Number(filters.dsaMax);
             data = data.filter(req => (req.dsaAllowance ?? 0) <= max);
+        }
+
+        if (filters.flagStatus === 'flagged') {
+            data = data.filter(req => !!req.flagReason);
         }
 
         setFilteredReportData(data);
@@ -826,7 +832,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
         "eventName", "eventLocation", "eventStartDate", "eventEndDate", "numberOfTrainingDays", "eventFacilitator",
         "eventAttendance", "mileageTotal", "accommodationTotal", "outOfOfficeAllowance",
         "transportAllowance", "dsaAllowance",
-        "totalPerdiem", "status", "transactionCode"
+        "totalPerdiem", "status", "transactionCode", "flagReason"
     ];
     const columnHeaders = [
         "Payment Date", "Participant Name", "Phone Number", "Employer", "Staff Category",
@@ -834,7 +840,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
         "Event", "Event Location", "Training Start", "Training End", "Number of Training Days", "Facilitator",
         "Attendance (Days)", "Mileage (Ksh)", "Accommodation (Ksh)", "Allowance (Ksh)",
         "Transport Allowance (Ksh)", "DSA Allowance (Ksh)",
-        "Total Amount (Ksh)", "Status", "Transaction Code"
+        "Total Amount (Ksh)", "Status", "Transaction Code", "Flag Reason"
     ];
     const csvData = toCSV(detailedData, columns, columnHeaders);
     downloadCSV(csvData, `${reportName}_report.csv`);
@@ -1863,6 +1869,16 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                                     <Input type="number" placeholder="Max" value={filters.dsaMax} onChange={(e) => setFilters(f => ({ ...f, dsaMax: e.target.value }))} />
                                 </div>
                             </div>
+                            <div>
+                                <Label htmlFor="flag-status-filter">Flag Status</Label>
+                                <Select value={filters.flagStatus} onValueChange={(v) => setFilters(f => ({ ...f, flagStatus: v }))}>
+                                    <SelectTrigger id="flag-status-filter"><SelectValue placeholder="All Records" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Records</SelectItem>
+                                        <SelectItem value="flagged">Flagged Only (repeat payments)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                     </div>
 
@@ -2193,7 +2209,17 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
                              <TableRow><TableCell colSpan={isPaidReport ? 6 : 5} className="h-24 text-center">No requests match the current filters.</TableCell></TableRow>
                         ) : data.map(request => (
                             <TableRow key={request.id}>
-                            <TableCell>{request.participantName}</TableCell>
+                            <TableCell>
+                                <div className="flex items-center gap-1.5">
+                                    {request.participantName}
+                                    {request.flagReason && (
+                                        <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-500" aria-label="Flagged" />
+                                    )}
+                                </div>
+                                {request.flagReason && (
+                                    <div className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">{request.flagReason}</div>
+                                )}
+                            </TableCell>
                             <TableCell>{request.eventName}</TableCell>
                              {isPaidReport ? (
                                 <>
