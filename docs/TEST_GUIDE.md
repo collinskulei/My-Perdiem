@@ -486,6 +486,25 @@ see docs/MILESTONE_HANDOFF.md for the full column list this maps to).
     just other rows in the same file, and offers the same merge/separate
     choice.
 
+**D3. Event-matching requires the same training date (no-venue events)**
+21. Upload a file with no Event Venue column mapped (blank venue for every
+    row), a generic event name (e.g. "County activation"), a Training Start
+    Date of 2025-09-08, and 2+ participants → confirm it creates **one**
+    new event.
+22. Upload a second file with the **same** event name, still blank venue,
+    but a **different** Training Start Date (e.g. 2025-09-15), including a
+    participant (same phone) who was also in step 21's file → confirm this
+    creates a **second, separate** event (not merged into step 21's), and
+    that participant's payment imports as its own **new** record even if
+    the amount happens to match their step-21 payment - different training
+    date means a different event entirely, so the identity match (which is
+    scoped by event) never even considers step 21's row as a candidate.
+23. Re-upload step 21's exact file again (same blank venue, same Training
+    Start Date) → confirm it still gap-fills into the **same** original
+    event and existing records, unaffected - matching on training date
+    doesn't break the ordinary re-upload/gap-fill flow when the date is
+    unchanged.
+
 **E. New Reports tab filters**
 21. Reports tab → confirm **Training Date Range**, **Employer**, **Staff
     Category**, and **Transport/DSA Allowance min-max** filters all appear

@@ -945,6 +945,31 @@ match. Rows with no conflict detected carry no `mergeDecision` and are
 completely unaffected - the automatic 0014/0015 heuristic still runs for
 the overwhelming majority of ordinary rows.
 
+**Event-matching now also requires the same training date, not just
+name + venue** (`supabase/migrations/0018_event_match_includes_training_date.sql`):
+follow-up to 0012's venue fix, same class of bug. Some source files have
+no fixed venue at all - "delegation DSA" payments to roving support staff,
+generic event names like "County activation", venue left blank. Real
+case: Uasin Gishu, Kakamega, and Nakuru each uploaded their own "County
+activation"-style Q4 DSA batch (different counties, different actual
+training periods) but all *paid out* on the same December disbursement
+date. With event-matching keyed on name + venue alone (0012), all three
+counties' batches resolved to the **same event** - and since roving staff
+appear in more than one county's roster (same phone, same payment date,
+sometimes even the same day-rate), 21 of Uasin Gishu's 25 payments got
+silently gap-filled into Kakamega's/Nakuru's already-existing records
+instead of importing as their own rows, discarding whichever county's
+amount arrived second. **Fix:** event matching now also requires
+`training_start_date` to match (or both blank) - different counties'
+rollouts genuinely happen on different training dates even when paid out
+together, so this is normally enough to tell them apart without needing
+county as a first-class matching field. Same accepted trade-off as
+Payment Date (a training-start-date blank on first upload, filled in
+later, won't be recognized as the same event) and **not retroactive** -
+the Uasin Gishu/Kakamega/Nakuru collision already in the database needs
+manual review/correction; only imports run after this migration get the
+corrected behavior.
+
 **Dashboard query points** (`src/app/admin/admin-dashboard.tsx`, Reports
 tab - applies to every admin tier, same shared component as the Quarter
 filter above): a second date-range filter for **Training Date Range**
