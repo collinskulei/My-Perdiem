@@ -43,6 +43,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { TopLoadingBar } from "@/components/ui/top-loading-bar";
 import * as supabaseDb from "@/lib/supabase/database";
 import { inviteAdmin } from "@/lib/admin-api-client";
 import { HistoricalImportDialog } from "./admin-historical-import";
@@ -345,11 +346,13 @@ export function AdminClientsOverview({
   participants,
   basePath,
   onChanged,
+  loading = false,
 }: {
   clients: Client[];
   participants: Participant[];
   basePath: string;
   onChanged: () => void;
+  loading?: boolean;
 }) {
   const { toast } = useToast();
   const [newClientName, setNewClientName] = useState("");
@@ -403,7 +406,16 @@ export function AdminClientsOverview({
           </div>
         </CardContent>
       </Card>
-      {clients.length === 0 ? (
+      {loading ? (
+        <>
+          <TopLoadingBar active />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-56 rounded-xl skeleton-shimmer" />
+            ))}
+          </div>
+        </>
+      ) : clients.length === 0 ? (
         <p className="text-center text-muted-foreground py-8">No clients yet.</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

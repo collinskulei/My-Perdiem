@@ -39,6 +39,8 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { TopLoadingBar } from "@/components/ui/top-loading-bar";
+import { TableSkeletonRows } from "@/components/ui/table-skeleton";
 import type { PerdiemRequest, Participant, AppEvent, Venue } from "@/lib/data";
 import { dutyStationCoordinates, MILEAGE_RATE_KSH, OUT_OF_OFFICE_RATES } from "@/lib/data";
 import * as supabaseDb from '@/lib/supabase/database';
@@ -364,6 +366,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
 
   return (
     <>
+      <TopLoadingBar active={loading} />
       <SuccessDialog
         isOpen={isSuccess}
         onClose={handleDone}
@@ -427,7 +430,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {loading ? ( <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading your events...</TableCell></TableRow>
+                                {loading ? ( <TableSkeletonRows columns={6} />
                                 ) : myEvents.length === 0 ? (
                                     <TableRow><TableCell colSpan={6} className="h-24 text-center">You have no upcoming events.</TableCell></TableRow>
                                 ) : myEvents.map((event) => {
@@ -512,8 +515,8 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                 </TableHeader>
                                 <TableBody>
                                     {loading ? (
-                                        <TableRow><TableCell colSpan={3} className="h-24 text-center">Loading check-in data...</TableCell></TableRow>
-                                    ) : myEvents.flatMap(event => 
+                                        <TableSkeletonRows columns={3} />
+                                    ) : myEvents.flatMap(event =>
                                         Object.entries(event.checkedInParticipants?.[authUser?.id ?? ''] || {})
                                         .filter(([date]) => isValid(parse(date, 'yyyy-MM-dd', new Date())))
                                         .map(([date, timestamp]) => (
@@ -570,7 +573,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                         </TableHeader>
                         <TableBody>
                             {loading ? (
-                            <TableRow><TableCell colSpan={5} className="h-24 text-center">Loading your requests...</TableCell></TableRow>
+                            <TableSkeletonRows columns={5} />
                             ) : userRequests.length === 0 ? (
                             <TableRow><TableCell colSpan={5} className="h-24 text-center">You have not submitted any requests.</TableCell></TableRow>
                             ) : userRequests.map((request) => (
@@ -635,7 +638,9 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                         </CardHeader>
                         <CardContent>
                             {loading ? (
-                                <div className="h-[300px] flex items-center justify-center text-muted-foreground">Loading analytics...</div>
+                                <div className="h-[300px] flex items-center justify-center">
+                                    <div className="h-40 w-40 rounded-full skeleton-shimmer" />
+                                </div>
                             ) : pieChartData.length > 0 ? (
                                 <ResponsiveContainer width="100%" height={300}>
                                 <PieChart>

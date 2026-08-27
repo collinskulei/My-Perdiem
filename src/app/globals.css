@@ -130,6 +130,24 @@
   }
 }
 
+/* Shimmer skeleton fill - a moving highlight sweeping across a muted bar,
+   used by TableSkeletonRows and the Insights loading skeleton instead of a
+   flat animate-pulse opacity fade, so a slow fetch reads as "actively
+   working" rather than a static gray block. Reuses the `shimmer` keyframe
+   registered in tailwind.config.ts. */
+@layer utilities {
+  .skeleton-shimmer {
+    background-image: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 30%,
+      hsl(var(--muted-foreground) / 0.2) 50%,
+      hsl(var(--muted)) 70%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+}
+
 /* "Guide me" walkthrough (driver.js) - overrides driver.css's hardcoded
    light-theme colors with the app's own tokens, so it matches both themes
    instead of always rendering a white popover. */

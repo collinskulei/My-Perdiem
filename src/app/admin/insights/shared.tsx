@@ -14,6 +14,7 @@ import jsPDF from "jspdf";
 import { Download, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TopLoadingBar } from "@/components/ui/top-loading-bar";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -237,10 +238,13 @@ export function EmptyState({ message }: { message: string }) {
 
 export function InsightsLoadingSkeleton() {
   return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="h-40 rounded-xl bg-muted animate-pulse" />
-      ))}
-    </div>
+    <>
+      <TopLoadingBar active />
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="h-40 rounded-xl skeleton-shimmer" />
+        ))}
+      </div>
+    </>
   );
 }

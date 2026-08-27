@@ -85,6 +85,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { TopLoadingBar } from "@/components/ui/top-loading-bar";
+import { TableSkeletonRows } from "@/components/ui/table-skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { PerdiemRequest, Venue, Participant, AppEvent, Client, Document } from "@/lib/data";
@@ -1136,6 +1138,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
 
   return (
     <>
+    <TopLoadingBar active={loading} />
     <div className="grid flex-1 items-start gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{TAB_LABELS[activeTab] ?? "Dashboard"}</h1>
@@ -1151,7 +1154,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                 <Table>
                     <TableHeader><TableRow><TableHead>Participant</TableHead><TableHead>Event</TableHead><TableHead>Status</TableHead><TableHead>Date Submitted</TableHead><TableHead className="text-right">Amount</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
                     <TableBody>
-                    {loading ? <TableRow><TableCell colSpan={6} className="h-24 text-center">Loading requests...</TableCell></TableRow> : perdiemRequests.map(request => (
+                    {loading ? <TableSkeletonRows columns={6} /> : perdiemRequests.map(request => (
                         <TableRow key={request.id}>
                         <TableCell><div className="font-medium">{request.participantName}</div><div className="hidden text-sm text-muted-foreground md:inline">{participants.find(p => p.id === request.participantId)?.idNumber}</div></TableCell>
                         <TableCell>{request.eventName}</TableCell>
@@ -1457,7 +1460,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {loading ? <TableRow><TableCell colSpan={7} className="h-24 text-center">Loading events...</TableCell></TableRow> 
+                            {loading ? <TableSkeletonRows columns={7} />
                             : events.map((event) => {
                                 const lastEventDate = event.eventDates?.length ? parseISO(event.eventDates[event.eventDates.length - 1]) : new Date(0);
                                 const isEventPast = isPast(endOfDay(lastEventDate));
@@ -1655,7 +1658,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                 <Table>
                     <TableHeader><TableRow><TableHead className="w-[64px]"><span className="sr-only">Image</span></TableHead><TableHead>Name</TableHead><TableHead>ID Number</TableHead><TableHead>Role</TableHead><TableHead>Duty Station</TableHead><TableHead>Job Group</TableHead><TableHead>Status</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
                     <TableBody>
-                    {loading ? <TableRow><TableCell colSpan={8} className="h-24 text-center">Loading participants...</TableCell></TableRow> : filteredParticipants.map(participant => (
+                    {loading ? <TableSkeletonRows columns={8} /> : filteredParticipants.map(participant => (
                         <TableRow key={participant.id}>
                         <TableCell><Image alt="Participant avatar" className="aspect-square rounded-full object-cover" height="40" src={participant.avatarUrl} width="40" data-ai-hint="person portrait"/></TableCell>
                         <TableCell className="font-medium whitespace-nowrap">{participant.name}</TableCell>
@@ -1731,7 +1734,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                     <Table>
                         <TableHeader><TableRow><TableHead>Venue Name</TableHead><TableHead>City</TableHead><TableHead>County</TableHead><TableHead>Coordinates</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
                         <TableBody>
-                        {loading ? <TableRow><TableCell colSpan={5} className="h-24 text-center">Loading venues...</TableCell></TableRow> : venues.map(venue => (
+                        {loading ? <TableSkeletonRows columns={5} /> : venues.map(venue => (
                             <TableRow key={venue.id}>
                             <TableCell className="font-medium">{venue.name}</TableCell>
                             <TableCell>{venue.city}</TableCell>
@@ -2028,6 +2031,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
               participants={participants}
               basePath={basePath}
               onChanged={fetchAllData}
+              loading={loading}
             />
           </TabsContent>
         )}
@@ -2254,7 +2258,7 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
                         </TableHeader>
                         <TableBody>
                         {loading ? (
-                            <TableRow><TableCell colSpan={isPaidReport ? 6 : 5} className="h-24 text-center">Loading report data...</TableCell></TableRow>
+                            <TableSkeletonRows columns={isPaidReport ? 6 : 5} />
                         ) : data.length === 0 ? (
                              <TableRow><TableCell colSpan={isPaidReport ? 6 : 5} className="h-24 text-center">No requests match the current filters.</TableCell></TableRow>
                         ) : data.map(request => (
@@ -2312,7 +2316,7 @@ function AmendedReportTabContent({ title, data, loading }: { title: string, data
                         </TableHeader>
                         <TableBody>
                         {loading ? (
-                            <TableRow><TableCell colSpan={5} className="h-24 text-center">Loading report data...</TableCell></TableRow>
+                            <TableSkeletonRows columns={5} />
                         ) : data.length === 0 ? (
                              <TableRow><TableCell colSpan={5} className="h-24 text-center">No amended requests match the current filters.</TableCell></TableRow>
                         ) : data.map(request => (
@@ -2409,7 +2413,16 @@ function AnalyticsTabContent({ requests, clients, loading }: { requests: Perdiem
   const { toast } = useToast();
 
   if (loading) {
-    return <div className="text-center p-10">Loading analytics...</div>;
+    return (
+      <>
+        <TopLoadingBar active />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-28 rounded-xl skeleton-shimmer" />
+          ))}
+        </div>
+      </>
+    );
   }
   
   if (!chartData || !chartData.pieChartData) {
