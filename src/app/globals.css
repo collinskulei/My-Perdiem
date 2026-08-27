@@ -110,13 +110,16 @@
 /* Dot-grid background (e.g. Supabase's dashboard) - one repeating
    radial-gradient background-image, not per-dot DOM nodes, so it's
    effectively free performance-wise: GPU-composited like any background,
-   same cost class as a solid fill. Reuses --border so the dots auto-adapt
-   between light/dark with no extra variables, and the gradient tiles
-   infinitely so it's responsive by default - the media query below just
-   tightens the spacing a bit on small screens so it doesn't look sparse. */
+   same cost class as a solid fill. Built from --foreground at low alpha
+   (not --border, which sits only ~4 lightness points from --background in
+   both themes - barely visible, and nearly invisible in light mode) so the
+   dots keep real, consistent contrast against the background in both
+   themes without a dedicated variable. The gradient tiles infinitely so
+   it's responsive by default - the media query below just tightens the
+   spacing a bit on small screens so it doesn't look sparse. */
 @layer utilities {
   .bg-dot-grid {
-    background-image: radial-gradient(circle, hsl(var(--border)) 1px, transparent 1px);
+    background-image: radial-gradient(circle, hsl(var(--foreground) / 0.16) 1.5px, transparent 1.5px);
     background-size: 24px 24px;
   }
 
