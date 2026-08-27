@@ -18,7 +18,7 @@ import { useEffect, useRef, useState } from "react";
  * of where in the component tree it's mounted, so no context/prop-drilling
  * through the layout is needed to reach it.
  */
-export function TopLoadingBar({ active, label = "Syncing data…" }: { active: boolean; label?: string }) {
+export function TopLoadingBar({ active, label = "Pulling the latest data…" }: { active: boolean; label?: string }) {
   const [visible, setVisible] = useState(active);
   const [progress, setProgress] = useState(0);
   const wasActive = useRef(false);
