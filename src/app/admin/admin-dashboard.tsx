@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, Loader2, QrCode, Upload, File as FileIcon, X, Wallet, Paperclip, Info, Trash2, Search, AlertTriangle } from "lucide-react";
+import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, ChevronDown, Loader2, QrCode, Upload, File as FileIcon, X, Wallet, Paperclip, Info, Trash2, Search, AlertTriangle, SlidersHorizontal } from "lucide-react";
 import Image from "next/image";
 import { DateRange } from "react-day-picker";
 import { format, isWithinInterval, parseISO, isPast, endOfDay, subDays, isValid, startOfQuarter, endOfQuarter } from "date-fns";
@@ -84,6 +84,7 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { PerdiemRequest, Venue, Participant, AppEvent, Client, Document } from "@/lib/data";
@@ -297,6 +298,10 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
     eventType: string;
     flagStatus: string;
   }>(defaultFilters);
+  // Collapsed by default - see the Reports "Filter Options" panel below,
+  // split into always-visible "quick" filters and this collapsible
+  // "advanced" group so the panel isn't 12 fields deep at first glance.
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
   const [filteredReportData, setFilteredReportData] = useState<PerdiemRequest[]>([]);
   const [selectedQuarter, setSelectedQuarter] = useState<string>("all");
   const quarterOptions = useMemo(() => {
@@ -319,6 +324,21 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
     const from = startOfQuarter(new Date(Number(yearStr), (Number(qStr) - 1) * 3, 1));
     const to = endOfQuarter(from);
     setFilters(f => ({ ...f, date: { from, to } }));
+  };
+
+  // Which fields belong to the collapsible "advanced" group (see the
+  // Filter Options panel) - kept as one list so the active-count badge and
+  // "Clear all" button below don't drift out of sync with what's actually
+  // rendered inside the collapsible section.
+  const ADVANCED_FILTER_KEYS = ["dutyStation", "trainingDate", "eventType", "employer", "staffCategory", "transportMin", "transportMax", "dsaMin", "dsaMax", "flagStatus"] as const;
+  const activeAdvancedFilterCount = ADVANCED_FILTER_KEYS.filter(k => filters[k] !== defaultFilters[k]).length;
+  const activeQuickFilterCount = (filters.county !== defaultFilters.county ? 1 : 0)
+    + (filters.participant.trim() !== '' ? 1 : 0)
+    + (filters.date ? 1 : 0);
+  const totalActiveFilterCount = activeAdvancedFilterCount + activeQuickFilterCount;
+  const clearAllFilters = () => {
+    setFilters(defaultFilters);
+    setSelectedQuarter("all");
   };
 
   const [loading, setLoading] = useState(true);
@@ -1754,8 +1774,25 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                 <CardContent className="space-y-6">
                     {/* Filter Section */}
                     <div className="p-4 border rounded-lg space-y-4">
-                        <h3 className="font-medium">Filter Options</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                                <h3 className="font-medium">Filter Options</h3>
+                                {totalActiveFilterCount > 0 && (
+                                    <Badge variant="secondary">{totalActiveFilterCount} active</Badge>
+                                )}
+                            </div>
+                            {totalActiveFilterCount > 0 && (
+                                <Button variant="ghost" size="sm" onClick={clearAllFilters} className="h-7 text-muted-foreground">
+                                    <X className="mr-1.5 h-3.5 w-3.5" />
+                                    Clear all filters
+                                </Button>
+                            )}
+                        </div>
+
+                        {/* Quick filters - the ones used on nearly every visit, always
+                        visible. Everything else lives in "More Filters" below so this
+                        panel isn't 12 fields deep by default. */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             <div>
                                 <Label htmlFor="quarter-filter">Quarter</Label>
                                 <Select value={selectedQuarter} onValueChange={handleQuarterSelect}>
@@ -1771,8 +1808,8 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                                 <Popover>
                                 <PopoverTrigger asChild>
                                     <Button id="date" variant={"outline"} className={cn("w-full justify-start text-left font-normal", !filters.date && "text-muted-foreground")}>
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {filters.date?.from ? (filters.date.to ? (<>{format(filters.date.from, "LLL dd, y")} - {format(filters.date.to, "LLL dd, y")}</>) : (format(filters.date.from, "LLL dd, y"))) : (<span>Pick a date range</span>)}
+                                        <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                                        <span className="truncate">{filters.date?.from ? (filters.date.to ? (<>{format(filters.date.from, "LLL dd, y")} - {format(filters.date.to, "LLL dd, y")}</>) : (format(filters.date.from, "LLL dd, y"))) : "Pick a date range"}</span>
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0" align="start">
@@ -1791,16 +1828,6 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                                 </Select>
                             </div>
                             <div>
-                                <Label htmlFor="duty-station-filter">Duty Station</Label>
-                                <Select value={filters.dutyStation} onValueChange={(v) => setFilters(f => ({ ...f, dutyStation: v }))}>
-                                    <SelectTrigger><SelectValue placeholder="Select Station" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Stations</SelectItem>
-                                        {dutyStations.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div>
                                 <Label htmlFor="participant-filter">Participant (name or phone)</Label>
                                 <Input
                                     id="participant-filter"
@@ -1810,76 +1837,99 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                                 />
                             </div>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
-                            <div>
-                                <Label htmlFor="training-date-range">Training Date Range</Label>
-                                <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button id="training-date-range" variant={"outline"} className={cn("w-full justify-start text-left font-normal", !filters.trainingDate && "text-muted-foreground")}>
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {filters.trainingDate?.from ? (filters.trainingDate.to ? (<>{format(filters.trainingDate.from, "LLL dd, y")} - {format(filters.trainingDate.to, "LLL dd, y")}</>) : (format(filters.trainingDate.from, "LLL dd, y"))) : (<span>Pick a training date range</span>)}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar initialFocus mode="range" selected={filters.trainingDate} onSelect={(d) => setFilters(f => ({ ...f, trainingDate: d }))} numberOfMonths={2} />
-                                </PopoverContent>
-                                </Popover>
-                            </div>
-                            <div>
-                                <Label htmlFor="event-type-filter">Event Type</Label>
-                                <Select value={filters.eventType} onValueChange={(v) => setFilters(f => ({ ...f, eventType: v }))}>
-                                    <SelectTrigger id="event-type-filter"><SelectValue placeholder="Select Event Type" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Event Types</SelectItem>
-                                        {eventTypeOptions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div>
-                                <Label htmlFor="employer-filter">Employer</Label>
-                                <Select value={filters.employer} onValueChange={(v) => setFilters(f => ({ ...f, employer: v }))}>
-                                    <SelectTrigger id="employer-filter"><SelectValue placeholder="Select Employer" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Employers</SelectItem>
-                                        {employerOptions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div>
-                                <Label htmlFor="staff-category-filter">Staff Category</Label>
-                                <Select value={filters.staffCategory} onValueChange={(v) => setFilters(f => ({ ...f, staffCategory: v }))}>
-                                    <SelectTrigger id="staff-category-filter"><SelectValue placeholder="Select Category" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Categories</SelectItem>
-                                        {STAFF_CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div>
-                                <Label>Transport Allowance (Ksh)</Label>
-                                <div className="flex gap-2">
-                                    <Input type="number" placeholder="Min" value={filters.transportMin} onChange={(e) => setFilters(f => ({ ...f, transportMin: e.target.value }))} />
-                                    <Input type="number" placeholder="Max" value={filters.transportMax} onChange={(e) => setFilters(f => ({ ...f, transportMax: e.target.value }))} />
+
+                        <Collapsible open={advancedFiltersOpen} onOpenChange={setAdvancedFiltersOpen}>
+                            <CollapsibleTrigger asChild>
+                                <Button variant="outline" size="sm" className="gap-1.5">
+                                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                                    More Filters
+                                    {activeAdvancedFilterCount > 0 && <Badge variant="secondary" className="ml-0.5">{activeAdvancedFilterCount}</Badge>}
+                                    <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", advancedFiltersOpen && "rotate-180")} />
+                                </Button>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent className="pt-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <div>
+                                        <Label htmlFor="duty-station-filter">Duty Station</Label>
+                                        <Select value={filters.dutyStation} onValueChange={(v) => setFilters(f => ({ ...f, dutyStation: v }))}>
+                                            <SelectTrigger><SelectValue placeholder="Select Station" /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All Stations</SelectItem>
+                                                {dutyStations.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="training-date-range">Training Date Range</Label>
+                                        <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button id="training-date-range" variant={"outline"} className={cn("w-full justify-start text-left font-normal", !filters.trainingDate && "text-muted-foreground")}>
+                                                <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                                                <span className="truncate">{filters.trainingDate?.from ? (filters.trainingDate.to ? (<>{format(filters.trainingDate.from, "LLL dd, y")} - {format(filters.trainingDate.to, "LLL dd, y")}</>) : (format(filters.trainingDate.from, "LLL dd, y"))) : "Pick training dates"}</span>
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                            <Calendar initialFocus mode="range" selected={filters.trainingDate} onSelect={(d) => setFilters(f => ({ ...f, trainingDate: d }))} numberOfMonths={2} />
+                                        </PopoverContent>
+                                        </Popover>
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="event-type-filter">Event Type</Label>
+                                        <Select value={filters.eventType} onValueChange={(v) => setFilters(f => ({ ...f, eventType: v }))}>
+                                            <SelectTrigger id="event-type-filter"><SelectValue placeholder="Select Event Type" /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All Event Types</SelectItem>
+                                                {eventTypeOptions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="employer-filter">Employer</Label>
+                                        <Select value={filters.employer} onValueChange={(v) => setFilters(f => ({ ...f, employer: v }))}>
+                                            <SelectTrigger id="employer-filter"><SelectValue placeholder="Select Employer" /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All Employers</SelectItem>
+                                                {employerOptions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="staff-category-filter">Staff Category</Label>
+                                        <Select value={filters.staffCategory} onValueChange={(v) => setFilters(f => ({ ...f, staffCategory: v }))}>
+                                            <SelectTrigger id="staff-category-filter"><SelectValue placeholder="Select Category" /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All Categories</SelectItem>
+                                                {STAFF_CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="flag-status-filter">Flag Status</Label>
+                                        <Select value={filters.flagStatus} onValueChange={(v) => setFilters(f => ({ ...f, flagStatus: v }))}>
+                                            <SelectTrigger id="flag-status-filter"><SelectValue placeholder="All Records" /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All Records</SelectItem>
+                                                <SelectItem value="flagged">Flagged Only (repeat payments)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div>
+                                        <Label>Transport Allowance (Ksh)</Label>
+                                        <div className="flex gap-2">
+                                            <Input type="number" placeholder="Min" value={filters.transportMin} onChange={(e) => setFilters(f => ({ ...f, transportMin: e.target.value }))} />
+                                            <Input type="number" placeholder="Max" value={filters.transportMax} onChange={(e) => setFilters(f => ({ ...f, transportMax: e.target.value }))} />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <Label>DSA Allowance (Ksh)</Label>
+                                        <div className="flex gap-2">
+                                            <Input type="number" placeholder="Min" value={filters.dsaMin} onChange={(e) => setFilters(f => ({ ...f, dsaMin: e.target.value }))} />
+                                            <Input type="number" placeholder="Max" value={filters.dsaMax} onChange={(e) => setFilters(f => ({ ...f, dsaMax: e.target.value }))} />
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                            <div>
-                                <Label>DSA Allowance (Ksh)</Label>
-                                <div className="flex gap-2">
-                                    <Input type="number" placeholder="Min" value={filters.dsaMin} onChange={(e) => setFilters(f => ({ ...f, dsaMin: e.target.value }))} />
-                                    <Input type="number" placeholder="Max" value={filters.dsaMax} onChange={(e) => setFilters(f => ({ ...f, dsaMax: e.target.value }))} />
-                                </div>
-                            </div>
-                            <div>
-                                <Label htmlFor="flag-status-filter">Flag Status</Label>
-                                <Select value={filters.flagStatus} onValueChange={(v) => setFilters(f => ({ ...f, flagStatus: v }))}>
-                                    <SelectTrigger id="flag-status-filter"><SelectValue placeholder="All Records" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Records</SelectItem>
-                                        <SelectItem value="flagged">Flagged Only (repeat payments)</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
+                            </CollapsibleContent>
+                        </Collapsible>
                     </div>
 
                     {filters.participant.trim() !== '' && (
