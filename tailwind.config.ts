@@ -87,11 +87,6 @@ export default {
             height: '0',
           },
         },
-        'top-loading-sweep': {
-          '0%': { transform: 'translateX(-100%)' },
-          '60%': { transform: 'translateX(220%)' },
-          '100%': { transform: 'translateX(220%)' },
-        },
         shimmer: {
           '0%': { backgroundPosition: '150% 0' },
           '100%': { backgroundPosition: '-150% 0' },
@@ -100,7 +95,6 @@ export default {
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
-        'top-loading-sweep': 'top-loading-sweep 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite',
         shimmer: 'shimmer 1.6s linear infinite',
       },
     },
