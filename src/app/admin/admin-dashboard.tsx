@@ -392,13 +392,24 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
       setParticipants(participantsData);
       setClients(clientsData);
       setDocuments(documentsData);
-      // Sort requests by date descending
-      setPerdiemRequests(requestsData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-      setEvents(eventsData.sort((a, b) => {
-        const dateA = new Date(a.createdAt || a.eventDates[0]).getTime();
-        const dateB = new Date(b.createdAt || b.eventDates[0]).getTime();
-        return dateB - dateA;
-      }));
+      // Sort requests by date descending - the sort key is computed once per
+      // row up front (decorate-sort-undecorate) instead of re-parsing a Date
+      // on every comparison inside the sort itself. With 9,000+ rows,
+      // re-parsing per-comparison meant well over 100,000 Date constructions
+      // (O(n log n) comparisons x 2 parses each) blocking the main thread
+      // right after the fetch resolved, before the UI could update.
+      setPerdiemRequests(
+        requestsData
+          .map((r) => ({ r, t: new Date(r.date).getTime() }))
+          .sort((a, b) => b.t - a.t)
+          .map(({ r }) => r)
+      );
+      setEvents(
+        eventsData
+          .map((e) => ({ e, t: new Date(e.createdAt || e.eventDates[0]).getTime() }))
+          .sort((a, b) => b.t - a.t)
+          .map(({ e }) => e)
+      );
     } catch (error) {
       console.error("Failed to fetch data:", error);
       toast({
