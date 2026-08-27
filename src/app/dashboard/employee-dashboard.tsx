@@ -176,7 +176,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
   const proceedWithCheckIn = useCallback(async (eventId: string, userId: string, dateString: string) => {
      const dataProvider = supabaseDb;
      try {
-        await dataProvider.checkInToEvent(eventId, userId, dateString);
+        await dataProvider.checkInToEvent(eventId, dateString);
         setSuccessMessage({ title: "Check-in Successful!", description: `Your check-in for ${dateString} has been recorded.` });
         setIsSuccess(true);
         // Optimistically update UI to trigger re-evaluation of buttons

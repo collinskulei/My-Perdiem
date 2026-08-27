@@ -443,34 +443,22 @@ export const deleteEvent = async (eventId: string): Promise<void> => {
 };
 
 /**
- * Records a participant's check-in for a specific event on a specific date.
+ * Records the current session's own check-in for a specific event on a
+ * specific date, via the check_in_to_event RPC (see
+ * 0017_fix_event_update_rls_gap.sql) - always the caller's own auth.uid(),
+ * never an arbitrary participant, and restricted server-side to events
+ * they're actually allocated to. Deliberately not a plain table update:
+ * events RLS only allows admins to update the row directly, so a
+ * participant checking themselves in has to go through this
+ * SECURITY DEFINER RPC instead.
  * @param {string} eventId - The ID of the event.
- * @param {string} participantId - The ID of the participant checking in.
  * @param {string} dateString - The date of the check-in in 'yyyy-MM-dd' format.
  * @returns {Promise<void>}
  */
-export const checkInToEvent = async (eventId: string, participantId: string, dateString: string): Promise<void> => {
-  const { data, error } = await supabase
-    .from('events')
-    .select('checked_in_participants')
-    .eq('id', eventId)
-    .single();
-  if (error || !data) {
-    throw error ?? new Error('Event not found');
-  }
-
-  const checkedInParticipants = { ...(data.checked_in_participants ?? {}) };
-  checkedInParticipants[participantId] = {
-    ...(checkedInParticipants[participantId] ?? {}),
-    [dateString]: Date.now(),
-  };
-
-  const { error: updateError } = await supabase
-    .from('events')
-    .update({ checked_in_participants: checkedInParticipants })
-    .eq('id', eventId);
-  if (updateError) {
-    throw updateError;
+export const checkInToEvent = async (eventId: string, dateString: string): Promise<void> => {
+  const { error } = await supabase.rpc('check_in_to_event', { p_event_id: eventId, p_check_in_date: dateString });
+  if (error) {
+    throw error;
   }
 };
 
