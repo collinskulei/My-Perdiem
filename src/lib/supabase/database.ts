@@ -36,9 +36,32 @@ function fromRow<T>(row: Record<string, any>, fieldMap: FieldMap): T {
 const FETCH_ALL_PAGE_SIZE = 1000;
 
 async function fetchAllRows(table: string, applyFilter?: (query: any) => any): Promise<Record<string, any>[]> {
-  const rows: Record<string, any>[] = [];
-  let from = 0;
-  for (;;) {
+  // Gets the row count first (a `head: true` query - no rows returned, just
+  // the count) so every page can be requested concurrently below instead of
+  // one-at-a-time - with ~9,000+ rows in perdiem_requests that's ~9 pages,
+  // and awaiting them sequentially was the dominant cost in every admin
+  // dashboard tab's initial load (they all wait on the same fetchAllData()
+  // call regardless of which tab is actually being viewed), not just Insights.
+  let countQuery = supabase.from(table).select('*', { count: 'exact', head: true });
+  if (applyFilter) {
+    countQuery = applyFilter(countQuery);
+  }
+  const { count, error: countError } = await countQuery;
+  if (countError) {
+    throw countError;
+  }
+
+  const total = count ?? 0;
+  if (total === 0) {
+    return [];
+  }
+
+  const pageStarts: number[] = [];
+  for (let from = 0; from < total; from += FETCH_ALL_PAGE_SIZE) {
+    pageStarts.push(from);
+  }
+
+  const pages = await Promise.all(pageStarts.map(async (from) => {
     let query = supabase.from(table).select('*').range(from, from + FETCH_ALL_PAGE_SIZE - 1);
     if (applyFilter) {
       query = applyFilter(query);
@@ -47,16 +70,10 @@ async function fetchAllRows(table: string, applyFilter?: (query: any) => any): P
     if (error) {
       throw error;
     }
-    if (!data || data.length === 0) {
-      break;
-    }
-    rows.push(...data);
-    if (data.length < FETCH_ALL_PAGE_SIZE) {
-      break;
-    }
-    from += FETCH_ALL_PAGE_SIZE;
-  }
-  return rows;
+    return data ?? [];
+  }));
+
+  return pages.flat();
 }
 
 const PARTICIPANT_FIELDS: FieldMap = {
