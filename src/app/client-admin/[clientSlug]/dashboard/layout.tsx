@@ -17,6 +17,8 @@
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { AdminLayoutClient } from '@/app/admin/admin-layout';
+import { AdminDashboardDataProvider } from '@/app/admin/admin-dashboard-data-context';
+import { getInitialAdminDashboardData } from '@/app/admin/get-initial-dashboard-data';
 
 export default async function ClientAdminDashboardLayout({
   children,
@@ -76,13 +78,19 @@ export default async function ClientAdminDashboardLayout({
     }
   }
 
+  // Prefetched here rather than in page.tsx - see the matching comment in
+  // src/app/admin/layout.tsx for why (page.tsx re-renders per ?tab= click).
+  const initialData = await getInitialAdminDashboardData(supabase);
+
   return (
-    <AdminLayoutClient
-      basePath={`/${params.clientSlug}-admin/dashboard`}
-      loginPath={loginPath}
-      portalLabel="Client Admin"
-    >
-      {children}
-    </AdminLayoutClient>
+    <AdminDashboardDataProvider data={initialData}>
+      <AdminLayoutClient
+        basePath={`/${params.clientSlug}-admin/dashboard`}
+        loginPath={loginPath}
+        portalLabel="Client Admin"
+      >
+        {children}
+      </AdminLayoutClient>
+    </AdminDashboardDataProvider>
   );
 }

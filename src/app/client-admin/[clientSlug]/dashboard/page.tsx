@@ -1,18 +1,16 @@
 import { AdminDashboard } from "@/app/admin/admin-dashboard";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getInitialAdminDashboardData } from "@/app/admin/get-initial-dashboard-data";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Client Admin's dashboard page - renders the shared AdminDashboard, scoped
  * to this portal's basePath so its internal tab navigation stays under
- * /<clientSlug>-admin/dashboard instead of the generic /admin. Prefetches
- * the dashboard's dataset server-side (see get-initial-dashboard-data.ts,
- * RLS narrows it to this client automatically) so it renders with data
- * already in hand instead of a loading state.
+ * /<clientSlug>-admin/dashboard instead of the generic /admin. The
+ * dashboard's dataset is prefetched one level up, in layout.tsx (see
+ * get-initial-dashboard-data.ts) - not here, since this page re-renders on
+ * every ?tab= sidebar click and a fetch here would re-run per click.
  */
-export default async function ClientAdminDashboardPage({
+export default function ClientAdminDashboardPage({
   params,
   searchParams,
 }: {
@@ -20,8 +18,6 @@ export default async function ClientAdminDashboardPage({
   searchParams: { [key: string]: string | undefined };
 }) {
   const tab = searchParams.tab || "requests";
-  const supabase = await createSupabaseServerClient();
-  const initialData = await getInitialAdminDashboardData(supabase);
 
-  return <AdminDashboard currentTab={tab} basePath={`/${params.clientSlug}-admin/dashboard`} initialData={initialData} />;
+  return <AdminDashboard currentTab={tab} basePath={`/${params.clientSlug}-admin/dashboard`} />;
 }

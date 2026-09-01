@@ -4,6 +4,8 @@
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { AdminLayoutClient } from './admin-layout';
+import { AdminDashboardDataProvider } from './admin-dashboard-data-context';
+import { getInitialAdminDashboardData } from './get-initial-dashboard-data';
 
 /**
  * Defines the layout for the admin section, including a sidebar and main content area.
@@ -36,5 +38,15 @@ export default async function AdminLayout({
     redirect('/');
   }
 
-  return <AdminLayoutClient>{children}</AdminLayoutClient>;
+  // Prefetched here rather than in page.tsx: layouts don't receive
+  // searchParams and Next.js reuses this render across ?tab= navigation, so
+  // this only runs once per real page load - a page.tsx-level fetch re-ran
+  // on every sidebar click instead (see get-initial-dashboard-data.ts).
+  const initialData = await getInitialAdminDashboardData(supabase);
+
+  return (
+    <AdminDashboardDataProvider data={initialData}>
+      <AdminLayoutClient>{children}</AdminLayoutClient>
+    </AdminDashboardDataProvider>
+  );
 }

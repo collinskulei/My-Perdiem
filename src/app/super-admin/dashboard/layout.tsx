@@ -8,6 +8,8 @@
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { AdminLayoutClient } from '@/app/admin/admin-layout';
+import { AdminDashboardDataProvider } from '@/app/admin/admin-dashboard-data-context';
+import { getInitialAdminDashboardData } from '@/app/admin/get-initial-dashboard-data';
 
 export default async function SuperAdminDashboardLayout({
   children,
@@ -35,9 +37,15 @@ export default async function SuperAdminDashboardLayout({
     redirect('/super-admin');
   }
 
+  // Prefetched here rather than in page.tsx - see the matching comment in
+  // src/app/admin/layout.tsx for why (page.tsx re-renders per ?tab= click).
+  const initialData = await getInitialAdminDashboardData(supabase);
+
   return (
-    <AdminLayoutClient basePath="/super-admin/dashboard" loginPath="/super-admin" portalLabel="Super Admin">
-      {children}
-    </AdminLayoutClient>
+    <AdminDashboardDataProvider data={initialData}>
+      <AdminLayoutClient basePath="/super-admin/dashboard" loginPath="/super-admin" portalLabel="Super Admin">
+        {children}
+      </AdminLayoutClient>
+    </AdminDashboardDataProvider>
   );
 }

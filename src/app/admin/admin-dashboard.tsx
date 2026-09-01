@@ -113,7 +113,7 @@ import { ParticipantLookup } from "./insights/participant-lookup";
 import { useAdminTab } from "./admin-tab-context";
 import { inviteAdmin, setParticipantDisabled } from "@/lib/admin-api-client";
 import { sortRequestsByDateDesc, sortEventsByDateDesc } from "@/lib/data";
-import type { InitialAdminDashboardData } from "./get-initial-dashboard-data";
+import { useInitialAdminDashboardData } from "./admin-dashboard-data-context";
 
 const dataProvider = supabaseDb;
 
@@ -215,7 +215,7 @@ const downloadCSV = (csvData: string, filename: string) => {
     document.body.removeChild(link);
 }
 
-export function AdminDashboard({ currentTab, basePath = "/admin", initialData = null }: { currentTab: string; basePath?: string; initialData?: InitialAdminDashboardData | null }) {
+export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab: string; basePath?: string }) {
   const searchParams = useSearchParams();
 
   // Shared with the sidebar (see admin-tab-context.tsx) so a sidebar click
@@ -224,10 +224,14 @@ export function AdminDashboard({ currentTab, basePath = "/admin", initialData = 
   const { activeTab, setActiveTab } = useAdminTab();
   const [currentAdmin, setCurrentAdmin] = useState<Participant | null>(null);
   const { registerTour } = useTour();
-  // Seeded from the server render (see get-initial-dashboard-data.ts) when
-  // available, so the first paint already has data instead of an empty
-  // state + loading bar - see fetchAllData's mount effect below, which
-  // skips its own fetch when this initial data is present.
+  // Fetched by the portal's layout.tsx (see get-initial-dashboard-data.ts)
+  // and handed down via context rather than a page.tsx prop, since a prop
+  // from page.tsx would re-fetch on every ?tab= sidebar click - layouts
+  // don't re-render on searchParams-only navigation, so this only runs once
+  // per real page load. Seeds state below so the first paint already has
+  // data instead of an empty state + loading bar - see fetchAllData's mount
+  // effect further down, which skips its own fetch when this is present.
+  const initialData = useInitialAdminDashboardData();
   const [venues, setVenues] = useState<Venue[]>(initialData?.venues ?? []);
   const [participants, setParticipants] = useState<Participant[]>(initialData?.participants ?? []);
   const [clients, setClients] = useState<Client[]>(initialData?.clients ?? []);
