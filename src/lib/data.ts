@@ -202,6 +202,25 @@ export const OUT_OF_OFFICE_RATES: { [key: string]: number } = {
   "H": 7000, "J": 8000, "K": 9000, "L": 10000, "M": 11000, "N": 12000,
   "P": 13000, "Q": 14000, "R": 15000, "S": 16000
 };
-    
 
-    
+// Sorts by date descending, newest first. Shared between the admin
+// dashboard's client-side fetch (after mutations) and the server-side
+// initial-data prefetch (see admin/get-initial-dashboard-data.ts) so both
+// produce identically-ordered lists. Decorate-sort-undecorate: the sort key
+// is computed once per row up front instead of re-parsing a Date on every
+// comparison inside sort() itself - with 9,000+ requests that difference is
+// the dominant cost of a naive sort.
+export function sortRequestsByDateDesc(requests: PerdiemRequest[]): PerdiemRequest[] {
+  return requests
+    .map((r) => ({ r, t: new Date(r.date).getTime() }))
+    .sort((a, b) => b.t - a.t)
+    .map(({ r }) => r);
+}
+
+export function sortEventsByDateDesc(events: AppEvent[]): AppEvent[] {
+  return events
+    .map((e) => ({ e, t: new Date(e.createdAt || e.eventDates[0]).getTime() }))
+    .sort((a, b) => b.t - a.t)
+    .map(({ e }) => e);
+}
+

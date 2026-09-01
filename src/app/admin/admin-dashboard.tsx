@@ -112,6 +112,8 @@ import { AdminInsightsTab } from "./admin-insights";
 import { ParticipantLookup } from "./insights/participant-lookup";
 import { useAdminTab } from "./admin-tab-context";
 import { inviteAdmin, setParticipantDisabled } from "@/lib/admin-api-client";
+import { sortRequestsByDateDesc, sortEventsByDateDesc } from "@/lib/data";
+import type { InitialAdminDashboardData } from "./get-initial-dashboard-data";
 
 const dataProvider = supabaseDb;
 
@@ -213,7 +215,7 @@ const downloadCSV = (csvData: string, filename: string) => {
     document.body.removeChild(link);
 }
 
-export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab: string; basePath?: string }) {
+export function AdminDashboard({ currentTab, basePath = "/admin", initialData = null }: { currentTab: string; basePath?: string; initialData?: InitialAdminDashboardData | null }) {
   const searchParams = useSearchParams();
 
   // Shared with the sidebar (see admin-tab-context.tsx) so a sidebar click
@@ -222,13 +224,17 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
   const { activeTab, setActiveTab } = useAdminTab();
   const [currentAdmin, setCurrentAdmin] = useState<Participant | null>(null);
   const { registerTour } = useTour();
-  const [venues, setVenues] = useState<Venue[]>([]);
-  const [participants, setParticipants] = useState<Participant[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [documents, setDocuments] = useState<Document[]>([]);
+  // Seeded from the server render (see get-initial-dashboard-data.ts) when
+  // available, so the first paint already has data instead of an empty
+  // state + loading bar - see fetchAllData's mount effect below, which
+  // skips its own fetch when this initial data is present.
+  const [venues, setVenues] = useState<Venue[]>(initialData?.venues ?? []);
+  const [participants, setParticipants] = useState<Participant[]>(initialData?.participants ?? []);
+  const [clients, setClients] = useState<Client[]>(initialData?.clients ?? []);
+  const [documents, setDocuments] = useState<Document[]>(initialData?.documents ?? []);
   const [participantClientFilter, setParticipantClientFilter] = useState(searchParams.get('clientId') ?? 'all');
-  const [perdiemRequests, setPerdiemRequests] = useState<PerdiemRequest[]>([]);
-  const [events, setEvents] = useState<AppEvent[]>([]);
+  const [perdiemRequests, setPerdiemRequests] = useState<PerdiemRequest[]>(initialData?.perdiemRequests ?? []);
+  const [events, setEvents] = useState<AppEvent[]>(initialData?.events ?? []);
   
   const [isAddVenueOpen, setIsAddVenueOpen] = useState(false);
   const [newVenue, setNewVenue] = useState(defaultNewVenue);
@@ -343,7 +349,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
     setSelectedQuarter("all");
   };
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialData);
   const { toast } = useToast();
 
   // Correction path for browser back/forward and direct URL visits, which
@@ -392,24 +398,8 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
       setParticipants(participantsData);
       setClients(clientsData);
       setDocuments(documentsData);
-      // Sort requests by date descending - the sort key is computed once per
-      // row up front (decorate-sort-undecorate) instead of re-parsing a Date
-      // on every comparison inside the sort itself. With 9,000+ rows,
-      // re-parsing per-comparison meant well over 100,000 Date constructions
-      // (O(n log n) comparisons x 2 parses each) blocking the main thread
-      // right after the fetch resolved, before the UI could update.
-      setPerdiemRequests(
-        requestsData
-          .map((r) => ({ r, t: new Date(r.date).getTime() }))
-          .sort((a, b) => b.t - a.t)
-          .map(({ r }) => r)
-      );
-      setEvents(
-        eventsData
-          .map((e) => ({ e, t: new Date(e.createdAt || e.eventDates[0]).getTime() }))
-          .sort((a, b) => b.t - a.t)
-          .map(({ e }) => e)
-      );
+      setPerdiemRequests(sortRequestsByDateDesc(requestsData));
+      setEvents(sortEventsByDateDesc(eventsData));
     } catch (error) {
       console.error("Failed to fetch data:", error);
       toast({
@@ -424,8 +414,12 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
 
 
   useEffect(() => {
+    // The server render already fetched this (see get-initial-dashboard-data.ts)
+    // - only fall back to a client-side fetch when that prefetch is missing,
+    // e.g. it failed server-side, or an ancestor Server Component didn't pass it.
+    if (initialData) return;
     fetchAllData();
-  }, [fetchAllData]);
+  }, [fetchAllData, initialData]);
 
   const applyFilters = useCallback(() => {
         let data = perdiemRequests;

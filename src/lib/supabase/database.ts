@@ -5,6 +5,7 @@
  * (see ../data.ts) and the database's snake_case columns.
  */
 import { supabase } from './client';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Venue, PerdiemRequest, Participant, AppEvent, AccessTier, Client, WorkType, Document } from '../data';
 
 // --- Generic camelCase <-> snake_case row mapping ---
@@ -35,14 +36,19 @@ function fromRow<T>(row: Record<string, any>, fieldMap: FieldMap): T {
 // MILESTONE_HANDOFF.md's note on the Insights dashboard undercount this caused.
 const FETCH_ALL_PAGE_SIZE = 1000;
 
-async function fetchAllRows(table: string, applyFilter?: (query: any) => any): Promise<Record<string, any>[]> {
+async function fetchAllRows(table: string, applyFilter?: (query: any) => any, client: SupabaseClient = supabase): Promise<Record<string, any>[]> {
   // Gets the row count first (a `head: true` query - no rows returned, just
   // the count) so every page can be requested concurrently below instead of
   // one-at-a-time - with ~9,000+ rows in perdiem_requests that's ~9 pages,
   // and awaiting them sequentially was the dominant cost in every admin
   // dashboard tab's initial load (they all wait on the same fetchAllData()
   // call regardless of which tab is actually being viewed), not just Insights.
-  let countQuery = supabase.from(table).select('*', { count: 'exact', head: true });
+  //
+  // `client` defaults to the browser singleton but can be swapped for a
+  // per-request server client (see supabase/server.ts) so the same
+  // pagination/mapping logic can run during the initial server render - see
+  // admin/get-initial-dashboard-data.ts.
+  let countQuery = client.from(table).select('*', { count: 'exact', head: true });
   if (applyFilter) {
     countQuery = applyFilter(countQuery);
   }
@@ -62,7 +68,7 @@ async function fetchAllRows(table: string, applyFilter?: (query: any) => any): P
   }
 
   const pages = await Promise.all(pageStarts.map(async (from) => {
-    let query = supabase.from(table).select('*').range(from, from + FETCH_ALL_PAGE_SIZE - 1);
+    let query = client.from(table).select('*').range(from, from + FETCH_ALL_PAGE_SIZE - 1);
     if (applyFilter) {
       query = applyFilter(query);
     }
@@ -166,8 +172,8 @@ const REQUEST_FIELDS: FieldMap = {
  * Fetches all venues from the 'venues' table.
  * @returns {Promise<Venue[]>} A promise that resolves to an array of venue objects.
  */
-export const getVenues = async (): Promise<Venue[]> => {
-  const { data, error } = await supabase.from('venues').select('*');
+export const getVenues = async (client: SupabaseClient = supabase): Promise<Venue[]> => {
+  const { data, error } = await client.from('venues').select('*');
   if (error) {
     console.error("Error fetching venues: ", error);
     return [];
@@ -213,9 +219,9 @@ export const addVenue = async (venue: VenueData): Promise<string> => {
  * Fetches all participants from the 'participants' table.
  * @returns {Promise<Participant[]>} A promise that resolves to an array of participant objects.
  */
-export const getParticipants = async (): Promise<Participant[]> => {
+export const getParticipants = async (client: SupabaseClient = supabase): Promise<Participant[]> => {
   try {
-    const data = await fetchAllRows('participants');
+    const data = await fetchAllRows('participants', undefined, client);
     return data.map((row) => fromRow<Participant>(row, PARTICIPANT_FIELDS));
   } catch (error) {
     console.error("Error fetching participants: ", error);
@@ -395,9 +401,9 @@ export const addEventWithId = async (eventId: string, event: Partial<AppEvent>):
  * Fetches all events from the 'events' table.
  * @returns {Promise<AppEvent[]>}
  */
-export const getEvents = async (): Promise<AppEvent[]> => {
+export const getEvents = async (client: SupabaseClient = supabase): Promise<AppEvent[]> => {
   try {
-    const data = await fetchAllRows('events');
+    const data = await fetchAllRows('events', undefined, client);
     return data.map((row) => fromRow<AppEvent>(row, EVENT_FIELDS));
   } catch (error) {
     console.error("Error fetching events: ", error);
@@ -485,9 +491,9 @@ export const checkInToEvent = async (eventId: string, dateString: string): Promi
  * Fetches all per diem requests from the 'perdiem_requests' table.
  * @returns {Promise<PerdiemRequest[]>} A promise that resolves to an array of per diem request objects.
  */
-export const getPerDiemRequests = async (): Promise<PerdiemRequest[]> => {
+export const getPerDiemRequests = async (client: SupabaseClient = supabase): Promise<PerdiemRequest[]> => {
   try {
-    const data = await fetchAllRows('perdiem_requests');
+    const data = await fetchAllRows('perdiem_requests', undefined, client);
     return data.map((row) => fromRow<PerdiemRequest>(row, REQUEST_FIELDS));
   } catch (error) {
     console.error("Error fetching per diem requests: ", error);
@@ -585,8 +591,8 @@ export const markEventAsPaid = async (eventId: string, transactionCode: string):
  * RLS returns nothing for Client Admins/Users, who don't need this list).
  * @returns {Promise<Client[]>}
  */
-export const getClients = async (): Promise<Client[]> => {
-  const { data, error } = await supabase
+export const getClients = async (client: SupabaseClient = supabase): Promise<Client[]> => {
+  const { data, error } = await client
     .from('clients')
     .select('id, name, slug, onedrive_drive_id, onedrive_folder_id, onedrive_folder_link')
     .order('name');
@@ -751,8 +757,8 @@ const mapDocumentRow = (row: any): Document => ({
  * their own client's submissions; Super/Master Admin see every client's).
  * @returns {Promise<Document[]>}
  */
-export const getDocuments = async (): Promise<Document[]> => {
-  const { data, error } = await supabase
+export const getDocuments = async (client: SupabaseClient = supabase): Promise<Document[]> => {
+  const { data, error } = await client
     .from('documents')
     .select('*')
     .order('first_seen_at', { ascending: false });
