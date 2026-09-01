@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, ChevronDown, Loader2, QrCode, Upload, File as FileIcon, X, Wallet, Paperclip, Info, Trash2, Search, AlertTriangle, SlidersHorizontal } from "lucide-react";
+import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, ChevronDown, ChevronLeft, ChevronRight, Loader2, QrCode, Upload, File as FileIcon, X, Wallet, Paperclip, Info, Trash2, Search, AlertTriangle, SlidersHorizontal } from "lucide-react";
 import Image from "next/image";
 import { DateRange } from "react-day-picker";
 import { format, isWithinInterval, parseISO, isPast, endOfDay, subDays, isValid, startOfQuarter, endOfQuarter } from "date-fns";
@@ -287,6 +287,12 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
   const [isBulkPaidDialogOpen, setIsBulkPaidDialogOpen] = useState(false);
   const [bulkPaidEvent, setBulkPaidEvent] = useState<AppEvent | null>(null);
   const [bulkTransactionCode, setBulkTransactionCode] = useState("");
+  // O(1) lookup instead of participants.find() per row in the Requests
+  // table below - with 9,000+ requests, a linear scan through participants
+  // on every row was part of what made that table's render block the main
+  // thread long enough to trigger the browser's "Page Unresponsive" warning.
+  const participantsById = useMemo(() => new Map(participants.map((p) => [p.id, p])), [participants]);
+  const requestsPagination = usePagination(perdiemRequests);
   const approvedRequestsForBulkPay = useMemo(() => {
     if (!bulkPaidEvent) return [];
     return perdiemRequests.filter(
@@ -1163,9 +1169,9 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                 <Table>
                     <TableHeader><TableRow><TableHead>Participant</TableHead><TableHead>Event</TableHead><TableHead>Status</TableHead><TableHead>Date Submitted</TableHead><TableHead className="text-right">Amount</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
                     <TableBody>
-                    {loading ? <TableSkeletonRows columns={6} /> : perdiemRequests.map(request => (
+                    {loading ? <TableSkeletonRows columns={6} /> : requestsPagination.paged.map(request => (
                         <TableRow key={request.id}>
-                        <TableCell><div className="font-medium">{request.participantName}</div><div className="hidden text-sm text-muted-foreground md:inline">{participants.find(p => p.id === request.participantId)?.idNumber}</div></TableCell>
+                        <TableCell><div className="font-medium">{request.participantName}</div><div className="hidden text-sm text-muted-foreground md:inline">{request.participantId ? participantsById.get(request.participantId)?.idNumber : undefined}</div></TableCell>
                         <TableCell>{request.eventName}</TableCell>
                         <TableCell><Badge variant={getBadgeVariant(request.status)}>{request.status}</Badge></TableCell>
                         <TableCell>{formatDateSafe(request.date)}</TableCell>
@@ -1198,6 +1204,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                     </TableBody>
                 </Table>
               </div>
+              <TablePagination page={requestsPagination.page} pageCount={requestsPagination.pageCount} totalItems={perdiemRequests.length} pageSize={TABLE_PAGE_SIZE} onPageChange={requestsPagination.setPage} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -2223,8 +2230,53 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
   );
 }
 
+const TABLE_PAGE_SIZE = 50;
+
+// Slices a table's data to one page instead of rendering every row into the
+// DOM at once - with 9,000+ per diem requests, an unpaginated table was
+// blocking the main thread long enough to trigger the browser's "Page
+// Unresponsive" warning. `page` isn't clamped into state: it's clamped on
+// read (`currentPage`) so a shrinking filter result doesn't need an effect
+// to correct it, and switching back to a larger result set remembers where
+// the user was.
+function usePagination<T>(data: T[], pageSize: number = TABLE_PAGE_SIZE) {
+  const [page, setPage] = useState(1);
+  const pageCount = Math.max(1, Math.ceil(data.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const paged = useMemo(
+    () => data.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [data, currentPage, pageSize]
+  );
+  return { page: currentPage, pageCount, setPage, paged };
+}
+
+function TablePagination({ page, pageCount, totalItems, pageSize, onPageChange }: { page: number, pageCount: number, totalItems: number, pageSize: number, onPageChange: (page: number) => void }) {
+  if (totalItems === 0) return null;
+  const start = (page - 1) * pageSize + 1;
+  const end = Math.min(page * pageSize, totalItems);
+  return (
+    <div className="flex items-center justify-between gap-2 pt-3">
+      <p className="text-sm text-muted-foreground">
+        Showing {start}-{end} of {totalItems}
+      </p>
+      <div className="flex items-center gap-1">
+        <Button variant="outline" size="sm" onClick={() => onPageChange(page - 1)} disabled={page <= 1}>
+          <ChevronLeft className="h-4 w-4" />
+          <span className="sr-only">Previous page</span>
+        </Button>
+        <span className="text-sm px-2 whitespace-nowrap">Page {page} of {pageCount}</span>
+        <Button variant="outline" size="sm" onClick={() => onPageChange(page + 1)} disabled={page >= pageCount}>
+          <ChevronRight className="h-4 w-4" />
+          <span className="sr-only">Next page</span>
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 // Helper component for the report tabs to reduce repetition
 function ReportTabContent({ title, data, loading, onDownload, isPaidReport = false }: { title: string, data: PerdiemRequest[], loading: boolean, onDownload: () => void, isPaidReport?: boolean }) {
+    const { page, pageCount, setPage, paged } = usePagination(data);
     const getBadgeVariant = (status: PerdiemRequest['status']) => {
         switch (status) {
             case 'Pending': return 'outline';
@@ -2270,7 +2322,7 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
                             <TableSkeletonRows columns={isPaidReport ? 6 : 5} />
                         ) : data.length === 0 ? (
                              <TableRow><TableCell colSpan={isPaidReport ? 6 : 5} className="h-24 text-center">No requests match the current filters.</TableCell></TableRow>
-                        ) : data.map(request => (
+                        ) : paged.map(request => (
                             <TableRow key={request.id}>
                             <TableCell>
                                 <div className="flex items-center gap-1.5">
@@ -2299,12 +2351,14 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
                         </TableBody>
                     </Table>
                 </div>
+                <TablePagination page={page} pageCount={pageCount} totalItems={data.length} pageSize={TABLE_PAGE_SIZE} onPageChange={setPage} />
             </CardContent>
         </Card>
     )
 }
 
 function AmendedReportTabContent({ title, data, loading }: { title: string, data: PerdiemRequest[], loading: boolean }) {
+    const { page, pageCount, setPage, paged } = usePagination(data);
     return (
         <Card>
             <CardHeader>
@@ -2328,7 +2382,7 @@ function AmendedReportTabContent({ title, data, loading }: { title: string, data
                             <TableSkeletonRows columns={5} />
                         ) : data.length === 0 ? (
                              <TableRow><TableCell colSpan={5} className="h-24 text-center">No amended requests match the current filters.</TableCell></TableRow>
-                        ) : data.map(request => (
+                        ) : paged.map(request => (
                             <TableRow key={request.id}>
                                 <TableCell>{request.participantName}</TableCell>
                                 <TableCell>{request.eventName}</TableCell>
@@ -2340,6 +2394,7 @@ function AmendedReportTabContent({ title, data, loading }: { title: string, data
                         </TableBody>
                     </Table>
                 </div>
+                <TablePagination page={page} pageCount={pageCount} totalItems={data.length} pageSize={TABLE_PAGE_SIZE} onPageChange={setPage} />
             </CardContent>
         </Card>
     );
