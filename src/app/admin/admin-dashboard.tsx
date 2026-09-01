@@ -293,6 +293,17 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
   // thread long enough to trigger the browser's "Page Unresponsive" warning.
   const participantsById = useMemo(() => new Map(participants.map((p) => [p.id, p])), [participants]);
   const requestsPagination = usePagination(perdiemRequests);
+  // O(1) lookup instead of perdiemRequests.some() per row in the Events
+  // table below (unmemoized there, so it re-ran on every render, not just
+  // data load) - with 9,000+ requests and hundreds of events, that scan was
+  // hundreds of thousands of comparisons on every keystroke/dialog toggle.
+  const eventIdsWithApprovedRequests = useMemo(() => {
+    const ids = new Set<string>();
+    for (const r of perdiemRequests) {
+      if (r.status === 'Approved') ids.add(r.eventId);
+    }
+    return ids;
+  }, [perdiemRequests]);
   const approvedRequestsForBulkPay = useMemo(() => {
     if (!bulkPaidEvent) return [];
     return perdiemRequests.filter(
@@ -1000,6 +1011,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
       p.phoneNumber.includes(searchTerm)
     );
   }, [participants, participantSearch, participantClientFilter, isMultiClientAdmin]);
+  const participantsPagination = usePagination(filteredParticipants);
 
   const handleSelectParticipant = useCallback((participantId: string) => {
     setEventFormData(prev => {
@@ -1481,7 +1493,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                                 const lastEventDate = event.eventDates?.length ? parseISO(event.eventDates[event.eventDates.length - 1]) : new Date(0);
                                 const isEventPast = isPast(endOfDay(lastEventDate));
                                 const totalAssigned = event.allocatedParticipants.length + (event.unregisteredParticipants?.length || 0);
-                                const hasApprovedRequests = perdiemRequests.some(r => r.eventId === event.id && r.status === 'Approved');
+                                const hasApprovedRequests = eventIdsWithApprovedRequests.has(event.id);
 
                                 return (
                                     <TableRow key={event.id}>
@@ -1674,7 +1686,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                 <Table>
                     <TableHeader><TableRow><TableHead className="w-[64px]"><span className="sr-only">Image</span></TableHead><TableHead>Name</TableHead><TableHead>ID Number</TableHead><TableHead>Role</TableHead><TableHead>Duty Station</TableHead><TableHead>Job Group</TableHead><TableHead>Status</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
                     <TableBody>
-                    {loading ? <TableSkeletonRows columns={8} /> : filteredParticipants.map(participant => (
+                    {loading ? <TableSkeletonRows columns={8} /> : participantsPagination.paged.map(participant => (
                         <TableRow key={participant.id}>
                         <TableCell><Image alt="Participant avatar" className="aspect-square rounded-full object-cover" height="40" src={participant.avatarUrl} width="40" data-ai-hint="person portrait"/></TableCell>
                         <TableCell className="font-medium whitespace-nowrap">{participant.name}</TableCell>
@@ -1711,6 +1723,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                     </TableBody>
                 </Table>
               </div>
+              <TablePagination page={participantsPagination.page} pageCount={participantsPagination.pageCount} totalItems={filteredParticipants.length} pageSize={TABLE_PAGE_SIZE} onPageChange={participantsPagination.setPage} />
             </CardContent>
           </Card>
         </TabsContent>

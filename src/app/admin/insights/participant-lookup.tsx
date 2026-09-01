@@ -17,8 +17,16 @@ import { InsightCard } from "./shared";
  * it finds historical-import participants with no app account too (see
  * the equivalent fix on the Reports tab's Participant filter).
  */
+// A broad query (a common name, or a short digit prefix) can match
+// thousands of the 9,000+ requests - capping how many rows actually render
+// keeps the table from blocking the main thread, without affecting the
+// totals below, which are computed over every match, not just the shown rows.
+const MAX_VISIBLE_MATCHES = 200;
+
 export function ParticipantLookup({ requests, clients }: { requests: PerdiemRequest[]; clients: Client[] }) {
   const [query, setQuery] = useState("");
+
+  const clientsById = useMemo(() => new Map(clients.map(c => [c.id, c])), [clients]);
 
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -29,6 +37,7 @@ export function ParticipantLookup({ requests, clients }: { requests: PerdiemRequ
     );
   }, [requests, query]);
 
+  const visibleMatches = matches.length > MAX_VISIBLE_MATCHES ? matches.slice(0, MAX_VISIBLE_MATCHES) : matches;
   const totalPaid = matches.filter(r => r.status === "Paid" || r.status === "Confirmed").reduce((s, r) => s + r.totalPerdiem, 0);
   const totalAll = matches.reduce((s, r) => s + r.totalPerdiem, 0);
 
@@ -82,11 +91,11 @@ export function ParticipantLookup({ requests, clients }: { requests: PerdiemRequ
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {matches.map(r => (
+                  {visibleMatches.map(r => (
                     <TableRow key={r.id}>
                       <TableCell className="font-medium whitespace-nowrap">{r.participantName}</TableCell>
                       <TableCell>{r.participantPhone ?? "—"}</TableCell>
-                      <TableCell>{clients.find(c => c.id === r.clientId)?.name ?? "—"}</TableCell>
+                      <TableCell>{clientsById.get(r.clientId)?.name ?? "—"}</TableCell>
                       <TableCell>{r.eventName}</TableCell>
                       <TableCell>{formatDateSafe(r.date)}</TableCell>
                       <TableCell><Badge variant="secondary">{r.status}</Badge></TableCell>
@@ -96,6 +105,11 @@ export function ParticipantLookup({ requests, clients }: { requests: PerdiemRequ
                 </TableBody>
               </Table>
             </div>
+            {matches.length > MAX_VISIBLE_MATCHES && (
+              <p className="text-sm text-muted-foreground">
+                Showing the first {MAX_VISIBLE_MATCHES} of {matches.length} matches - refine your search to narrow this down.
+              </p>
+            )}
           </>
         )}
       </div>

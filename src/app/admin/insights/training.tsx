@@ -36,6 +36,11 @@ export function TrainingSection({ requests, events, venues }: { requests: Perdie
   const scatterRef = useRef<HTMLDivElement>(null);
 
   const data = useMemo(() => {
+    // O(1) lookup instead of events.find() per request below - with 9,000+
+    // requests, a linear scan through events on every one of them was the
+    // dominant cost of this section's data prep.
+    const eventsById = new Map(events.map(e => [e.id, e]));
+
     const durationBuckets = new Map<string, number>([["1 day", 0], ["2 days", 0], ["3 days", 0], ["4+ days", 0]]);
     for (const e of events) {
       const days = trainingDaysFor(e);
@@ -79,7 +84,7 @@ export function TrainingSection({ requests, events, venues }: { requests: Perdie
 
     const scatterData = requests
       .map(r => {
-        const event = events.find(e => e.id === r.eventId);
+        const event = eventsById.get(r.eventId);
         if (!event) return null;
         const days = trainingDaysFor(event);
         if (days <= 0) return null;
