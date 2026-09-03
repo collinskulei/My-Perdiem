@@ -132,7 +132,7 @@ const dutyStations = Object.keys(dutyStationCoordinates);
 const defaultNewVenue = { name: "", city: "", county: "Nairobi", latitude: "0", longitude: "0" };
 const defaultNewEvent = { name: "", facilitator: "", venueId: "", allocatedParticipants: [] as string[], checkinStartTime: "10:00", checkinEndTime: "17:00", jobGroupAllowances: { ...OUT_OF_OFFICE_RATES } };
 const defaultFilters = {
-  date: undefined, county: "all", dutyStation: "all", participant: "",
+  date: undefined, county: "all", venue: "all", dutyStation: "all", participant: "",
   trainingDate: undefined, employer: "all", staffCategory: "all",
   transportMin: "", transportMax: "", dsaMin: "", dsaMax: "", eventType: "all",
   flagStatus: "all",
@@ -315,6 +315,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
   const [filters, setFilters] = useState<{
     date: DateRange | undefined;
     county: string;
+    venue: string;
     dutyStation: string;
     participant: string;
     trainingDate: DateRange | undefined;
@@ -362,6 +363,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
   const ADVANCED_FILTER_KEYS = ["dutyStation", "trainingDate", "eventType", "employer", "staffCategory", "transportMin", "transportMax", "dsaMin", "dsaMax", "flagStatus"] as const;
   const activeAdvancedFilterCount = ADVANCED_FILTER_KEYS.filter(k => filters[k] !== defaultFilters[k]).length;
   const activeQuickFilterCount = (filters.county !== defaultFilters.county ? 1 : 0)
+    + (filters.venue !== defaultFilters.venue ? 1 : 0)
     + (filters.participant.trim() !== '' ? 1 : 0)
     + (filters.date ? 1 : 0);
   const totalActiveFilterCount = activeAdvancedFilterCount + activeQuickFilterCount;
@@ -457,6 +459,11 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
             const venueInCounty = venues.filter(v => v.county === filters.county).map(v => v.id);
             const eventsInCounty = events.filter(e => venueInCounty.includes(e.venueId)).map(e => e.id);
             data = data.filter(req => eventsInCounty.includes(req.eventId));
+        }
+
+        if (filters.venue !== 'all') {
+            const eventsAtVenue = events.filter(e => e.venueId === filters.venue).map(e => e.id);
+            data = data.filter(req => eventsAtVenue.includes(req.eventId));
         }
 
         if (filters.dutyStation !== 'all') {
@@ -1856,6 +1863,16 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                                     <SelectContent>
                                         <SelectItem value="all">All Counties</SelectItem>
                                         {kenyanCounties.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <Label htmlFor="venue-filter">Venue</Label>
+                                <Select value={filters.venue} onValueChange={(v) => setFilters(f => ({ ...f, venue: v }))}>
+                                    <SelectTrigger id="venue-filter"><SelectValue placeholder="Select Venue" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Venues</SelectItem>
+                                        {venues.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
