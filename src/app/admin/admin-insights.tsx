@@ -19,6 +19,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import type { PerdiemRequest, AppEvent, Participant, Venue, Client } from "@/lib/data";
+import { EVENT_TYPE_CATEGORIES } from "@/lib/data";
 import { InsightsLoadingSkeleton, InsightCard } from "./insights/shared";
 import { ParticipantLookup } from "./insights/participant-lookup";
 import { OverviewSection } from "./insights/overview";
@@ -35,12 +36,10 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
   clients: Client[];
   loading: boolean;
 }) {
-  // "Event type" - there's no dedicated type/category field on events, so
-  // this filters by the event's own name (e.g. "TOT", "EUT - County
-  // Sub-Counties", "Workshop/Conference - Sarova Stanley"), same approach
-  // as the equivalent Reports tab filter. Applied once here and cascaded
-  // to every sub-section + the participant lookup below, rather than each
-  // section needing its own copy of this filter.
+  // Event Type is the controlled category set on the event itself (see
+  // EVENT_TYPE_CATEGORIES in lib/data.ts), not the raw eventName - applied
+  // once here and cascaded to every sub-section + the participant lookup
+  // below, rather than each section needing its own copy of this filter.
   const [eventType, setEventType] = useState("all");
   // County isn't a field on events/requests directly - it lives on the
   // venue (see Venue.county), so this resolves county -> matching venues ->
@@ -51,14 +50,17 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
   // Reports tab's Date Range filter.
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
-  const eventTypeOptions = useMemo(
-    () => Array.from(new Set(requests.map(r => r.eventName).filter((e): e is string => !!e))).sort(),
-    [requests]
-  );
   const countyOptions = useMemo(
     () => Array.from(new Set(venues.map(v => v.county).filter((c): c is string => !!c))).sort(),
     [venues]
   );
+
+  // null (not just "all") when unfiltered, same reasoning as
+  // eventIdsInCounty below.
+  const eventIdsOfType = useMemo(() => {
+    if (eventType === "all") return null;
+    return new Set(events.filter(e => e.eventType === eventType).map(e => e.id));
+  }, [eventType, events]);
 
   // null (not just "all") when unfiltered, so filteredRequests/filteredEvents
   // below can tell "no county filter applied" apart from "this county has
@@ -84,21 +86,21 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
 
   const filteredRequests = useMemo(() => {
     let data = requests;
-    if (eventType !== "all") data = data.filter(r => r.eventName === eventType);
+    if (eventIdsOfType) data = data.filter(r => eventIdsOfType.has(r.eventId));
     if (eventIdsInCounty) data = data.filter(r => eventIdsInCounty.has(r.eventId));
     if (dateRange?.from && dateRange.to) {
       const { from, to } = dateRange;
       data = data.filter(r => isWithinInterval(new Date(r.date), { start: from, end: to }));
     }
     return data;
-  }, [requests, eventType, eventIdsInCounty, dateRange]);
+  }, [requests, eventIdsOfType, eventIdsInCounty, dateRange]);
   const filteredEvents = useMemo(() => {
     let data = events;
-    if (eventType !== "all") data = data.filter(e => e.name === eventType);
+    if (eventIdsOfType) data = data.filter(e => eventIdsOfType.has(e.id));
     if (eventIdsInCounty) data = data.filter(e => eventIdsInCounty.has(e.id));
     if (eventIdsInDateRange) data = data.filter(e => eventIdsInDateRange.has(e.id));
     return data;
-  }, [events, eventType, eventIdsInCounty, eventIdsInDateRange]);
+  }, [events, eventIdsOfType, eventIdsInCounty, eventIdsInDateRange]);
 
   if (loading) {
     return <InsightsLoadingSkeleton />;
@@ -127,7 +129,7 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
               <SelectTrigger id="insights-event-type"><SelectValue placeholder="All Event Types" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Event Types</SelectItem>
-                {eventTypeOptions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                {EVENT_TYPE_CATEGORIES.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>

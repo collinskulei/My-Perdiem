@@ -59,6 +59,7 @@ import { useToast } from "@/hooks/use-toast";
 import * as supabaseDb from "@/lib/supabase/database";
 import type { HistoricalImportRow } from "@/lib/supabase/database";
 import type { PerdiemRequest } from "@/lib/data";
+import { EVENT_TYPE_CATEGORIES } from "@/lib/data";
 
 type FieldKey =
   | "eventName" | "venueName" | "venueCity" | "venueCounty"
@@ -343,6 +344,11 @@ function detectConflicts(
 
 export type BatchDefaults = {
   eventName: string;
+  // Required (unlike every other field here, which is an optional
+  // fallback) - see EVENT_TYPE_CATEGORIES in lib/data.ts. One batch is
+  // always one event/type, so this is asked for once per upload rather than
+  // mapped per-row, same reasoning as Event Name/Venue/Date above.
+  eventType: string;
   venueName: string;
   venueCity: string;
   eventDate: string;
@@ -391,6 +397,7 @@ function buildRows(
 
       const row: HistoricalImportRow = {
         eventName: get("eventName") ?? defaults.eventName,
+        eventType: defaults.eventType,
         venueName: get("venueName") ?? defaults.venueName ?? undefined,
         venueCity: get("venueCity") ?? defaults.venueCity ?? undefined,
         venueCounty: get("venueCounty"),
@@ -452,7 +459,7 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
   const [mapping, setMapping] = useState<Partial<Record<FieldKey, number>>>({});
   const [dateColumns, setDateColumns] = useState<Set<number>>(new Set());
   const [defaults, setDefaults] = useState<BatchDefaults>({
-    eventName: "", venueName: "", venueCity: "", eventDate: "", status: "Paid", transactionCode: "",
+    eventName: "", eventType: "", venueName: "", venueCity: "", eventDate: "", status: "Paid", transactionCode: "",
   });
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState<{ rowsDone: number; rowsTotal: number } | null>(null);
@@ -473,7 +480,7 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
     setDataRows([]);
     setMapping({});
     setDateColumns(new Set());
-    setDefaults({ eventName: "", venueName: "", venueCity: "", eventDate: "", status: "Paid", transactionCode: "" });
+    setDefaults({ eventName: "", eventType: "", venueName: "", venueCity: "", eventDate: "", status: "Paid", transactionCode: "" });
     setResult(null);
     setImportProgress(null);
     setExistingForClient(null);
@@ -647,14 +654,23 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
         {step === "details" && (
           <div className="space-y-4 py-2">
             <p className="text-sm text-muted-foreground">
-              Everything below is optional - it's only used as a fallback for rows that don't map their own column for
-              it in the next step. If your sheet already has its own Event Name (or Venue/Date/Status) column per row,
-              just leave these blank and click Next.
+              Everything below except Event Type is optional - it's only used as a fallback for rows that don't map
+              their own column for it in the next step. If your sheet already has its own Event Name (or
+              Venue/Date/Status) column per row, just leave those blank and click Next.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Event Name (fallback default)</Label>
                 <Input value={defaults.eventName} onChange={(e) => setDefaults((d) => ({ ...d, eventName: e.target.value }))} placeholder="e.g. Embu CHP Training - Sept 2025" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Event Type *</Label>
+                <Select value={defaults.eventType} onValueChange={(v) => setDefaults((d) => ({ ...d, eventType: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select the category for this batch" /></SelectTrigger>
+                  <SelectContent>
+                    {EVENT_TYPE_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Event Date</Label>
@@ -687,7 +703,7 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={reset}>Back</Button>
-              <Button onClick={() => setStep("map")}>Next: Map Columns</Button>
+              <Button onClick={() => setStep("map")} disabled={!defaults.eventType}>Next: Map Columns</Button>
             </DialogFooter>
           </div>
         )}

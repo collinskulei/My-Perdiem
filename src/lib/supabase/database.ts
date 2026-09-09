@@ -105,6 +105,7 @@ const EVENT_FIELDS: FieldMap = {
   name: 'name',
   createdAt: 'created_at',
   eventDates: 'event_dates',
+  eventType: 'event_type',
   venueId: 'venue_id',
   venueName: 'venue_name',
   venueCity: 'venue_city',
@@ -890,6 +891,11 @@ export const setAccessTier = async (
  */
 export type HistoricalImportRow = {
   eventName: string;
+  // The controlled category (see EVENT_TYPE_CATEGORIES in lib/data.ts) - set
+  // explicitly by the import wizard's required batch default, not guessed
+  // from eventName. Optional here only so an older/direct caller doesn't hard
+  // fail - the RPC itself falls back to a keyword guess when it's blank.
+  eventType?: string;
   venueName?: string;
   venueCity?: string;
   venueCounty?: string;

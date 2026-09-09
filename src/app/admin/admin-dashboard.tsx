@@ -89,8 +89,8 @@ import { TopLoadingBar } from "@/components/ui/top-loading-bar";
 import { TableSkeletonRows } from "@/components/ui/table-skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import type { PerdiemRequest, Venue, Participant, AppEvent, Client, Document } from "@/lib/data";
-import { OUT_OF_OFFICE_RATES, dutyStationCoordinates } from "@/lib/data";
+import type { PerdiemRequest, Venue, Participant, AppEvent, Client, Document, EventTypeCategory } from "@/lib/data";
+import { OUT_OF_OFFICE_RATES, dutyStationCoordinates, EVENT_TYPE_CATEGORIES } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import * as supabaseDb from '@/lib/supabase/database';
 import * as storage from '@/lib/supabase/storage';
@@ -130,7 +130,20 @@ const kenyanCounties = [
 const dutyStations = Object.keys(dutyStationCoordinates);
 
 const defaultNewVenue = { name: "", city: "", county: "Nairobi", latitude: "0", longitude: "0" };
-const defaultNewEvent = { name: "", facilitator: "", venueId: "", allocatedParticipants: [] as string[], checkinStartTime: "10:00", checkinEndTime: "17:00", jobGroupAllowances: { ...OUT_OF_OFFICE_RATES } };
+const defaultNewEvent = { name: "", eventType: "" as EventTypeCategory | "", facilitator: "", venueId: "", allocatedParticipants: [] as string[], checkinStartTime: "10:00", checkinEndTime: "17:00", jobGroupAllowances: { ...OUT_OF_OFFICE_RATES } };
+// TEMPORARY (see the "lock this back down" note where this is used below) -
+// an event whose last date has passed normally can't be edited at all, to
+// protect dates/venue/participants/allowances already tied to real payment
+// records. Loosened on 2026-09-09 specifically so Super/Master Admins can
+// correct the Event Type backfill's ~366-row 'Other' bucket (see migration
+// 0020_event_type_category.sql) via the UI instead of raw SQL - every other
+// field on a past event stays locked (see the <fieldset> in the event
+// dialog below), so this alone can't let anyone alter dates/venue/
+// participants/payments on historical records.
+function getIsEventPast(event: AppEvent): boolean {
+  const lastEventDate = event.eventDates?.length ? parseISO(event.eventDates[event.eventDates.length - 1]) : new Date(0);
+  return isPast(endOfDay(lastEventDate));
+}
 const defaultFilters = {
   date: undefined, county: "all", venue: "all", dutyStation: "all", participant: "",
   trainingDate: undefined, employer: "all", staffCategory: "all",
@@ -247,7 +260,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
   
   const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<AppEvent | null>(null);
-  const [eventFormData, setEventFormData] = useState<{name: string; facilitator: string; venueId: string; allocatedParticipants: string[], checkinStartTime?: string, checkinEndTime?: string, jobGroupAllowances?: { [key: string]: number } }>(defaultNewEvent);
+  const [eventFormData, setEventFormData] = useState<{name: string; eventType: EventTypeCategory | ""; facilitator: string; venueId: string; allocatedParticipants: string[], checkinStartTime?: string, checkinEndTime?: string, jobGroupAllowances?: { [key: string]: number } }>(defaultNewEvent);
   const [eventDates, setEventDates] = useState<Date[] | undefined>();
   const [isParticipantSelectOpen, setParticipantSelectOpen] = useState(false);
   const [isVenueSelectOpen, setVenueSelectOpen] = useState(false);
@@ -500,7 +513,8 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
         }
 
         if (filters.eventType !== 'all') {
-            data = data.filter(req => req.eventName === filters.eventType);
+            const eventIdsOfType = events.filter(e => e.eventType === filters.eventType).map(e => e.id);
+            data = data.filter(req => eventIdsOfType.includes(req.eventId));
         }
 
         if (filters.staffCategory !== 'all') {
@@ -600,6 +614,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
       setEditingEvent(eventToEdit);
       setEventFormData({
         name: eventToEdit.name,
+        eventType: eventToEdit.eventType,
         facilitator: eventToEdit.facilitator,
         venueId: eventToEdit.venueId,
         allocatedParticipants: eventToEdit.allocatedParticipants,
@@ -633,8 +648,8 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
   const handleSaveEvent = async () => {
     setIsSaving(true);
     const selectedVenue = venues.find(v => v.id === eventFormData.venueId);
-    if (!eventFormData.name || !eventDates || eventDates.length === 0 || !eventFormData.venueId || !selectedVenue || !eventFormData.facilitator ) {
-        toast({ title: "Missing fields", description: "Please fill all event details, including at least one date.", variant: "destructive" });
+    if (!eventFormData.name || !eventFormData.eventType || !eventDates || eventDates.length === 0 || !eventFormData.venueId || !selectedVenue || !eventFormData.facilitator ) {
+        toast({ title: "Missing fields", description: "Please fill all event details, including Event Type and at least one date.", variant: "destructive" });
         setIsSaving(false);
         return;
     }
@@ -664,19 +679,26 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
 
     const finalUnregistered = uploadedParticipants.filter(up => !phoneToIdMap.has(up.phoneNumber));
 
-    const eventData: Partial<AppEvent> = {
-        name: eventFormData.name,
-        eventDates: formattedDates,
-        venueId: eventFormData.venueId,
-        venueName: selectedVenue.name,
-        venueCity: selectedVenue.city,
-        facilitator: eventFormData.facilitator,
-        allocatedParticipants: finalAllocatedIds,
-        unregisteredParticipants: finalUnregistered,
-        checkinStartTime: eventFormData.checkinStartTime,
-        checkinEndTime: eventFormData.checkinEndTime,
-        jobGroupAllowances: eventFormData.jobGroupAllowances,
-    };
+    // Belt-and-suspenders on top of the dialog's <fieldset> lock (see the
+    // TEMPORARY note on getIsEventPast) - even if a field were somehow
+    // changed while disabled, a past event's save only ever writes
+    // eventType, never dates/venue/participants/allowances.
+    const eventData: Partial<AppEvent> = isEditingPastEvent
+        ? { eventType: eventFormData.eventType as EventTypeCategory }
+        : {
+            name: eventFormData.name,
+            eventType: eventFormData.eventType as EventTypeCategory,
+            eventDates: formattedDates,
+            venueId: eventFormData.venueId,
+            venueName: selectedVenue.name,
+            venueCity: selectedVenue.city,
+            facilitator: eventFormData.facilitator,
+            allocatedParticipants: finalAllocatedIds,
+            unregisteredParticipants: finalUnregistered,
+            checkinStartTime: eventFormData.checkinStartTime,
+            checkinEndTime: eventFormData.checkinEndTime,
+            jobGroupAllowances: eventFormData.jobGroupAllowances,
+        };
     
     try {
         let eventId = editingEvent?.id;
@@ -1028,15 +1050,15 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
     () => Array.from(new Set(perdiemRequests.map(r => r.employer).filter((e): e is string => !!e))).sort(),
     [perdiemRequests]
   );
-  // "Event type" - there's no dedicated type/category field on events, so
-  // this filters by the event's own name (e.g. "TOT", "EUT - County
-  // Sub-Counties", "Workshop/Conference - Sarova Stanley") - in practice
-  // this client's naming already encodes the training type directly in
-  // the name. Distinct values actually present, same pattern as employerOptions.
-  const eventTypeOptions = useMemo(
-    () => Array.from(new Set(perdiemRequests.map(r => r.eventName).filter((e): e is string => !!e))).sort(),
-    [perdiemRequests]
-  );
+  // Event Type is now the controlled category set on the event itself (see
+  // EVENT_TYPE_CATEGORIES in lib/data.ts), not a distinct-eventName list -
+  // that used to explode into one option per free-text training
+  // description (e.g. "TOT" and "Bungoma County TaifaCare TOT HMIS
+  // Training" showing up as two unrelated filter values for the same
+  // category). The fixed list always shows all categories, even ones with
+  // zero matching events right now, so admins aren't left wondering why an
+  // option "disappeared".
+  const eventTypeOptions = EVENT_TYPE_CATEGORIES;
 
   const isMultiClientAdmin = currentAdmin?.accessTier === 'super_admin' || currentAdmin?.accessTier === 'master_admin';
 
@@ -1206,6 +1228,9 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
     setEventFormData(prev => ({ ...prev, jobGroupAllowances: newAllowances }));
   };
 
+  // See the TEMPORARY note on getIsEventPast above - drives the <fieldset>
+  // lock in the event dialog below, not the Edit menu item itself anymore.
+  const isEditingPastEvent = !!editingEvent && getIsEventPast(editingEvent);
 
   return (
     <>
@@ -1282,12 +1307,30 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                                 {editingEvent ? 'Update the details for this event.' : 'Enter the details for the new event.'}
                             </DialogDescription>
                         </DialogHeader>
+                        {isEditingPastEvent && (
+                            <div className="flex items-start gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+                                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                                <span>This event has already happened. Only <strong>Event Type</strong> can be corrected here - every other field is locked to protect dates/venue/participants/payments already tied to this event.</span>
+                            </div>
+                        )}
                         <div className="flex-1 overflow-y-auto pr-6 -mr-6">
                             <div className="grid gap-6 py-4">
+                                <fieldset disabled={isEditingPastEvent} className="contents">
                                 <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
                                     <Label htmlFor="event-name" className="text-left sm:text-right">Name</Label>
                                     <Input id="event-name" value={eventFormData.name} onChange={(e) => setEventFormData({ ...eventFormData, name: e.target.value })} className="col-span-3" />
                                 </div>
+                                </fieldset>
+                                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="event-type" className="text-left sm:text-right">Event Type</Label>
+                                    <Select value={eventFormData.eventType} onValueChange={(v) => setEventFormData({ ...eventFormData, eventType: v as EventTypeCategory })}>
+                                        <SelectTrigger id="event-type" className="col-span-3"><SelectValue placeholder="Select a category" /></SelectTrigger>
+                                        <SelectContent>
+                                            {EVENT_TYPE_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <fieldset disabled={isEditingPastEvent} className="contents">
                                 <div className="grid grid-cols-1 sm:grid-cols-4 items-start gap-4">
                                     <Label htmlFor="event-date" className="text-left sm:text-right pt-2">Event Dates</Label>
                                     <div className="col-span-3">
@@ -1506,6 +1549,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
 
                                     </div>
                                 </div>
+                                </fieldset>
                             </div>
                         </div>
                         <DialogFooter>
@@ -1534,8 +1578,6 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                         <TableBody>
                             {loading ? <TableSkeletonRows columns={7} />
                             : events.map((event) => {
-                                const lastEventDate = event.eventDates?.length ? parseISO(event.eventDates[event.eventDates.length - 1]) : new Date(0);
-                                const isEventPast = isPast(endOfDay(lastEventDate));
                                 const totalAssigned = event.allocatedParticipants.length + (event.unregisteredParticipants?.length || 0);
                                 const hasApprovedRequests = eventIdsWithApprovedRequests.has(event.id);
 
@@ -1557,7 +1599,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                    <DropdownMenuItem onSelect={() => handleOpenEventDialog(event)} disabled={isEventPast}>
+                                                    <DropdownMenuItem onSelect={() => handleOpenEventDialog(event)}>
                                                         Edit
                                                     </DropdownMenuItem>
                                                     <DropdownMenuSeparator />

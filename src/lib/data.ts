@@ -92,6 +92,14 @@ export type Venue = {
   longitude: number;
 };
 
+// The controlled set of event categories - replaces filtering/grouping by
+// raw eventName, which used to explode into one option per distinct
+// free-text name (see docs/MILESTONE_HANDOFF.md's Event Type filter note).
+// Set once at event creation (live or historical import) and never guessed
+// from eventName again after that point.
+export const EVENT_TYPE_CATEGORIES = ['TOT', 'EUT', 'CHP', 'Workshop', 'Other'] as const;
+export type EventTypeCategory = typeof EVENT_TYPE_CATEGORIES[number];
+
 /**
  * Represents an event created by an admin.
  */
@@ -101,6 +109,7 @@ export type AppEvent = {
   name: string;
   createdAt: string; // ISO date string
   eventDates: string[]; // Array of 'yyyy-MM-dd' strings
+  eventType: EventTypeCategory;
   venueId: string;
   venueName: string;
   venueCity: string;
