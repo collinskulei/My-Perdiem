@@ -8,10 +8,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ListFilter } from "lucide-react";
+import { ListFilter, Calendar as CalendarIcon } from "lucide-react";
+import { DateRange } from "react-day-picker";
+import { format, isWithinInterval } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import type { PerdiemRequest, AppEvent, Participant, Venue, Client } from "@/lib/data";
 import { InsightsLoadingSkeleton, InsightCard } from "./insights/shared";
 import { ParticipantLookup } from "./insights/participant-lookup";
@@ -41,6 +47,9 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
   // events held at those venues -> requests for those events, same
   // indirection the Reports tab's County filter already uses.
   const [county, setCounty] = useState("all");
+  // Payment Date range - same field (PerdiemRequest.date) and widget as the
+  // Reports tab's Date Range filter.
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   const eventTypeOptions = useMemo(
     () => Array.from(new Set(requests.map(r => r.eventName).filter((e): e is string => !!e))).sort(),
@@ -60,18 +69,36 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
     return new Set(events.filter(e => venueIds.has(e.venueId)).map(e => e.id));
   }, [county, venues, events]);
 
+  // null (not just "no range picked") when unfiltered, same reasoning as
+  // eventIdsInCounty above - lets filteredEvents tell "no date filter" apart
+  // from "no events have a request in this range" without an extra branch.
+  const eventIdsInDateRange = useMemo(() => {
+    if (!dateRange?.from || !dateRange.to) return null;
+    const { from, to } = dateRange;
+    return new Set(
+      requests
+        .filter(r => isWithinInterval(new Date(r.date), { start: from, end: to }))
+        .map(r => r.eventId)
+    );
+  }, [dateRange, requests]);
+
   const filteredRequests = useMemo(() => {
     let data = requests;
     if (eventType !== "all") data = data.filter(r => r.eventName === eventType);
     if (eventIdsInCounty) data = data.filter(r => eventIdsInCounty.has(r.eventId));
+    if (dateRange?.from && dateRange.to) {
+      const { from, to } = dateRange;
+      data = data.filter(r => isWithinInterval(new Date(r.date), { start: from, end: to }));
+    }
     return data;
-  }, [requests, eventType, eventIdsInCounty]);
+  }, [requests, eventType, eventIdsInCounty, dateRange]);
   const filteredEvents = useMemo(() => {
     let data = events;
     if (eventType !== "all") data = data.filter(e => e.name === eventType);
     if (eventIdsInCounty) data = data.filter(e => eventIdsInCounty.has(e.id));
+    if (eventIdsInDateRange) data = data.filter(e => eventIdsInDateRange.has(e.id));
     return data;
-  }, [events, eventType, eventIdsInCounty]);
+  }, [events, eventType, eventIdsInCounty, eventIdsInDateRange]);
 
   if (loading) {
     return <InsightsLoadingSkeleton />;
@@ -113,6 +140,37 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
                 {countyOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
+          </div>
+          <div className="w-full max-w-xs space-y-1.5">
+            <Label htmlFor="insights-date-range">Payment Date Range</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  id="insights-date-range"
+                  variant="outline"
+                  className={cn("w-full justify-start text-left font-normal", !dateRange && "text-muted-foreground")}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                  <span className="truncate">
+                    {dateRange?.from
+                      ? (dateRange.to
+                          ? <>{format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}</>
+                          : format(dateRange.from, "LLL dd, y"))
+                      : "All dates"}
+                  </span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar initialFocus mode="range" selected={dateRange} onSelect={setDateRange} numberOfMonths={2} />
+                {dateRange && (
+                  <div className="border-t p-2">
+                    <Button variant="ghost" size="sm" className="w-full" onClick={() => setDateRange(undefined)}>
+                      Clear dates
+                    </Button>
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
       </InsightCard>

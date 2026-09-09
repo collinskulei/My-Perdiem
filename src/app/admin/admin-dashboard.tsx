@@ -242,6 +242,8 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
   
   const [isAddVenueOpen, setIsAddVenueOpen] = useState(false);
   const [newVenue, setNewVenue] = useState(defaultNewVenue);
+  const [editingVenue, setEditingVenue] = useState<Venue | null>(null);
+  const [editVenueForm, setEditVenueForm] = useState(defaultNewVenue);
   
   const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<AppEvent | null>(null);
@@ -555,6 +557,41 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
     } catch (error) {
       console.error("Error adding venue: ", error);
       toast({ title: "Error", description: "Failed to add venue.", variant: "destructive" });
+    }
+  };
+
+  const handleOpenEditVenue = (venue: Venue) => {
+    setEditingVenue(venue);
+    setEditVenueForm({
+      name: venue.name,
+      city: venue.city,
+      county: venue.county,
+      latitude: venue.latitude.toString(),
+      longitude: venue.longitude.toString(),
+    });
+  };
+
+  const handleUpdateVenue = async () => {
+    if (!editingVenue) return;
+    if (!editVenueForm.name || !editVenueForm.city || !editVenueForm.county) {
+      toast({ title: "Missing fields", description: "Please fill out all venue details.", variant: "destructive" });
+      return;
+    }
+    const venueUpdate = {
+      name: editVenueForm.name,
+      city: editVenueForm.city,
+      county: editVenueForm.county,
+      latitude: parseFloat(editVenueForm.latitude) || 0,
+      longitude: parseFloat(editVenueForm.longitude) || 0,
+    };
+    try {
+      await dataProvider.updateVenue(editingVenue.id, venueUpdate);
+      setVenues(prev => prev.map(v => v.id === editingVenue.id ? { ...v, ...venueUpdate } : v));
+      setEditingVenue(null);
+      toast({ title: "Success", description: "Venue updated successfully." });
+    } catch (error) {
+      console.error("Error updating venue: ", error);
+      toast({ title: "Error", description: "Failed to update venue.", variant: "destructive" });
     }
   };
 
@@ -1790,7 +1827,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                    <DropdownMenuItem>Edit</DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => handleOpenEditVenue(venue)}>Edit</DropdownMenuItem>
                                     <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
                                 </DropdownMenuContent>
                                 </DropdownMenu>
@@ -1802,8 +1839,21 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                 </div>
             </CardContent>
           </Card>
+          <Dialog open={!!editingVenue} onOpenChange={(open) => { if (!open) setEditingVenue(null); }}>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Edit Venue</DialogTitle><DialogDescription>Update this venue&apos;s details, including its county.</DialogDescription></DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="edit-venue-name" className="text-right">Name</Label><Input id="edit-venue-name" value={editVenueForm.name} onChange={(e) => setEditVenueForm({ ...editVenueForm, name: e.target.value })} className="col-span-3"/></div>
+                <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="edit-venue-county" className="text-right">County</Label><Select value={editVenueForm.county} onValueChange={(value) => setEditVenueForm({ ...editVenueForm, county: value })}><SelectTrigger className="col-span-3"><SelectValue placeholder="Select a county" /></SelectTrigger><SelectContent>{kenyanCounties.map(county => (<SelectItem key={county} value={county}>{county}</SelectItem>))}</SelectContent></Select></div>
+                <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="edit-venue-city" className="text-right">City</Label><Input id="edit-venue-city" value={editVenueForm.city} onChange={(e) => setEditVenueForm({ ...editVenueForm, city: e.target.value })} className="col-span-3"/></div>
+                <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="edit-venue-lat" className="text-right">Latitude</Label><Input id="edit-venue-lat" type="number" value={editVenueForm.latitude} onChange={(e) => setEditVenueForm({ ...editVenueForm, latitude: e.target.value })} className="col-span-3"/></div>
+                <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="edit-venue-lon" className="text-right">Longitude</Label><Input id="edit-venue-lon" type="number" value={editVenueForm.longitude} onChange={(e) => setEditVenueForm({ ...editVenueForm, longitude: e.target.value })} className="col-span-3"/></div>
+              </div>
+              <DialogFooter><Button type="button" onClick={handleUpdateVenue}>Save Changes</Button></DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
-        
+
         <TabsContent value="reports">
             <Card>
                  <CardHeader>

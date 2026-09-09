@@ -213,6 +213,19 @@ export const addVenue = async (venue: VenueData): Promise<string> => {
   return data.id;
 };
 
+/**
+ * Updates a venue's row in the 'venues' table.
+ * @param {string} venueId - The venue's unique ID.
+ * @param {Partial<VenueData>} dataToUpdate - An object containing the fields to update.
+ * @returns {Promise<void>} A promise that resolves when the row is successfully updated.
+ */
+export const updateVenue = async (venueId: string, dataToUpdate: Partial<VenueData>): Promise<void> => {
+  const { error } = await supabase.from('venues').update(dataToUpdate).eq('id', venueId);
+  if (error) {
+    throw error;
+  }
+};
+
 // --- PARTICIPANTS TABLE ---
 
 /**
