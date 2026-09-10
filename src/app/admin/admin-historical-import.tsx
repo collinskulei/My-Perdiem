@@ -62,7 +62,7 @@ import type { PerdiemRequest } from "@/lib/data";
 import { EVENT_TYPE_CATEGORIES } from "@/lib/data";
 
 type FieldKey =
-  | "eventName" | "venueName" | "venueCity" | "venueCounty"
+  | "eventName" | "eventType" | "venueName" | "venueCity" | "venueCounty"
   | "trainingStartDate" | "trainingEndDate" | "numberOfTrainingDays"
   | "participantName" | "participantPhone" | "participantIdNumber"
   | "status" | "transactionCode" | "notes" | "employer" | "totalPerdiem"
@@ -73,6 +73,7 @@ type FieldKey =
 
 const FIELD_LABELS: Record<FieldKey, string> = {
   eventName: "Event Name (overrides batch default)",
+  eventType: "Event Type (overrides batch default)",
   venueName: "Venue Name (overrides batch default)",
   venueCity: "Venue City",
   venueCounty: "Venue County",
@@ -137,12 +138,17 @@ const HEADER_GUESSES: [FieldKey, RegExp][] = [
   ["knhStaff", /\bknh\b/],
   ["shaStaff", /\bsha\b/],
   ["otherStaff", /^\s*other\s*$/],
+  // A per-row category column (TOT/EUT/CHP/Workshop/...) - lets one file mix
+  // categories instead of being forced to a single batch-level Event Type.
+  // Must come before the eventName guess below, which would otherwise claim
+  // "Event Type"/"Training Category" for itself (it matches bare "event").
+  ["eventType", /event.*type|training.*type|training.*categor|programme?.*type|\bcategory\b/],
   // Matches "event"/"training" as the event/training name, but not when
-  // followed later in the same header by "start"/"end"/"day(s)"/"venue" -
+  // followed later in the same header by "start"/"end"/"day(s)"/"venue"/"type" -
   // those belong to the dedicated fields above instead (e.g. "Training
   // Start Date" would otherwise match this before ever reaching "Training
   // description").
-  ["eventName", /(event|training)(?!.*\b(start|end|days?|venue)\b)/],
+  ["eventName", /(event|training)(?!.*\b(start|end|days?|venue|type|categor\w*)\b)/],
   ["venueCity", /city/],
   // Deliberately excludes headers that also say "employer" (e.g.
   // "County/Employer", a participant's own org, not the event venue's
@@ -277,6 +283,19 @@ function looksLikeTwoNames(name: string): boolean {
   return !!titleMatches && titleMatches.length >= 2;
 }
 
+/** Matches a mapped Event Type cell against the fixed category list
+ * case/whitespace-insensitively (real sheets vary casing, e.g. "tot" or
+ * "ToT"), so a per-row category column works without demanding an exact
+ * match. Returns undefined for anything that doesn't resolve to one of the
+ * five known categories, letting the caller fall back to the batch default
+ * instead of silently sending a bogus string (the import RPC would otherwise
+ * just re-guess it from eventName anyway, hiding the mismatch from review). */
+function normalizeEventType(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  const match = EVENT_TYPE_CATEGORIES.find((c) => c.toLowerCase() === raw.trim().toLowerCase());
+  return match;
+}
+
 /** Normalizes to the app's +254XXXXXXXXX convention regardless of input
  * format (07XXXXXXXX, 7XXXXXXXX, 2547XXXXXXXX, +2547XXXXXXXX all resolve to
  * the same value) - matches what registered participants store, so the RPC's
@@ -395,10 +414,17 @@ function buildRows(
       const rowDates = dateColumnIndexes.flatMap((idx) => splitDates(r[idx]));
       const eventDates = rowDates.length > 0 ? rowDates : (defaults.eventDate ? [defaults.eventDate] : undefined);
 
+      const rawEventType = get("eventType");
+      const mappedEventType = normalizeEventType(rawEventType);
+
       const row: HistoricalImportRow = {
         eventName: get("eventName") ?? defaults.eventName,
-        eventType: defaults.eventType,
-        venueName: get("venueName") ?? defaults.venueName ?? undefined,
+        eventType: mappedEventType ?? defaults.eventType,
+        // Falls back to "Unspecified" (not undefined/blank) so rows with no
+        // venue info still get a real, filterable venue instead of silently
+        // dropping the venue link (see import_historical_events - a null
+        // venueName never creates/matches a venues row at all).
+        venueName: get("venueName") ?? defaults.venueName ?? "Unspecified",
         venueCity: get("venueCity") ?? defaults.venueCity ?? undefined,
         venueCounty: get("venueCounty"),
         eventDates,
@@ -432,6 +458,9 @@ function buildRows(
       const errors: string[] = [];
       const warnings: string[] = [];
       if (!row.eventName) errors.push("Missing event name (set a batch default or map a column)");
+      if (rawEventType && !mappedEventType) {
+        warnings.push(`Event Type "${rawEventType}" doesn't match a known category - using batch default "${defaults.eventType}" instead`);
+      }
       if (!row.participantName) errors.push("Missing participant name");
       // Some real files put summary text ("<Event> — EVENT TOTAL",
       // "GRAND TOTAL — PAYMENTS TO DATE") in the same column as the
@@ -655,8 +684,9 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
           <div className="space-y-4 py-2">
             <p className="text-sm text-muted-foreground">
               Everything below except Event Type is optional - it's only used as a fallback for rows that don't map
-              their own column for it in the next step. If your sheet already has its own Event Name (or
-              Venue/Date/Status) column per row, just leave those blank and click Next.
+              their own column for it in the next step. If your sheet already has its own Event Name/Type (or
+              Venue/Date/Status) column per row, just leave those blank and click Next - if your file mixes several
+              training categories, map an Event Type column in the next step instead of relying on this default.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
@@ -821,6 +851,7 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
                 <TableHeader>
                   <TableRow>
                     <TableHead>Event</TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Participant</TableHead>
                     <TableHead>Phone</TableHead>
@@ -840,6 +871,7 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
                     return (
                       <TableRow key={i} className={v.errors.length > 0 || v.warnings.length > 0 ? "bg-destructive/5" : undefined}>
                         <TableCell>{v.row.eventName || <span className="text-destructive">missing</span>}</TableCell>
+                        <TableCell>{v.row.eventType}</TableCell>
                         <TableCell>
                           {eventDate ? (
                             dateLooksValid ? eventDate : <span className="text-destructive" title="Doesn't look like a real date - check the mapped date column">{eventDate}</span>
