@@ -37,18 +37,35 @@ function fromRow<T>(row: Record<string, any>, fieldMap: FieldMap): T {
 const FETCH_ALL_PAGE_SIZE = 1000;
 
 async function fetchAllRows(table: string, applyFilter?: (query: any) => any, client: SupabaseClient = supabase): Promise<Record<string, any>[]> {
-  // Gets the row count first (a `head: true` query - no rows returned, just
-  // the count) so every page can be requested concurrently below instead of
-  // one-at-a-time - with ~9,000+ rows in perdiem_requests that's ~9 pages,
-  // and awaiting them sequentially was the dominant cost in every admin
-  // dashboard tab's initial load (they all wait on the same fetchAllData()
-  // call regardless of which tab is actually being viewed), not just Insights.
+  // Gets a row count first so every page can be requested concurrently
+  // below instead of one-at-a-time - with ~9,000+ rows in perdiem_requests
+  // that's ~9 pages, and awaiting them sequentially was the dominant cost
+  // in every admin dashboard tab's initial load (they all wait on the same
+  // fetchAllData() call regardless of which tab is actually being viewed),
+  // not just Insights.
+  //
+  // Uses `count: 'estimated'`, not `'exact'` - an exact count under RLS has
+  // to evaluate the row policy (which calls security-definer functions like
+  // can_access_client()) for every single row just to produce a number, and
+  // on perdiem_requests once it grew past ~11,000 rows that alone exceeded
+  // Supabase's statement timeout, throwing before a single row was fetched
+  // (silently emptying every admin dashboard tab, with the real error only
+  // visible in Vercel's runtime logs, not the browser). 'estimated' uses the
+  // planner's statistics instead of a real scan, so it's always fast, but
+  // can be stale - especially right after a large bulk import, before an
+  // autovacuum has re-analyzed the table. So it's only trusted as a
+  // starting guess for how many pages to request in the first parallel
+  // batch below, never as the final word: the loop keeps requesting
+  // further pages for as long as the last one came back completely full,
+  // and only stops once a genuinely short (or empty) page proves there's
+  // nothing left - a stale underestimate can slow the first batch down by
+  // one extra round trip, but can never silently drop rows.
   //
   // `client` defaults to the browser singleton but can be swapped for a
   // per-request server client (see supabase/server.ts) so the same
   // pagination/mapping logic can run during the initial server render - see
   // admin/get-initial-dashboard-data.ts.
-  let countQuery = client.from(table).select('*', { count: 'exact', head: true });
+  let countQuery = client.from(table).select('*', { count: 'estimated', head: true });
   if (applyFilter) {
     countQuery = applyFilter(countQuery);
   }
@@ -57,17 +74,7 @@ async function fetchAllRows(table: string, applyFilter?: (query: any) => any, cl
     throw countError;
   }
 
-  const total = count ?? 0;
-  if (total === 0) {
-    return [];
-  }
-
-  const pageStarts: number[] = [];
-  for (let from = 0; from < total; from += FETCH_ALL_PAGE_SIZE) {
-    pageStarts.push(from);
-  }
-
-  const pages = await Promise.all(pageStarts.map(async (from) => {
+  const fetchPage = async (from: number): Promise<Record<string, any>[]> => {
     let query = client.from(table).select('*').range(from, from + FETCH_ALL_PAGE_SIZE - 1);
     if (applyFilter) {
       query = applyFilter(query);
@@ -77,9 +84,27 @@ async function fetchAllRows(table: string, applyFilter?: (query: any) => any, cl
       throw error;
     }
     return data ?? [];
-  }));
+  };
 
-  return pages.flat();
+  const estimatedTotal = count ?? 0;
+  let pageStarts = Array.from(
+    { length: Math.max(1, Math.ceil(estimatedTotal / FETCH_ALL_PAGE_SIZE)) },
+    (_, i) => i * FETCH_ALL_PAGE_SIZE
+  );
+
+  const allRows: Record<string, any>[] = [];
+  while (pageStarts.length > 0) {
+    const pages = await Promise.all(pageStarts.map(fetchPage));
+    for (const page of pages) {
+      allRows.push(...page);
+    }
+    const lastPage = pages[pages.length - 1];
+    pageStarts = lastPage.length === FETCH_ALL_PAGE_SIZE
+      ? [pageStarts[pageStarts.length - 1] + FETCH_ALL_PAGE_SIZE]
+      : [];
+  }
+
+  return allRows;
 }
 
 const PARTICIPANT_FIELDS: FieldMap = {
