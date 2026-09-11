@@ -150,12 +150,16 @@ const HEADER_GUESSES: [FieldKey, RegExp][] = [
   // description").
   ["eventName", /(event|training)(?!.*\b(start|end|days?|venue|type|categor\w*)\b)/],
   ["venueCity", /city/],
-  // Deliberately excludes headers that also say "employer" (e.g.
-  // "County/Employer", a participant's own org, not the event venue's
-  // county) - a plain "employer" match would be a false positive here.
-  ["venueCounty", /county(?!.*employer)/],
+  // A combined "County/Employer" header (seen on a real client template) is
+  // read as County, not Employer - the County filter is one of the fully
+  // queryable Reports/Insights fields, so a shared column defaults to
+  // feeding that one. The employer guess below excludes any header that
+  // also says "county" (in either order) so the two guesses can't both
+  // claim the same combined column - Employer is simply left unmapped for
+  // a file using a header like this; map it manually if you need it too.
+  ["venueCounty", /county/],
   ["venueName", /venue/],
-  ["employer", /employer/],
+  ["employer", /^(?!.*\bcounty\b).*employer/],
   ["participantName", /name/],
   ["status", /status/],
   ["transactionCode", /transaction|reference|mpesa|code/],
@@ -281,6 +285,23 @@ function looksLikeTwoNames(name: string): boolean {
   if (/\b(and|&)\b/i.test(name)) return true;
   const titleMatches = name.match(new RegExp(TITLE_PREFIX.source, "gi"));
   return !!titleMatches && titleMatches.length >= 2;
+}
+
+/** Keyword-classifies a resolved Event Name into one of the fixed
+ * categories - kept in sync with public.classify_event_type() in
+ * 0020_event_type_category.sql (same patterns, same fallback to 'Other'),
+ * so a real client template like this one (a free-text "Training
+ * description" column and no dedicated category column) still gets each
+ * row sorted automatically instead of every row landing under one
+ * batch-level Event Type. Never trusted over an explicit per-row Event Type
+ * column value or a confident category clashing with 'Other' - see the
+ * priority order in buildRows below. */
+function classifyEventType(eventName: string): string {
+  if (/(training of trainers|\btots?\b)/i.test(eventName)) return "TOT";
+  if (/(end user training|\beut\b)/i.test(eventName)) return "EUT";
+  if (/(\bchp\b|community health)/i.test(eventName)) return "CHP";
+  if (/(workshop|conference)/i.test(eventName)) return "Workshop";
+  return "Other";
 }
 
 /** Matches a mapped Event Type cell against the fixed category list
@@ -414,12 +435,24 @@ function buildRows(
       const rowDates = dateColumnIndexes.flatMap((idx) => splitDates(r[idx]));
       const eventDates = rowDates.length > 0 ? rowDates : (defaults.eventDate ? [defaults.eventDate] : undefined);
 
+      const resolvedEventName = get("eventName") ?? defaults.eventName;
       const rawEventType = get("eventType");
       const mappedEventType = normalizeEventType(rawEventType);
+      // No dedicated Event Type/category column on this file? Classify from
+      // the resolved Event Name instead of blanket-stamping every row with
+      // the batch default (see classifyEventType above). Only trusted when
+      // it lands on a real category, not its own 'Other' catch-all - a
+      // confident keyword match should win over the batch default (mixed
+      // files), but a row that matches nothing is better left as whatever
+      // the admin explicitly picked than dumped in 'Other' by default.
+      const classifiedEventType = mappedEventType ? undefined : classifyEventType(resolvedEventName ?? "");
+      const resolvedEventType = mappedEventType
+        ?? (classifiedEventType && classifiedEventType !== "Other" ? classifiedEventType : undefined)
+        ?? defaults.eventType;
 
       const row: HistoricalImportRow = {
-        eventName: get("eventName") ?? defaults.eventName,
-        eventType: mappedEventType ?? defaults.eventType,
+        eventName: resolvedEventName,
+        eventType: resolvedEventType,
         // Falls back to "Unspecified" (not undefined/blank) so rows with no
         // venue info still get a real, filterable venue instead of silently
         // dropping the venue link (see import_historical_events - a null
@@ -459,7 +492,9 @@ function buildRows(
       const warnings: string[] = [];
       if (!row.eventName) errors.push("Missing event name (set a batch default or map a column)");
       if (rawEventType && !mappedEventType) {
-        warnings.push(`Event Type "${rawEventType}" doesn't match a known category - using batch default "${defaults.eventType}" instead`);
+        warnings.push(`Event Type "${rawEventType}" doesn't match a known category - using "${resolvedEventType}" instead`);
+      } else if (classifiedEventType && classifiedEventType !== "Other" && classifiedEventType !== defaults.eventType) {
+        warnings.push(`Auto-classified as "${classifiedEventType}" from the Event Name - differs from the batch default "${defaults.eventType}"`);
       }
       if (!row.participantName) errors.push("Missing participant name");
       // Some real files put summary text ("<Event> — EVENT TOTAL",
