@@ -221,7 +221,7 @@ function ClientWidget({
               Dashboard
             </Link>
           </Button>
-          <HistoricalImportDialog clientId={client.id} clientName={client.name} />
+          <HistoricalImportDialog clientId={client.id} clientName={client.name} onImported={onChanged} />
         </div>
         <Button size="sm" variant="ghost" className="w-full justify-between" onClick={() => setExpanded((v) => !v)}>
           Work Types

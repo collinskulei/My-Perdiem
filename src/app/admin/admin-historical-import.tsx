@@ -55,6 +55,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import * as supabaseDb from "@/lib/supabase/database";
 import type { HistoricalImportRow } from "@/lib/supabase/database";
@@ -511,7 +512,7 @@ function buildRows(
     });
 }
 
-export function HistoricalImportDialog({ clientId, clientName }: { clientId: string; clientName: string }) {
+export function HistoricalImportDialog({ clientId, clientName, onImported }: { clientId: string; clientName: string; onImported?: () => void }) {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<"upload" | "details" | "map" | "preview">("upload");
@@ -643,6 +644,11 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
       const finalResult = { importedCount, updatedCount, eventCount: eventIds.size };
       setResult(finalResult);
       toast({ title: "Import complete", description: `${finalResult.importedCount} new, ${finalResult.updatedCount} filled in, across ${finalResult.eventCount} events.` });
+      // Dashboard/Reports/Insights/Analytics all read from the same
+      // fetchAllData()-populated state in admin-dashboard.tsx - without this
+      // they kept showing pre-import numbers until the admin manually
+      // refreshed or switched tabs, even though the data had already landed.
+      onImported?.();
     } catch (error: any) {
       // Large files are split into batches (see IMPORT_BATCH_SIZE) so one
       // failure doesn't need to lose everything - whatever batches already
@@ -657,6 +663,9 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
           : `${error.message} - nothing was saved yet, safe to retry.`,
         variant: "destructive",
       });
+      // Whatever batches committed before the failure should still show up
+      // immediately, same reasoning as the success path above.
+      if (doneSoFar > 0) onImported?.();
     } finally {
       setIsImporting(false);
       setImportProgress(null);
@@ -936,10 +945,20 @@ export function HistoricalImportDialog({ clientId, clientName }: { clientId: str
               <p className="text-xs text-muted-foreground">Showing first 50 of {validated.length} rows.</p>
             )}
             {importProgress && (
-              <p className="text-sm text-muted-foreground">
-                Importing... {importProgress.rowsDone} of {importProgress.rowsTotal} rows
-                {importProgress.rowsTotal > IMPORT_BATCH_SIZE && " (large files are sent in batches - this may take a little while, don't close this dialog)"}
-              </p>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    Importing {importProgress.rowsDone} of {importProgress.rowsTotal} rows...
+                  </span>
+                  <span className="font-medium tabular-nums">
+                    {Math.round((importProgress.rowsDone / importProgress.rowsTotal) * 100)}%
+                  </span>
+                </div>
+                <Progress value={(importProgress.rowsDone / importProgress.rowsTotal) * 100} className="h-2" />
+                {importProgress.rowsTotal > IMPORT_BATCH_SIZE && (
+                  <p className="text-xs text-muted-foreground">Large files are sent in batches - this may take a little while, don&apos;t close this dialog.</p>
+                )}
+              </div>
             )}
             <DialogFooter>
               <Button variant="outline" onClick={() => setStep("map")} disabled={isImporting}>Back</Button>
