@@ -148,7 +148,7 @@ const defaultFilters = {
   date: undefined, county: "all", venue: "all", dutyStation: "all", participant: "",
   trainingDate: undefined, employer: "all", staffCategory: "all",
   transportMin: "", transportMax: "", dsaMin: "", dsaMax: "", eventType: "all",
-  flagStatus: "all",
+  flagStatus: "all", eventName: "",
 };
 // Now the admin dashboard's page heading source, since the sidebar (see
 // admin-sidebar-navigation.tsx) is the only navigation surface - the
@@ -342,6 +342,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
     dsaMax: string;
     eventType: string;
     flagStatus: string;
+    eventName: string;
   }>(defaultFilters);
   // Collapsed by default - see the Reports "Filter Options" panel below,
   // split into always-visible "quick" filters and this collapsible
@@ -375,7 +376,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
   // Filter Options panel) - kept as one list so the active-count badge and
   // "Clear all" button below don't drift out of sync with what's actually
   // rendered inside the collapsible section.
-  const ADVANCED_FILTER_KEYS = ["dutyStation", "trainingDate", "eventType", "employer", "staffCategory", "transportMin", "transportMax", "dsaMin", "dsaMax", "flagStatus"] as const;
+  const ADVANCED_FILTER_KEYS = ["dutyStation", "trainingDate", "eventType", "eventName", "employer", "staffCategory", "transportMin", "transportMax", "dsaMin", "dsaMax", "flagStatus"] as const;
   const activeAdvancedFilterCount = ADVANCED_FILTER_KEYS.filter(k => filters[k] !== defaultFilters[k]).length;
   const activeQuickFilterCount = (filters.county !== defaultFilters.county ? 1 : 0)
     + (filters.venue !== defaultFilters.venue ? 1 : 0)
@@ -515,6 +516,14 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
         if (filters.eventType !== 'all') {
             const eventIdsOfType = events.filter(e => e.eventType === filters.eventType).map(e => e.id);
             data = data.filter(req => eventIdsOfType.includes(req.eventId));
+        }
+
+        if (filters.eventName.trim() !== '') {
+            // Matches the request's own eventName snapshot (not a lookup
+            // through `events`), same reasoning as the participant filter -
+            // works for historical rows too and needs no join.
+            const q = filters.eventName.trim().toLowerCase();
+            data = data.filter(req => req.eventName.toLowerCase().includes(q));
         }
 
         if (filters.staffCategory !== 'all') {
@@ -2023,6 +2032,15 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                                                 {eventTypeOptions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
                                             </SelectContent>
                                         </Select>
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="event-name-filter">Event Name</Label>
+                                        <Input
+                                            id="event-name-filter"
+                                            placeholder="Search by event name..."
+                                            value={filters.eventName}
+                                            onChange={(e) => setFilters(f => ({ ...f, eventName: e.target.value }))}
+                                        />
                                     </div>
                                     <div>
                                         <Label htmlFor="employer-filter">Employer</Label>
