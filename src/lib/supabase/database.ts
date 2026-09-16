@@ -36,6 +36,12 @@ function fromRow<T>(row: Record<string, any>, fieldMap: FieldMap): T {
 // MILESTONE_HANDOFF.md's note on the Insights dashboard undercount this caused.
 const FETCH_ALL_PAGE_SIZE = 1000;
 
+// Caps how many 1000-row pages fetchAllRows requests at once - see that
+// function's comment for the real incident (~29 pages fired in a single
+// Promise.all overloading Supabase, individual pages taking up to 16.5s
+// under that load instead of ~2-3s in isolation) that this guards against.
+const PAGE_FETCH_CONCURRENCY = 6;
+
 async function fetchAllRows(table: string, applyFilter?: (query: any) => any, client: SupabaseClient = supabase): Promise<Record<string, any>[]> {
   // Gets a row count first so every page can be requested concurrently
   // below instead of one-at-a-time - with ~9,000+ rows in perdiem_requests
@@ -74,16 +80,39 @@ async function fetchAllRows(table: string, applyFilter?: (query: any) => any, cl
     throw countError;
   }
 
+  // Real incident (perdiem_requests at ~28,000 rows, ~29 pages): firing
+  // every page in one Promise.all overloads Supabase under concurrent
+  // RLS-evaluated queries - individual pages that took ~2-3s in isolation
+  // were independently measured taking up to 16.5s each under that load,
+  // and Promise.all rejects the instant *any single* page fails or times
+  // out, discarding every already-fetched page with it. The caller's own
+  // try/catch (see getPerDiemRequests etc.) then silently turns that
+  // rejection into an empty array - which is what "dashboard loads fine,
+  // shows nothing, no error" actually was; nothing wrong with the data.
+  //
+  // Fixed two ways: pages are requested in small concurrent waves (bounded
+  // by PAGE_FETCH_CONCURRENCY, not "every page at once"), which is both far
+  // gentler on Supabase and closer to what a browser does anyway (~6
+  // concurrent connections per origin); and a single page that still fails
+  // gets a couple of short retries before giving up, since the failures
+  // observed were transient contention, not a permanent error.
   const fetchPage = async (from: number): Promise<Record<string, any>[]> => {
-    let query = client.from(table).select('*').range(from, from + FETCH_ALL_PAGE_SIZE - 1);
-    if (applyFilter) {
-      query = applyFilter(query);
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      let query = client.from(table).select('*').range(from, from + FETCH_ALL_PAGE_SIZE - 1);
+      if (applyFilter) {
+        query = applyFilter(query);
+      }
+      const { data, error } = await query;
+      if (!error) {
+        return data ?? [];
+      }
+      if (attempt === maxAttempts) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
     }
-    const { data, error } = await query;
-    if (error) {
-      throw error;
-    }
-    return data ?? [];
+    return []; // unreachable - satisfies TypeScript's control-flow analysis
   };
 
   const estimatedTotal = count ?? 0;
@@ -94,7 +123,11 @@ async function fetchAllRows(table: string, applyFilter?: (query: any) => any, cl
 
   const allRows: Record<string, any>[] = [];
   while (pageStarts.length > 0) {
-    const pages = await Promise.all(pageStarts.map(fetchPage));
+    const pages: Record<string, any>[][] = [];
+    for (let i = 0; i < pageStarts.length; i += PAGE_FETCH_CONCURRENCY) {
+      const wave = pageStarts.slice(i, i + PAGE_FETCH_CONCURRENCY);
+      pages.push(...(await Promise.all(wave.map(fetchPage))));
+    }
     for (const page of pages) {
       allRows.push(...page);
     }
@@ -265,8 +298,14 @@ export const getParticipants = async (client: SupabaseClient = supabase): Promis
     const data = await fetchAllRows('participants', undefined, client);
     return data.map((row) => fromRow<Participant>(row, PARTICIPANT_FIELDS));
   } catch (error) {
+    // Re-thrown, not swallowed into [] - see fetchAllRows' comment for the
+    // real incident this caused: a genuine fetch failure silently looked
+    // exactly like "zero participants", no error shown anywhere in the
+    // browser. Callers (fetchAllData in admin-dashboard.tsx,
+    // getInitialAdminDashboardData) already have their own error handling
+    // that surfaces this properly instead.
     console.error("Error fetching participants: ", error);
-    return [];
+    throw error;
   }
 };
 
@@ -447,8 +486,10 @@ export const getEvents = async (client: SupabaseClient = supabase): Promise<AppE
     const data = await fetchAllRows('events', undefined, client);
     return data.map((row) => fromRow<AppEvent>(row, EVENT_FIELDS));
   } catch (error) {
+    // Re-thrown, not swallowed - see getParticipants above and
+    // fetchAllRows' comment for why.
     console.error("Error fetching events: ", error);
-    return [];
+    throw error;
   }
 };
 
@@ -554,8 +595,12 @@ export const getPerDiemRequests = async (client: SupabaseClient = supabase): Pro
     const data = await fetchAllRows('perdiem_requests', undefined, client);
     return data.map((row) => fromRow<PerdiemRequest>(row, REQUEST_FIELDS));
   } catch (error) {
+    // Re-thrown, not swallowed - this is the exact function behind the
+    // "dashboard loads fine but shows zero per-diem data, no error" incident
+    // (see fetchAllRows' comment). Swallowing it into [] made a real fetch
+    // failure indistinguishable from "this client genuinely has no data".
     console.error("Error fetching per diem requests: ", error);
-    return [];
+    throw error;
   }
 };
 
