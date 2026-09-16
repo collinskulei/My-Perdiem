@@ -164,6 +164,13 @@ export type PerdiemRequest = {
   // Pending-recovery amount is derived (totalPerdiem - originalTotal -
   // recoveredAmount), never stored.
   recoveredAmount?: number;
+  // Explicit marker set only by the "Flag Overpayment" action, not by the
+  // ordinary amend-a-pending-request flow above (see supabase/migrations/
+  // 0023) - that flow can also land totalPerdiem above originalTotal
+  // legitimately (e.g. adding a missed allowance), so this flag - not an
+  // amount comparison - is the authoritative signal that a record is an
+  // overpayment needing recovery. Server-side guarded to Super Admin+.
+  isOverpayment?: boolean;
 
   // Detailed financial breakdown from the wizard
   mileageKm?: number;

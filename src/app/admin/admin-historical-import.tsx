@@ -70,7 +70,12 @@ type FieldKey =
   | "mileageKm" | "mileageTotal" | "accommodationNights" | "accommodationTotal"
   | "outOfOfficeAllowance" | "airTicketCost" | "groundTransferCost"
   | "transportAllowance" | "dsaAllowance"
-  | "dhaStaff" | "mohStaff" | "knhStaff" | "shaStaff" | "otherStaff";
+  | "dhaStaff" | "mohStaff" | "knhStaff" | "shaStaff" | "otherStaff"
+  // Optional - most templates won't have these mapped. When present and
+  // less than the row's own amount, the row imports already flagged as an
+  // overpayment instead of needing "Flag Overpayment" run by hand
+  // afterward - see supabase/migrations/0024.
+  | "payableAmount" | "overpaymentReason" | "recoveredAmount";
 
 const FIELD_LABELS: Record<FieldKey, string> = {
   eventName: "Event Name (overrides batch default)",
@@ -103,6 +108,9 @@ const FIELD_LABELS: Record<FieldKey, string> = {
   knhStaff: "KNH Staff (Yes/blank)",
   shaStaff: "SHA Staff (Yes/blank)",
   otherStaff: "Other Staff (Yes/blank)",
+  payableAmount: "Payable Amount (flags an overpayment if less than the Amount column)",
+  overpaymentReason: "Overpayment Reason",
+  recoveredAmount: "Recovered Amount (so far)",
 };
 
 const REQUIRED_COLUMN_FIELDS: FieldKey[] = ["participantName", "totalPerdiem"];
@@ -172,6 +180,14 @@ const HEADER_GUESSES: [FieldKey, RegExp][] = [
   ["outOfOfficeAllowance", /out.of.office/],
   ["airTicketCost", /ticket|flight|air/],
   ["groundTransferCost", /transfer|taxi|ground/],
+  // Must come before totalPerdiem's broad "amount" fallback below - a
+  // "Payable Amount"/"Recovered Amount" column would otherwise risk being
+  // misread as the total-paid column itself, on a file with no
+  // clean "Total Amount"-shaped header for totalPerdiem's own earlier,
+  // more specific pattern to have already claimed.
+  ["payableAmount", /payable/],
+  ["recoveredAmount", /recover/],
+  ["overpaymentReason", /overpay/],
   ["totalPerdiem", /perdiem|per.diem|total|amount/],
   ["participantIdNumber", /\bid\b/],
 ];
@@ -487,7 +503,14 @@ function buildRows(
         groundTransferCost: getNum("groundTransferCost"),
         transportAllowance: getNum("transportAllowance"),
         dsaAllowance: getNum("dsaAllowance"),
+        payableAmount: getNum("payableAmount"),
+        overpaymentReason: get("overpaymentReason"),
+        recoveredAmount: getNum("recoveredAmount"),
       };
+      // Only meaningful when it's actually below what was paid - the RPC
+      // applies the same check server-side (see supabase/migrations/0024),
+      // this just lets the Preview step show it ahead of time.
+      const willFlagOverpayment = row.payableAmount !== undefined && !Number.isNaN(row.totalPerdiem) && row.payableAmount < row.totalPerdiem;
 
       const errors: string[] = [];
       const warnings: string[] = [];
@@ -507,6 +530,11 @@ function buildRows(
       else if (/\btotal\b/i.test(row.participantName)) errors.push("Looks like a total/summary row, not a participant - excluded");
       else if (looksLikeTwoNames(row.participantName)) warnings.push("Looks like it might be two people in one cell - check before importing");
       if (Number.isNaN(row.totalPerdiem)) errors.push("Missing/invalid amount");
+      if (willFlagOverpayment) {
+        warnings.push(`Will import already flagged as overpaid (payable ${row.payableAmount}, paid ${row.totalPerdiem})`);
+      } else if (row.payableAmount !== undefined && !Number.isNaN(row.totalPerdiem) && row.payableAmount >= row.totalPerdiem) {
+        warnings.push(`Payable amount (${row.payableAmount}) isn't less than the paid amount - not flagged as an overpayment`);
+      }
 
       return { row, errors, warnings };
     });

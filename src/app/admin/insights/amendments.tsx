@@ -24,9 +24,14 @@ export function AmendmentsSection({ requests, clients }: { requests: PerdiemRequ
 
   const data = useMemo(() => {
     const amended = requests.filter(r => r.status === "Amended");
+    // isOverpayment (supabase/migrations/0023) is the authoritative signal,
+    // not a totalPerdiem/originalTotal comparison - the ordinary
+    // amend-a-pending-request flow can also land above the original total
+    // legitimately (e.g. adding a missed allowance), which isn't an
+    // overpayment needing recovery.
     const rows = amended.map(r => {
-      const overpaid = Math.max(0, r.totalPerdiem - (r.originalTotal ?? r.totalPerdiem));
-      const recovered = r.recoveredAmount ?? 0;
+      const overpaid = r.isOverpayment ? Math.max(0, r.totalPerdiem - (r.originalTotal ?? r.totalPerdiem)) : 0;
+      const recovered = r.isOverpayment ? (r.recoveredAmount ?? 0) : 0;
       const pending = overpaid - recovered;
       return { request: r, overpaid, recovered, pending };
     });

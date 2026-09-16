@@ -216,6 +216,18 @@ type FlagOverpaymentState = {
 };
 const defaultFlagOverpaymentState: FlagOverpaymentState = { request: null, isOpen: false, payableAmount: '', reason: '' };
 
+// Same shape as FlagOverpaymentState but for a batch (see ReportTabContent's
+// Paid-tab row checkboxes) - one shared payable amount + reason applied to
+// every selected record, matching the real case this was built for (a whole
+// batch paid at the same wrong rate, not per-person variation).
+type BulkFlagOverpaymentState = {
+  requests: PerdiemRequest[];
+  isOpen: boolean;
+  payableAmount: string;
+  reason: string;
+};
+const defaultBulkFlagOverpaymentState: BulkFlagOverpaymentState = { requests: [], isOpen: false, payableAmount: '', reason: '' };
+
 type RecordRecoveryState = {
   request: PerdiemRequest | null;
   isOpen: boolean;
@@ -307,6 +319,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
   // State for amendment/rejection dialog
   const [amendRequestState, setAmendRequestState] = useState<AmendRequestState>(defaultAmendState);
   const [flagOverpaymentState, setFlagOverpaymentState] = useState<FlagOverpaymentState>(defaultFlagOverpaymentState);
+  const [bulkFlagOverpaymentState, setBulkFlagOverpaymentState] = useState<BulkFlagOverpaymentState>(defaultBulkFlagOverpaymentState);
   const [recordRecoveryState, setRecordRecoveryState] = useState<RecordRecoveryState>(defaultRecordRecoveryState);
 
   // State for delete confirmation
@@ -940,10 +953,44 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
       originalTotal: payable,
       amendmentReason: reason,
       status: 'Amended',
+      isOverpayment: true,
     });
     await fetchAllData();
     toast({ title: "Overpayment Flagged", description: `${request.participantName}: payable ${formatCurrency(payable)}, paid ${formatCurrency(request.totalPerdiem)} - overpayment of ${formatCurrency(request.totalPerdiem - payable)} now tracked in the Amended tab.` });
     setFlagOverpaymentState(defaultFlagOverpaymentState);
+  };
+
+  const handleConfirmBulkFlagOverpayment = async () => {
+    const { requests, payableAmount, reason } = bulkFlagOverpaymentState;
+    const payable = Number(payableAmount);
+    if (!reason.trim()) {
+      toast({ title: "Reason Required", description: "Please explain what happened.", variant: "destructive" });
+      return;
+    }
+    if (!Number.isFinite(payable) || payable < 0) {
+      toast({ title: "Invalid Amount", description: "Enter a valid correct/payable amount.", variant: "destructive" });
+      return;
+    }
+    // Same payable amount applies to every selected record (the common
+    // case - one wrong rate applied to a whole batch) - a row whose own
+    // paid amount doesn't actually exceed it is skipped rather than
+    // flagged as a negative/zero "overpayment".
+    const toFlag = requests.filter(r => r.totalPerdiem > payable);
+    const skipped = requests.length - toFlag.length;
+    await Promise.all(toFlag.map(r => dataProvider.updatePerDiemRequest(r.id, {
+      originalTotal: payable,
+      amendmentReason: reason,
+      status: 'Amended',
+      isOverpayment: true,
+    })));
+    await fetchAllData();
+    const totalOverpaid = toFlag.reduce((sum, r) => sum + (r.totalPerdiem - payable), 0);
+    toast({
+      title: "Overpayments Flagged",
+      description: `${toFlag.length} record${toFlag.length === 1 ? '' : 's'} flagged, ${formatCurrency(totalOverpaid)} total to recover.`
+        + (skipped > 0 ? ` ${skipped} skipped (already at or below ${formatCurrency(payable)}).` : ''),
+    });
+    setBulkFlagOverpaymentState(defaultBulkFlagOverpaymentState);
   };
 
   const handleConfirmRecordRecovery = async () => {
@@ -2198,7 +2245,8 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                              loading={loading}
                              onDownload={() => handleDownloadPerDiemReport(filteredReportData.filter(r => r.status === 'Paid' || r.status === 'Confirmed'), 'paid_perdiems')}
                              isPaidReport={true}
-                             onFlagOverpayment={(request) => setFlagOverpaymentState({ request, isOpen: true, payableAmount: '', reason: '' })}
+                             onFlagOverpayment={isMultiClientAdmin ? (request) => setFlagOverpaymentState({ request, isOpen: true, payableAmount: '', reason: '' }) : undefined}
+                             onBulkFlagOverpayment={isMultiClientAdmin ? (requests) => setBulkFlagOverpaymentState({ requests, isOpen: true, payableAmount: '', reason: '' }) : undefined}
                            />
                         </TabsContent>
 
@@ -2223,7 +2271,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                              title="Amended Perdiems"
                              data={filteredReportData.filter(r => r.status === 'Amended')}
                              loading={loading}
-                             onRecordRecovery={(request) => setRecordRecoveryState({ request, isOpen: true, amount: '' })}
+                             onRecordRecovery={isMultiClientAdmin ? (request) => setRecordRecoveryState({ request, isOpen: true, amount: '' }) : undefined}
                            />
                         </TabsContent>
                     </Tabs>
@@ -2423,6 +2471,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
     </Dialog>
     <AmendRejectDialog state={amendRequestState} setState={setAmendRequestState} onConfirm={handleConfirmAmendment} />
     <FlagOverpaymentDialog state={flagOverpaymentState} setState={setFlagOverpaymentState} onConfirm={handleConfirmFlagOverpayment} />
+    <BulkFlagOverpaymentDialog state={bulkFlagOverpaymentState} setState={setBulkFlagOverpaymentState} onConfirm={handleConfirmBulkFlagOverpayment} />
     <RecordRecoveryDialog state={recordRecoveryState} setState={setRecordRecoveryState} onConfirm={handleConfirmRecordRecovery} />
     <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
@@ -2491,8 +2540,37 @@ function TablePagination({ page, pageCount, totalItems, pageSize, onPageChange }
 }
 
 // Helper component for the report tabs to reduce repetition
-function ReportTabContent({ title, data, loading, onDownload, isPaidReport = false, onFlagOverpayment }: { title: string, data: PerdiemRequest[], loading: boolean, onDownload: () => void, isPaidReport?: boolean, onFlagOverpayment?: (request: PerdiemRequest) => void }) {
+function ReportTabContent({ title, data, loading, onDownload, isPaidReport = false, onFlagOverpayment, onBulkFlagOverpayment }: { title: string, data: PerdiemRequest[], loading: boolean, onDownload: () => void, isPaidReport?: boolean, onFlagOverpayment?: (request: PerdiemRequest) => void, onBulkFlagOverpayment?: (requests: PerdiemRequest[]) => void }) {
     const { page, pageCount, setPage, paged } = usePagination(data);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const canBulkFlag = isPaidReport && !!onBulkFlagOverpayment;
+    // Only Paid/Confirmed, not-already-Amended rows can be selected - an
+    // Amended row is already flagged (or was a different kind of
+    // amendment), so it's excluded from "select all" rather than silently
+    // no-op'd when the bulk dialog filters it out later.
+    const selectablePaged = canBulkFlag ? paged.filter(r => r.status !== 'Amended') : [];
+    const allPagedSelected = selectablePaged.length > 0 && selectablePaged.every(r => selectedIds.has(r.id));
+    const selectedRequests = canBulkFlag ? data.filter(r => selectedIds.has(r.id)) : [];
+
+    const toggleRow = (id: string) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
+    };
+    const toggleSelectAllOnPage = () => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (allPagedSelected) {
+                selectablePaged.forEach(r => next.delete(r.id));
+            } else {
+                selectablePaged.forEach(r => next.add(r.id));
+            }
+            return next;
+        });
+    };
+
     const getBadgeVariant = (status: PerdiemRequest['status']) => {
         switch (status) {
             case 'Pending': return 'outline';
@@ -2504,21 +2582,36 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
             default: return 'outline';
         }
     };
-    
+
+    const actionsColumn = isPaidReport && (onFlagOverpayment || canBulkFlag);
+    const columnCount = (canBulkFlag ? 1 : 0) + (isPaidReport ? (actionsColumn ? 7 : 6) : 5);
+
     return (
         <Card>
-            <CardHeader className="flex-row items-center justify-between">
+            <CardHeader className="flex-row items-center justify-between flex-wrap gap-2">
                 <CardTitle>{title}</CardTitle>
-                <Button onClick={onDownload} size="sm">
-                    <Download className="mr-2 h-4 w-4" />
-                    Download CSV
-                </Button>
+                <div className="flex items-center gap-2">
+                    {canBulkFlag && selectedRequests.length > 0 && (
+                        <Button variant="secondary" size="sm" onClick={() => onBulkFlagOverpayment!(selectedRequests)}>
+                            Flag {selectedRequests.length} as Overpaid
+                        </Button>
+                    )}
+                    <Button onClick={onDownload} size="sm">
+                        <Download className="mr-2 h-4 w-4" />
+                        Download CSV
+                    </Button>
+                </div>
             </CardHeader>
             <CardContent>
                  <div className="overflow-x-auto">
                     <Table>
                         <TableHeader>
                             <TableRow>
+                                {canBulkFlag && (
+                                    <TableHead className="w-10">
+                                        <Checkbox checked={allPagedSelected} onCheckedChange={toggleSelectAllOnPage} disabled={selectablePaged.length === 0} aria-label="Select all on this page" />
+                                    </TableHead>
+                                )}
                                 <TableHead>Participant</TableHead>
                                 <TableHead>Event</TableHead>
                                 {isPaidReport ? (
@@ -2531,16 +2624,26 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
                                 )}
                                 <TableHead>Date</TableHead>
                                 <TableHead className="text-right">Amount</TableHead>
-                                {isPaidReport && onFlagOverpayment && <TableHead className="text-right">Actions</TableHead>}
+                                {actionsColumn && <TableHead className="text-right">Actions</TableHead>}
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                         {loading ? (
-                            <TableSkeletonRows columns={isPaidReport ? (onFlagOverpayment ? 7 : 6) : 5} />
+                            <TableSkeletonRows columns={columnCount} />
                         ) : data.length === 0 ? (
-                             <TableRow><TableCell colSpan={isPaidReport ? (onFlagOverpayment ? 7 : 6) : 5} className="h-24 text-center">No requests match the current filters.</TableCell></TableRow>
+                             <TableRow><TableCell colSpan={columnCount} className="h-24 text-center">No requests match the current filters.</TableCell></TableRow>
                         ) : paged.map(request => (
                             <TableRow key={request.id}>
+                            {canBulkFlag && (
+                                <TableCell>
+                                    <Checkbox
+                                        checked={selectedIds.has(request.id)}
+                                        onCheckedChange={() => toggleRow(request.id)}
+                                        disabled={request.status === 'Amended'}
+                                        aria-label={`Select ${request.participantName}`}
+                                    />
+                                </TableCell>
+                            )}
                             <TableCell>
                                 <div className="flex items-center gap-1.5">
                                     {request.participantName}
@@ -2563,9 +2666,9 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
                             )}
                             <TableCell className="whitespace-nowrap">{request.date}</TableCell>
                             <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.totalPerdiem)}</TableCell>
-                            {isPaidReport && onFlagOverpayment && (
+                            {actionsColumn && (
                                 <TableCell className="text-right whitespace-nowrap">
-                                    {request.status !== 'Amended' && (
+                                    {request.status !== 'Amended' && onFlagOverpayment && (
                                         <Button variant="ghost" size="sm" onClick={() => onFlagOverpayment(request)}>
                                             Flag Overpayment
                                         </Button>
@@ -2587,12 +2690,14 @@ function AmendedReportTabContent({ title, data, loading, onRecordRecovery }: { t
     const { page, pageCount, setPage, paged } = usePagination(data);
     // An 'Amended' record covers two different flows sharing the same status
     // (see supabase/migrations/0022's header comment): a Pending request
-    // corrected down before approval (totalPerdiem < originalTotal, no
-    // overpayment concept applies), or a Paid/Confirmed record flagged as
-    // overpaid (totalPerdiem > originalTotal - the real paid amount stays
-    // put, originalTotal is what should have been paid). Only the second
-    // shape has anything to recover.
-    const overpaidAmount = (r: PerdiemRequest) => Math.max(0, r.totalPerdiem - (r.originalTotal ?? r.totalPerdiem));
+    // corrected before approval (amend-a-pending-request flow, no
+    // overpayment concept - and its recalculated total can legitimately
+    // land *above* the original submitted total too, e.g. adding a missed
+    // allowance), or a Paid/Confirmed record explicitly flagged as overpaid.
+    // isOverpayment (supabase/migrations/0023) is the authoritative signal
+    // for which shape a row is - NOT a totalPerdiem/originalTotal
+    // comparison, which can't tell the two apart.
+    const overpaidAmount = (r: PerdiemRequest) => r.isOverpayment ? Math.max(0, r.totalPerdiem - (r.originalTotal ?? r.totalPerdiem)) : 0;
     return (
         <Card>
             <CardHeader>
@@ -3042,6 +3147,74 @@ const FlagOverpaymentDialog = ({ state, setState, onConfirm }: { state: FlagOver
         <DialogFooter>
           <Button variant="outline" onClick={() => setState(defaultFlagOverpaymentState)}>Cancel</Button>
           <Button onClick={onConfirm} disabled={!reason.trim() || !payableAmount}>Flag Overpayment</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const BulkFlagOverpaymentDialog = ({ state, setState, onConfirm }: { state: BulkFlagOverpaymentState, setState: React.Dispatch<React.SetStateAction<BulkFlagOverpaymentState>>, onConfirm: () => void }) => {
+  if (!state.isOpen || state.requests.length === 0) return null;
+  const { requests, payableAmount, reason } = state;
+  const payable = Number(payableAmount);
+  const validPayable = Number.isFinite(payable) && payable >= 0;
+  const toFlag = validPayable ? requests.filter(r => r.totalPerdiem > payable) : [];
+  const totalOverpaid = toFlag.reduce((sum, r) => sum + (r.totalPerdiem - payable), 0);
+
+  return (
+    <Dialog open={state.isOpen} onOpenChange={(isOpen) => setState(prev => ({ ...prev, isOpen }))}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Flag Overpayment ({requests.length} selected)</DialogTitle>
+          <DialogDescription>
+            The same correct/payable amount and reason apply to every selected record - each one's actual
+            paid amount stays as-is; only records paid above this amount get flagged.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-4 space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="bulkPayableAmount">Correct / Payable Amount (KES)</Label>
+            <Input
+              id="bulkPayableAmount"
+              type="number"
+              placeholder="e.g. 4500"
+              value={payableAmount}
+              onChange={(e) => setState(prev => ({ ...prev, payableAmount: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="bulkOverpaymentReason">What happened</Label>
+            <Textarea
+              id="bulkOverpaymentReason"
+              placeholder="e.g. This batch was paid at the facilitator rate by mistake - training per diem should have been the flat KES 4,500 EUT rate."
+              value={reason}
+              onChange={(e) => setState(prev => ({ ...prev, reason: e.target.value }))}
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto border rounded-md divide-y">
+            {requests.map(r => {
+              const willFlag = validPayable && r.totalPerdiem > payable;
+              return (
+                <div key={r.id} className="flex justify-between items-center text-sm px-3 py-1.5">
+                  <span className={willFlag ? "" : "text-muted-foreground"}>{r.participantName}</span>
+                  <span className="flex items-center gap-2">
+                    {formatCurrency(r.totalPerdiem)}
+                    {validPayable && !willFlag && <span className="text-xs text-muted-foreground">(skipped)</span>}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          {validPayable && (
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{toFlag.length}</span> of {requests.length} will be flagged,
+              totaling <span className="font-medium text-foreground">{formatCurrency(totalOverpaid)}</span> to recover.
+            </p>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setState(defaultBulkFlagOverpaymentState)}>Cancel</Button>
+          <Button onClick={onConfirm} disabled={!reason.trim() || !payableAmount || toFlag.length === 0}>Flag {toFlag.length} Overpayment{toFlag.length === 1 ? '' : 's'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

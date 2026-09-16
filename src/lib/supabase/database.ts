@@ -168,6 +168,7 @@ const REQUEST_FIELDS: FieldMap = {
   amendmentReason: 'amendment_reason',
   originalTotal: 'original_total',
   recoveredAmount: 'recovered_amount',
+  isOverpayment: 'is_overpayment',
   mileageKm: 'mileage_km',
   mileageTotal: 'mileage_total',
   airTicketCost: 'air_ticket_cost',
@@ -963,6 +964,16 @@ export type HistoricalImportRow = {
   // Omitted (the common case, no conflict detected) leaves the RPC's
   // existing automatic amount-based decision untouched.
   mergeDecision?: 'merge' | 'separate';
+  // Optional - most templates won't have these. When a row maps a Payable
+  // Amount column and it comes out lower than totalPerdiem, the RPC inserts
+  // the row already flagged (status='Amended', originalTotal=payableAmount,
+  // isOverpayment=true - see supabase/migrations/0024) instead of the
+  // ordinary 'Paid' status, so a file like a finance team's overpayment
+  // reconciliation sheet imports pre-flagged instead of needing the Flag
+  // Overpayment action run by hand afterward for every row.
+  payableAmount?: number;
+  overpaymentReason?: string;
+  recoveredAmount?: number;
 };
 
 /**
