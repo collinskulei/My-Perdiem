@@ -529,6 +529,23 @@ export const checkInToEvent = async (eventId: string, dateString: string): Promi
 // --- PER DIEM REQUESTS TABLE ---
 
 /**
+ * A fast, standalone row-count estimate (same `count: 'estimated'` PostgREST
+ * query fetchAllRows uses internally to size its first page batch - see that
+ * function's comment for why 'estimated', not 'exact'). Used by
+ * get-initial-dashboard-data.ts to decide, before fetching anything, whether
+ * a full server-side prefetch of this table is still cheap enough to be
+ * worth doing - see that file's comment for the real incident (28,000+ rows,
+ * ~2-3s per 1,000-row page) this guards against.
+ */
+export const getPerDiemRequestsCountEstimate = async (client: SupabaseClient = supabase): Promise<number> => {
+  const { count, error } = await client.from('perdiem_requests').select('*', { count: 'estimated', head: true });
+  if (error) {
+    throw error;
+  }
+  return count ?? 0;
+};
+
+/**
  * Fetches all per diem requests from the 'perdiem_requests' table.
  * @returns {Promise<PerdiemRequest[]>} A promise that resolves to an array of per diem request objects.
  */

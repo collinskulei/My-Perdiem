@@ -20,14 +20,37 @@ export interface InitialAdminDashboardData {
   events: AppEvent[];
 }
 
+// Above this many perdiem_requests rows, prefetching the whole table here
+// stops being a UX win. Real incident: this table reached 27,893 rows
+// (fetchAllRows needs ~28 sequential-estimate-then-parallel pages of 1,000),
+// and a single 1,000-row page was independently measured at 2-3.5s - meaning
+// the very first byte of the dashboard's HTML response, for every admin tier
+// (there's only one client today, so every tier sees the same volume), was
+// blocked on several seconds of Supabase round-trips before Next.js could
+// even start streaming the page. That's what "login is slow" actually was -
+// not the Supabase Auth sign-in itself, which is unrelated and fast.
+//
+// Below this threshold, eager server-side prefetch is still a real
+// improvement (skips a loading-skeleton flash on first paint), so it stays
+// the default - this only kicks in once a table has genuinely outgrown it.
+const MAX_EAGER_PERDIEM_REQUESTS = 5000;
+
 /**
- * Returns null on failure so callers fall back to AdminDashboard's existing
- * client-side fetch-on-mount instead of rendering with a known-bad dataset.
+ * Returns null on failure (including "too large to prefetch cheaply", see
+ * MAX_EAGER_PERDIEM_REQUESTS above) so callers fall back to AdminDashboard's
+ * existing client-side fetch-on-mount (a loading skeleton, then the same
+ * data filled in from the browser) instead of blocking the server response
+ * on a known-slow fetch, or rendering with a known-bad dataset.
  */
 export async function getInitialAdminDashboardData(
   client: SupabaseClient
 ): Promise<InitialAdminDashboardData | null> {
   try {
+    const estimatedRequestCount = await db.getPerDiemRequestsCountEstimate(client);
+    if (estimatedRequestCount > MAX_EAGER_PERDIEM_REQUESTS) {
+      return null;
+    }
+
     const [venues, participants, requests, events, clients, documents] = await Promise.all([
       db.getVenues(client),
       db.getParticipants(client),
