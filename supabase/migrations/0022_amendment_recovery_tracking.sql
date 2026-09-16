@@ -1,0 +1,23 @@
+-- Prompted by a real case: a client's finance team flagged that 12 people
+-- in a "Bungoma EUT" batch were paid at a facilitator-tier rate (KES
+-- 47,800-62,000) instead of the correct flat KES 4,500 per diem - a real
+-- bank overpayment (KES 616,000 total) being recovered from those people in
+-- installments over time, not a data-entry mistake to silently correct.
+--
+-- The existing 'Amended' mechanism (status='Amended', original_total,
+-- amendment_reason - see admin-dashboard.tsx's amend-a-pending-request
+-- dialog) already captures "this total changed, here's the before value and
+-- why", but has no way to track a *partial, ongoing* recovery against that
+-- difference - amendment_reason is free text re-typed once, not something
+-- meant to be edited repeatedly as partial refunds land over weeks/months.
+--
+-- Adds one column: recovered_amount, a running total the admin updates as
+-- money comes back (see the Reports "Amended" tab's new "Record Recovery"
+-- action). Never touched by import_historical_events() or the existing
+-- amend-a-pending-request flow - both leave it at its default of 0, which
+-- is exactly right for every request that was never overpaid in the first
+-- place. Pending-recovery amount is a derived value the UI computes
+-- (total_perdiem - original_total - recovered_amount) - not stored, so it
+-- can never drift out of sync with its own inputs.
+alter table public.perdiem_requests
+  add column if not exists recovered_amount numeric not null default 0;

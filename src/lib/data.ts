@@ -158,6 +158,12 @@ export type PerdiemRequest = {
   rejectionReason?: string;
   amendmentReason?: string;
   originalTotal?: number;
+  // Running total the admin updates as an overpayment gets paid back in
+  // installments (see supabase/migrations/0022) - independent of the
+  // amend-a-pending-request flow above, which only ever leaves this at 0.
+  // Pending-recovery amount is derived (totalPerdiem - originalTotal -
+  // recoveredAmount), never stored.
+  recoveredAmount?: number;
 
   // Detailed financial breakdown from the wizard
   mileageKm?: number;

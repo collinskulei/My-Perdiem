@@ -202,6 +202,27 @@ const defaultAmendState: AmendRequestState = {
   updatedValues: {}
 };
 
+// Separate from AmendRequestState above - that flow recalculates
+// totalPerdiem from a Pending request's line items before approval. This one
+// is for a request that's already Paid/Approved/Confirmed and turns out to
+// have been overpaid (see supabase/migrations/0022) - totalPerdiem is left
+// untouched (it's the real, bank-verified amount that went out), and
+// originalTotal instead records what should have been paid.
+type FlagOverpaymentState = {
+  request: PerdiemRequest | null;
+  isOpen: boolean;
+  payableAmount: string;
+  reason: string;
+};
+const defaultFlagOverpaymentState: FlagOverpaymentState = { request: null, isOpen: false, payableAmount: '', reason: '' };
+
+type RecordRecoveryState = {
+  request: PerdiemRequest | null;
+  isOpen: boolean;
+  amount: string;
+};
+const defaultRecordRecoveryState: RecordRecoveryState = { request: null, isOpen: false, amount: '' };
+
 
 const toCSV = (data: any[], columns: string[], columnHeaders: string[]): string => {
   const header = columnHeaders.join(',') + '\n';
@@ -285,6 +306,8 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
 
   // State for amendment/rejection dialog
   const [amendRequestState, setAmendRequestState] = useState<AmendRequestState>(defaultAmendState);
+  const [flagOverpaymentState, setFlagOverpaymentState] = useState<FlagOverpaymentState>(defaultFlagOverpaymentState);
+  const [recordRecoveryState, setRecordRecoveryState] = useState<RecordRecoveryState>(defaultRecordRecoveryState);
 
   // State for delete confirmation
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -899,6 +922,55 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
     }
     
     setAmendRequestState(defaultAmendState);
+  };
+
+  const handleConfirmFlagOverpayment = async () => {
+    const { request, payableAmount, reason } = flagOverpaymentState;
+    if (!request) return;
+    const payable = Number(payableAmount);
+    if (!reason.trim()) {
+      toast({ title: "Reason Required", description: "Please explain what happened.", variant: "destructive" });
+      return;
+    }
+    if (!Number.isFinite(payable) || payable < 0 || payable >= request.totalPerdiem) {
+      toast({ title: "Invalid Amount", description: "The correct/payable amount must be a number less than the amount actually paid.", variant: "destructive" });
+      return;
+    }
+    await dataProvider.updatePerDiemRequest(request.id, {
+      originalTotal: payable,
+      amendmentReason: reason,
+      status: 'Amended',
+    });
+    await fetchAllData();
+    toast({ title: "Overpayment Flagged", description: `${request.participantName}: payable ${formatCurrency(payable)}, paid ${formatCurrency(request.totalPerdiem)} - overpayment of ${formatCurrency(request.totalPerdiem - payable)} now tracked in the Amended tab.` });
+    setFlagOverpaymentState(defaultFlagOverpaymentState);
+  };
+
+  const handleConfirmRecordRecovery = async () => {
+    const { request, amount } = recordRecoveryState;
+    if (!request) return;
+    const delta = Number(amount);
+    const overpaid = request.totalPerdiem - (request.originalTotal ?? request.totalPerdiem);
+    const alreadyRecovered = request.recoveredAmount ?? 0;
+    const pending = overpaid - alreadyRecovered;
+    if (!Number.isFinite(delta) || delta <= 0) {
+      toast({ title: "Invalid Amount", description: "Enter the amount that was just recovered (a positive number).", variant: "destructive" });
+      return;
+    }
+    if (delta > pending) {
+      toast({ title: "Amount Too High", description: `Only ${formatCurrency(pending)} is still pending for this record.`, variant: "destructive" });
+      return;
+    }
+    await dataProvider.updatePerDiemRequest(request.id, { recoveredAmount: alreadyRecovered + delta });
+    await fetchAllData();
+    const newPending = pending - delta;
+    toast({
+      title: "Recovery Recorded",
+      description: newPending > 0
+        ? `${formatCurrency(delta)} recovered from ${request.participantName}. ${formatCurrency(newPending)} still pending.`
+        : `${formatCurrency(delta)} recovered from ${request.participantName}. Fully recovered.`,
+    });
+    setRecordRecoveryState(defaultRecordRecoveryState);
   };
 
 
@@ -2126,6 +2198,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                              loading={loading}
                              onDownload={() => handleDownloadPerDiemReport(filteredReportData.filter(r => r.status === 'Paid' || r.status === 'Confirmed'), 'paid_perdiems')}
                              isPaidReport={true}
+                             onFlagOverpayment={(request) => setFlagOverpaymentState({ request, isOpen: true, payableAmount: '', reason: '' })}
                            />
                         </TabsContent>
 
@@ -2146,10 +2219,11 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                            />
                         </TabsContent>
                         <TabsContent value="amended">
-                           <AmendedReportTabContent 
-                             title="Amended Perdiems" 
+                           <AmendedReportTabContent
+                             title="Amended Perdiems"
                              data={filteredReportData.filter(r => r.status === 'Amended')}
                              loading={loading}
+                             onRecordRecovery={(request) => setRecordRecoveryState({ request, isOpen: true, amount: '' })}
                            />
                         </TabsContent>
                     </Tabs>
@@ -2348,6 +2422,8 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
       </DialogContent>
     </Dialog>
     <AmendRejectDialog state={amendRequestState} setState={setAmendRequestState} onConfirm={handleConfirmAmendment} />
+    <FlagOverpaymentDialog state={flagOverpaymentState} setState={setFlagOverpaymentState} onConfirm={handleConfirmFlagOverpayment} />
+    <RecordRecoveryDialog state={recordRecoveryState} setState={setRecordRecoveryState} onConfirm={handleConfirmRecordRecovery} />
     <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
             <AlertDialogHeader>
@@ -2415,7 +2491,7 @@ function TablePagination({ page, pageCount, totalItems, pageSize, onPageChange }
 }
 
 // Helper component for the report tabs to reduce repetition
-function ReportTabContent({ title, data, loading, onDownload, isPaidReport = false }: { title: string, data: PerdiemRequest[], loading: boolean, onDownload: () => void, isPaidReport?: boolean }) {
+function ReportTabContent({ title, data, loading, onDownload, isPaidReport = false, onFlagOverpayment }: { title: string, data: PerdiemRequest[], loading: boolean, onDownload: () => void, isPaidReport?: boolean, onFlagOverpayment?: (request: PerdiemRequest) => void }) {
     const { page, pageCount, setPage, paged } = usePagination(data);
     const getBadgeVariant = (status: PerdiemRequest['status']) => {
         switch (status) {
@@ -2455,13 +2531,14 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
                                 )}
                                 <TableHead>Date</TableHead>
                                 <TableHead className="text-right">Amount</TableHead>
+                                {isPaidReport && onFlagOverpayment && <TableHead className="text-right">Actions</TableHead>}
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                         {loading ? (
-                            <TableSkeletonRows columns={isPaidReport ? 6 : 5} />
+                            <TableSkeletonRows columns={isPaidReport ? (onFlagOverpayment ? 7 : 6) : 5} />
                         ) : data.length === 0 ? (
-                             <TableRow><TableCell colSpan={isPaidReport ? 6 : 5} className="h-24 text-center">No requests match the current filters.</TableCell></TableRow>
+                             <TableRow><TableCell colSpan={isPaidReport ? (onFlagOverpayment ? 7 : 6) : 5} className="h-24 text-center">No requests match the current filters.</TableCell></TableRow>
                         ) : paged.map(request => (
                             <TableRow key={request.id}>
                             <TableCell>
@@ -2486,6 +2563,15 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
                             )}
                             <TableCell className="whitespace-nowrap">{request.date}</TableCell>
                             <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.totalPerdiem)}</TableCell>
+                            {isPaidReport && onFlagOverpayment && (
+                                <TableCell className="text-right whitespace-nowrap">
+                                    {request.status !== 'Amended' && (
+                                        <Button variant="ghost" size="sm" onClick={() => onFlagOverpayment(request)}>
+                                            Flag Overpayment
+                                        </Button>
+                                    )}
+                                </TableCell>
+                            )}
                             </TableRow>
                         ))}
                         </TableBody>
@@ -2497,8 +2583,16 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
     )
 }
 
-function AmendedReportTabContent({ title, data, loading }: { title: string, data: PerdiemRequest[], loading: boolean }) {
+function AmendedReportTabContent({ title, data, loading, onRecordRecovery }: { title: string, data: PerdiemRequest[], loading: boolean, onRecordRecovery?: (request: PerdiemRequest) => void }) {
     const { page, pageCount, setPage, paged } = usePagination(data);
+    // An 'Amended' record covers two different flows sharing the same status
+    // (see supabase/migrations/0022's header comment): a Pending request
+    // corrected down before approval (totalPerdiem < originalTotal, no
+    // overpayment concept applies), or a Paid/Confirmed record flagged as
+    // overpaid (totalPerdiem > originalTotal - the real paid amount stays
+    // put, originalTotal is what should have been paid). Only the second
+    // shape has anything to recover.
+    const overpaidAmount = (r: PerdiemRequest) => Math.max(0, r.totalPerdiem - (r.originalTotal ?? r.totalPerdiem));
     return (
         <Card>
             <CardHeader>
@@ -2515,22 +2609,48 @@ function AmendedReportTabContent({ title, data, loading }: { title: string, data
                                 <TableHead>Reason for Amendment</TableHead>
                                 <TableHead className="text-right">Original Amount</TableHead>
                                 <TableHead className="text-right">Amended Amount</TableHead>
+                                <TableHead className="text-right">Overpaid</TableHead>
+                                <TableHead className="text-right">Recovered</TableHead>
+                                <TableHead className="text-right">Pending</TableHead>
+                                {onRecordRecovery && <TableHead className="text-right">Actions</TableHead>}
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                         {loading ? (
-                            <TableSkeletonRows columns={5} />
+                            <TableSkeletonRows columns={onRecordRecovery ? 9 : 8} />
                         ) : data.length === 0 ? (
-                             <TableRow><TableCell colSpan={5} className="h-24 text-center">No amended requests match the current filters.</TableCell></TableRow>
-                        ) : paged.map(request => (
+                             <TableRow><TableCell colSpan={onRecordRecovery ? 9 : 8} className="h-24 text-center">No amended requests match the current filters.</TableCell></TableRow>
+                        ) : paged.map(request => {
+                            const overpaid = overpaidAmount(request);
+                            const recovered = request.recoveredAmount ?? 0;
+                            const pending = overpaid - recovered;
+                            return (
                             <TableRow key={request.id}>
                                 <TableCell>{request.participantName}</TableCell>
                                 <TableCell>{request.eventName}</TableCell>
                                 <TableCell className="max-w-xs truncate">{request.amendmentReason}</TableCell>
                                 <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.originalTotal ?? 0)}</TableCell>
                                 <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.totalPerdiem)}</TableCell>
+                                <TableCell className="text-right whitespace-nowrap">{overpaid > 0 ? formatCurrency(overpaid) : '-'}</TableCell>
+                                <TableCell className="text-right whitespace-nowrap">{overpaid > 0 ? formatCurrency(recovered) : '-'}</TableCell>
+                                <TableCell className="text-right whitespace-nowrap">
+                                    {overpaid > 0 ? (
+                                        <span className={pending > 0 ? "text-amber-600 dark:text-amber-500 font-medium" : "text-green-600 dark:text-green-500"}>
+                                            {formatCurrency(pending)}
+                                        </span>
+                                    ) : '-'}
+                                </TableCell>
+                                {onRecordRecovery && (
+                                    <TableCell className="text-right whitespace-nowrap">
+                                        {overpaid > 0 && pending > 0 && (
+                                            <Button variant="ghost" size="sm" onClick={() => onRecordRecovery(request)}>
+                                                Record Recovery
+                                            </Button>
+                                        )}
+                                    </TableCell>
+                                )}
                             </TableRow>
-                        ))}
+                        )})}
                         </TableBody>
                     </Table>
                 </div>
@@ -2869,6 +2989,99 @@ const AmendRejectDialog = ({ state, setState, onConfirm }: { state: AmendRequest
           <Button onClick={onConfirm} disabled={(mode === 'reject' && !rejectionReason) || (mode === 'amend' && !amendmentReason)}>
             {mode === 'amend' ? 'Confirm Amendment' : 'Confirm Rejection'}
           </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const FlagOverpaymentDialog = ({ state, setState, onConfirm }: { state: FlagOverpaymentState, setState: React.Dispatch<React.SetStateAction<FlagOverpaymentState>>, onConfirm: () => void }) => {
+  if (!state.isOpen || !state.request) return null;
+  const { request, payableAmount, reason } = state;
+  const overpayment = Number(payableAmount) >= 0 && Number.isFinite(Number(payableAmount))
+    ? request.totalPerdiem - Number(payableAmount)
+    : undefined;
+
+  return (
+    <Dialog open={state.isOpen} onOpenChange={(isOpen) => setState(prev => ({ ...prev, isOpen }))}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Flag Overpayment</DialogTitle>
+          <DialogDescription>
+            {request.participantName} was paid {formatCurrency(request.totalPerdiem)} for "{request.eventName}" -
+            this stays as the record of what actually went out. Enter what should have been paid instead;
+            the difference is tracked in the Amended tab until it's recovered.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-4 space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="payableAmount">Correct / Payable Amount (KES)</Label>
+            <Input
+              id="payableAmount"
+              type="number"
+              placeholder="e.g. 4500"
+              value={payableAmount}
+              onChange={(e) => setState(prev => ({ ...prev, payableAmount: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="overpaymentReason">What happened</Label>
+            <Textarea
+              id="overpaymentReason"
+              placeholder="e.g. Paid at the facilitator rate by mistake - training per diem should have been the flat KES 4,500 EUT rate."
+              value={reason}
+              onChange={(e) => setState(prev => ({ ...prev, reason: e.target.value }))}
+            />
+          </div>
+          {overpayment !== undefined && (
+            <p className="text-sm text-muted-foreground">
+              Overpayment to track: <span className="font-medium text-foreground">{formatCurrency(overpayment)}</span>
+            </p>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setState(defaultFlagOverpaymentState)}>Cancel</Button>
+          <Button onClick={onConfirm} disabled={!reason.trim() || !payableAmount}>Flag Overpayment</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const RecordRecoveryDialog = ({ state, setState, onConfirm }: { state: RecordRecoveryState, setState: React.Dispatch<React.SetStateAction<RecordRecoveryState>>, onConfirm: () => void }) => {
+  if (!state.isOpen || !state.request) return null;
+  const { request, amount } = state;
+  const overpaid = request.totalPerdiem - (request.originalTotal ?? request.totalPerdiem);
+  const alreadyRecovered = request.recoveredAmount ?? 0;
+  const pending = overpaid - alreadyRecovered;
+
+  return (
+    <Dialog open={state.isOpen} onOpenChange={(isOpen) => setState(prev => ({ ...prev, isOpen }))}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Record Recovery</DialogTitle>
+          <DialogDescription>{request.participantName} - "{request.eventName}"</DialogDescription>
+        </DialogHeader>
+        <div className="py-4 space-y-4">
+          <div className="grid grid-cols-3 gap-3 text-sm">
+            <div><p className="text-muted-foreground">Overpaid</p><p className="font-medium">{formatCurrency(overpaid)}</p></div>
+            <div><p className="text-muted-foreground">Recovered</p><p className="font-medium">{formatCurrency(alreadyRecovered)}</p></div>
+            <div><p className="text-muted-foreground">Pending</p><p className="font-medium">{formatCurrency(pending)}</p></div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="recoveryAmount">Amount just recovered (KES)</Label>
+            <Input
+              id="recoveryAmount"
+              type="number"
+              placeholder={`Up to ${pending}`}
+              value={amount}
+              onChange={(e) => setState(prev => ({ ...prev, amount: e.target.value }))}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setState(defaultRecordRecoveryState)}>Cancel</Button>
+          <Button onClick={onConfirm} disabled={!amount}>Record Recovery</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

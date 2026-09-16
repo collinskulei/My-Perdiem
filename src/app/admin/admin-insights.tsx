@@ -27,6 +27,7 @@ import { FinancialSection } from "./insights/financial";
 import { StaffEmployerSection } from "./insights/staff-employer";
 import { TrainingSection } from "./insights/training";
 import { CrossClientSection } from "./insights/cross-client";
+import { AmendmentsSection } from "./insights/amendments";
 
 export function AdminInsightsTab({ requests, events, participants, venues, clients, loading }: {
   requests: PerdiemRequest[];
@@ -187,6 +188,7 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
             <TabsTrigger value="staff-employer">Staff & Employer</TabsTrigger>
             <TabsTrigger value="training">Training</TabsTrigger>
             <TabsTrigger value="cross-client">Cross-Client</TabsTrigger>
+            <TabsTrigger value="amendments">Amendments</TabsTrigger>
           </TabsList>
         </div>
 
@@ -204,6 +206,9 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
         </TabsContent>
         <TabsContent value="cross-client">
           <CrossClientSection requests={filteredRequests} events={filteredEvents} participants={participants} clients={clients} />
+        </TabsContent>
+        <TabsContent value="amendments">
+          <AmendmentsSection requests={filteredRequests} clients={clients} />
         </TabsContent>
       </Tabs>
     </div>

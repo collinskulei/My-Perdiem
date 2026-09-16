@@ -167,6 +167,7 @@ const REQUEST_FIELDS: FieldMap = {
   rejectionReason: 'rejection_reason',
   amendmentReason: 'amendment_reason',
   originalTotal: 'original_total',
+  recoveredAmount: 'recovered_amount',
   mileageKm: 'mileage_km',
   mileageTotal: 'mileage_total',
   airTicketCost: 'air_ticket_cost',
