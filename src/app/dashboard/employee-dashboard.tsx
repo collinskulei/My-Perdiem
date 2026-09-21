@@ -42,7 +42,7 @@ import { Progress } from "@/components/ui/progress";
 import { TopLoadingBar } from "@/components/ui/top-loading-bar";
 import { TableSkeletonRows } from "@/components/ui/table-skeleton";
 import type { PerdiemRequest, Participant, AppEvent, Venue } from "@/lib/data";
-import { dutyStationCoordinates, MILEAGE_RATE_KSH, OUT_OF_OFFICE_RATES } from "@/lib/data";
+import { dutyStationCoordinates, MILEAGE_RATE_KSH, OUT_OF_OFFICE_RATES, isTransacted } from "@/lib/data";
 import * as supabaseDb from '@/lib/supabase/database';
 import { supabase } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -315,7 +315,7 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
   const pieChartData = useMemo(() => Object.entries(requestsByStatus).map(([name, value]) => ({ name, value })), [requestsByStatus]);
 
   const totalPaid = useMemo(() => userRequests
-    .filter(req => req.status === 'Paid')
+    .filter(isTransacted)
     .reduce((sum, req) => sum + req.totalPerdiem, 0), [userRequests]);
 
   const handleOpenConfirmDialog = (request: PerdiemRequest) => {

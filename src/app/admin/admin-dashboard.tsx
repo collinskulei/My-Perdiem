@@ -112,7 +112,7 @@ import { AdminInsightsTab } from "./admin-insights";
 import { ParticipantLookup } from "./insights/participant-lookup";
 import { useAdminTab } from "./admin-tab-context";
 import { inviteAdmin, setParticipantDisabled } from "@/lib/admin-api-client";
-import { sortRequestsByDateDesc, sortEventsByDateDesc } from "@/lib/data";
+import { sortRequestsByDateDesc, sortEventsByDateDesc, isTransacted } from "@/lib/data";
 import { useInitialAdminDashboardData } from "./admin-dashboard-data-context";
 
 const dataProvider = supabaseDb;
@@ -2218,7 +2218,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                             </div>
                             <div>
                                 <p className="text-sm text-muted-foreground">Total Paid</p>
-                                <p className="text-2xl font-bold">{formatCurrency(filteredReportData.filter(r => r.status === 'Paid' || r.status === 'Confirmed').reduce((sum, r) => sum + r.totalPerdiem, 0))}</p>
+                                <p className="text-2xl font-bold">{formatCurrency(filteredReportData.filter(isTransacted).reduce((sum, r) => sum + r.totalPerdiem, 0))}</p>
                             </div>
                             <div>
                                 <p className="text-sm text-muted-foreground">Total Across All Statuses</p>
@@ -2823,8 +2823,11 @@ function AnalyticsTabContent({ requests, clients, loading }: { requests: Perdiem
       };
     }).reverse();
 
+    // Includes overpayment-flagged Amended rows (money already disbursed) -
+    // see isTransacted's comment in @/lib/data. The overpayment/recovery
+    // breakdown itself lives in the Amended report tab, not subtracted here.
     const totalPaid = requests
-      .filter(req => req.status === 'Paid')
+      .filter(isTransacted)
       .reduce((sum, req) => sum + req.totalPerdiem, 0);
 
     const COLORS = {

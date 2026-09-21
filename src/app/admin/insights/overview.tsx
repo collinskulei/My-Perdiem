@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { ClipboardList, Wallet, Users, CalendarDays, Building2 } from "lucide-react";
 import type { PerdiemRequest, AppEvent, Participant, Client } from "@/lib/data";
+import { isTransacted } from "@/lib/data";
 import { formatCurrency } from "@/lib/utils";
 import {
   StatCard, ChartCard, SectionHeader, EmptyState,
@@ -30,7 +31,10 @@ export function OverviewSection({ requests, events, participants, clients }: {
   const treemapRef = useRef<HTMLDivElement>(null);
 
   const data = useMemo(() => {
-    const totalPaidOut = requests.filter(r => r.status === "Paid").reduce((sum, r) => sum + r.totalPerdiem, 0);
+    // Includes overpayment-flagged Amended rows - see isTransacted's comment.
+    // Overpayment/recovery amounts get their own breakdown in the
+    // Amendments section, not a silent subtraction from this total.
+    const totalPaidOut = requests.filter(isTransacted).reduce((sum, r) => sum + r.totalPerdiem, 0);
     const nonAdminParticipants = participants.filter(p => p.accessTier === "client_user");
 
     const byStatus = requests.reduce((acc, r) => {
@@ -54,7 +58,7 @@ export function OverviewSection({ requests, events, participants, clients }: {
 
     const paidByClient = new Map<string, number>();
     for (const r of requests) {
-      if (r.status !== "Paid") continue;
+      if (!isTransacted(r)) continue;
       paidByClient.set(r.clientId, (paidByClient.get(r.clientId) || 0) + r.totalPerdiem);
     }
     const topClients = Array.from(paidByClient.entries())

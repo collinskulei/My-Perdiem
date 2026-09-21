@@ -225,6 +225,24 @@ export const OUT_OF_OFFICE_RATES: { [key: string]: number } = {
   "P": 13000, "Q": 14000, "R": 15000, "S": 16000
 };
 
+// Whether real money has actually moved for this request - Paid/Confirmed,
+// or an overpayment-flagged Amended row (flagging only ever happens on a
+// request that was already disbursed; see supabase/migrations/0022-0023's
+// header comments and insights/amendments.tsx). A request Amended through
+// the ordinary pending-correction flow (isOverpayment falsy) is deliberately
+// excluded - nothing has been paid out for that one yet.
+//
+// Use this everywhere a "total transacted"/"total paid out" figure is
+// computed, instead of filtering on status === 'Paid' directly - a plain
+// status filter silently drops every overpaid historical row's full
+// totalPerdiem (the actual bank-paid amount) out of that total, understating
+// what was really transacted. The overpayment/recovery breakdown itself
+// belongs in its own widget (insights/amendments.tsx's Total Overpaid/
+// Recovered/Pending cards), not folded into or subtracted from this total.
+export function isTransacted(r: Pick<PerdiemRequest, 'status' | 'isOverpayment'>): boolean {
+  return r.status === 'Paid' || r.status === 'Confirmed' || (r.status === 'Amended' && !!r.isOverpayment);
+}
+
 // Sorts by date descending, newest first. Shared between the admin
 // dashboard's client-side fetch (after mutations) and the server-side
 // initial-data prefetch (see admin/get-initial-dashboard-data.ts) so both

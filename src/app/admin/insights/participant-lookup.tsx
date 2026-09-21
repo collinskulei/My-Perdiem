@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Search, UserSearch } from "lucide-react";
 import type { PerdiemRequest, Client } from "@/lib/data";
+import { isTransacted } from "@/lib/data";
 import { formatCurrency, formatDateSafe } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -38,7 +39,7 @@ export function ParticipantLookup({ requests, clients }: { requests: PerdiemRequ
   }, [requests, query]);
 
   const visibleMatches = matches.length > MAX_VISIBLE_MATCHES ? matches.slice(0, MAX_VISIBLE_MATCHES) : matches;
-  const totalPaid = matches.filter(r => r.status === "Paid" || r.status === "Confirmed").reduce((s, r) => s + r.totalPerdiem, 0);
+  const totalPaid = matches.filter(isTransacted).reduce((s, r) => s + r.totalPerdiem, 0);
   const totalAll = matches.reduce((s, r) => s + r.totalPerdiem, 0);
 
   return (

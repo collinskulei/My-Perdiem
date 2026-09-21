@@ -9,6 +9,7 @@ import {
 } from "recharts";
 import { ArrowUpDown, Building2 } from "lucide-react";
 import type { PerdiemRequest, AppEvent, Participant, Client } from "@/lib/data";
+import { isTransacted } from "@/lib/data";
 import { formatCurrency } from "@/lib/utils";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -31,7 +32,7 @@ export function CrossClientSection({ requests, events, participants, clients }: 
       clientId: c.id,
       name: c.name,
       requestCount: requests.filter(r => r.clientId === c.id).length,
-      totalPaid: requests.filter(r => r.clientId === c.id && r.status === "Paid").reduce((s, r) => s + r.totalPerdiem, 0),
+      totalPaid: requests.filter(r => r.clientId === c.id && isTransacted(r)).reduce((s, r) => s + r.totalPerdiem, 0),
       participantCount: participants.filter(p => p.clientId === c.id && p.accessTier === "client_user").length,
       eventCount: events.filter(e => e.clientId === c.id).length,
     }));
