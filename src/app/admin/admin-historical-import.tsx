@@ -358,10 +358,22 @@ function conflictIdentityKey(eventName: string, date: string | undefined, phone:
 const AMOUNT_EPSILON_CENTS = 1; // absorbs float round-off, same tolerance as the RPC's round-to-2-decimals check
 
 /** A row in the file that identity-matches another payment (either another
- * row in the same file, or one already saved for this client) at a
- * genuinely different amount - needs an explicit merge/separate decision
- * rather than letting the RPC's default heuristic decide silently. */
-type Conflict = { rowIndex: number; amount: number; otherAmounts: number[] };
+ * row in the same file, or one already saved for this client) - needs an
+ * explicit merge/separate decision rather than letting the RPC's default
+ * heuristic decide silently.
+ *
+ * Flagged regardless of whether the amount also matches. It's tempting to
+ * only flag a *differing* amount (an identical one looks like "obviously
+ * the same payment") - but a same-amount collision is exactly as likely to
+ * be two genuinely separate payments that happen to be the same round
+ * number (a flat per-diem/CHP stipend rate, e.g. two real KES 2,000
+ * disbursements to the same person on the same day) as it is a real
+ * duplicate row. Only a human reviewing the actual source can tell those
+ * apart - the RPC's default (auto-merge when the amount matches) would
+ * otherwise silently drop one of two real payments with no warning at all,
+ * which is worse than over-flagging a same-amount case that turns out to
+ * be an honest duplicate entry (that one still just needs one click). */
+type Conflict = { rowIndex: number; amount: number; otherAmounts: number[]; amountsAllMatch: boolean };
 
 function detectConflicts(
   validRows: ValidatedRow[],
@@ -390,10 +402,10 @@ function detectConflicts(
         ...g.existingAmounts,
         ...g.fileEntries.filter((e) => e.rowIndex !== entry.rowIndex).map((e) => e.amount),
       ];
-      const differing = Array.from(new Set(others.filter((a) => Math.abs(Math.round(a * 100) - Math.round(entry.amount * 100)) > AMOUNT_EPSILON_CENTS)));
-      if (differing.length > 0) {
-        conflicts.push({ rowIndex: entry.rowIndex, amount: entry.amount, otherAmounts: differing });
-      }
+      if (others.length === 0) continue;
+      const distinctOthers = Array.from(new Set(others));
+      const amountsAllMatch = distinctOthers.every((a) => Math.abs(Math.round(a * 100) - Math.round(entry.amount * 100)) <= AMOUNT_EPSILON_CENTS);
+      conflicts.push({ rowIndex: entry.rowIndex, amount: entry.amount, otherAmounts: distinctOthers, amountsAllMatch });
     }
   }
   return conflicts;
@@ -650,11 +662,19 @@ export function HistoricalImportDialog({ clientId, clientName, onImported }: { c
   const handleConfirmImport = async () => {
     setIsImporting(true);
     setImportProgress({ rowsDone: 0, rowsTotal: validRows.length });
-    // Only rows the conflict check actually flagged carry a mergeDecision -
-    // every other row is left as-is, so the RPC's existing automatic
-    // amount-based decision applies unchanged (see 0016_manual_merge_decision.sql).
+    // Every row the conflict check flagged gets an explicit mergeDecision,
+    // even if the admin never touched its dropdown - "Record as separate
+    // payment" is what the Select visually defaults to, but a value shown
+    // via value={x ?? default} is never written back into mergeDecisions
+    // state on its own, so without this fallback an untouched conflict row
+    // would reach the RPC with no mergeDecision at all and fall through to
+    // its automatic amount-based heuristic (silent merge when the amount
+    // happens to match) - precisely the silent-merge case this review step
+    // exists to prevent. Rows the conflict check didn't flag are left
+    // exactly as-is, so the RPC's existing behavior for genuine gap-fill
+    // re-uploads (see 0016_manual_merge_decision.sql) is unchanged.
     const rows = validRows.map((v, i) => {
-      const decision = mergeDecisions[i];
+      const decision = mergeDecisions[i] ?? (conflicts.some((c) => c.rowIndex === i) ? "separate" : undefined);
       return decision ? { ...v.row, mergeDecision: decision } : v.row;
     });
     let importedCount = 0;
@@ -886,8 +906,8 @@ export function HistoricalImportDialog({ clientId, clientName, onImported }: { c
                 <p className="text-sm font-medium flex items-center gap-1.5 text-amber-800 dark:text-amber-300">
                   <AlertTriangle className="h-4 w-4 shrink-0" />
                   {conflicts.length} possible repeat payment{conflicts.length === 1 ? "" : "s"} detected - same participant,
-                  event and date as another payment already recorded (in this file or already saved), but a different
-                  amount. Choose how to handle each before importing:
+                  event and date as another payment already recorded (in this file or already saved). Nothing here is
+                  merged automatically - choose how to handle each one before importing:
                 </p>
                 <div className="space-y-2 max-h-56 overflow-y-auto">
                   {conflicts.map((c) => {
@@ -899,6 +919,9 @@ export function HistoricalImportDialog({ clientId, clientName, onImported }: { c
                           {" — "}{row.eventName} ({row.eventDates?.[0] ?? "no date"})
                           <div className="text-xs text-muted-foreground">
                             This payment: KES {c.amount.toLocaleString()} · Other{c.otherAmounts.length > 1 ? "s" : ""} recorded: KES {c.otherAmounts.map((a) => a.toLocaleString()).join(", ")}
+                            {c.amountsAllMatch && (
+                              <span className="text-amber-700 dark:text-amber-400"> · same amount - could be a genuine repeat payment (e.g. a flat stipend paid twice) or a duplicate row in the source file. Check before choosing.</span>
+                            )}
                           </div>
                         </div>
                         <Select
