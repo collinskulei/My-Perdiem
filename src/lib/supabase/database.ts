@@ -586,6 +586,38 @@ export const getPerDiemRequestsCountEstimate = async (client: SupabaseClient = s
   return count ?? 0;
 };
 
+export type PerdiemOverviewStats = {
+  totalRequests: number;
+  pendingRequests: number;
+  totalPaidOut: number;
+};
+
+/**
+ * Total/pending request counts and total paid out, aggregated inside
+ * Postgres (see migration 0025_overview_stats_rpc.sql) instead of by
+ * fetching every row and summing client-side - what admin-overview-tab.tsx
+ * uses instead of getPerDiemRequests() for its three requests-table-derived
+ * stat cards, so the landing page doesn't wait on the full (29,000+ row)
+ * table fetch just to show three numbers. clientId null asks for every
+ * client this caller's RLS allows (Super/Master Admin); the RPC itself is
+ * `security invoker`, so a Client Admin's own tenant scoping applies
+ * automatically either way - no separate access check needed here.
+ */
+export const getPerdiemOverviewStats = async (clientId: string | null = null, client: SupabaseClient = supabase): Promise<PerdiemOverviewStats> => {
+  const { data, error } = await client
+    .rpc('get_perdiem_overview_stats', { target_client_id: clientId })
+    .single<{ total_requests: number; pending_requests: number; total_paid_out: number }>();
+  if (error || !data) {
+    console.error("Error fetching perdiem overview stats: ", error);
+    throw error ?? new Error('get_perdiem_overview_stats did not return a result');
+  }
+  return {
+    totalRequests: Number(data.total_requests),
+    pendingRequests: Number(data.pending_requests),
+    totalPaidOut: Number(data.total_paid_out),
+  };
+};
+
 /**
  * Fetches all per diem requests from the 'perdiem_requests' table.
  * @returns {Promise<PerdiemRequest[]>} A promise that resolves to an array of per diem request objects.

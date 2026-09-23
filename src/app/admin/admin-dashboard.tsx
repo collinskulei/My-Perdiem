@@ -1374,7 +1374,6 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
       <Tabs value={activeTab}>
         <TabsContent value="overview">
           <AdminOverviewTab
-            requests={perdiemRequests}
             events={events}
             participants={participants}
             venues={venues}
