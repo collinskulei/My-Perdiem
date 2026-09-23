@@ -29,6 +29,13 @@ import { TrainingSection } from "./insights/training";
 import { CrossClientSection } from "./insights/cross-client";
 import { AmendmentsSection } from "./insights/amendments";
 
+const MONTH_OPTIONS = [
+  { value: "01", label: "January" }, { value: "02", label: "February" }, { value: "03", label: "March" },
+  { value: "04", label: "April" }, { value: "05", label: "May" }, { value: "06", label: "June" },
+  { value: "07", label: "July" }, { value: "08", label: "August" }, { value: "09", label: "September" },
+  { value: "10", label: "October" }, { value: "11", label: "November" }, { value: "12", label: "December" },
+];
+
 export function AdminInsightsTab({ requests, events, participants, venues, clients, loading }: {
   requests: PerdiemRequest[];
   events: AppEvent[];
@@ -48,13 +55,58 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
   // indirection the Reports tab's County filter already uses.
   const [county, setCounty] = useState("all");
   // Payment Date range - same field (PerdiemRequest.date) and widget as the
-  // Reports tab's Date Range filter.
+  // Reports tab's Date Range filter. Year/Month below are just a friendlier
+  // way to set this same dateRange (see setYearMonthRange) for the common
+  // case of "this whole year" or "this one month" - the calendar picker
+  // stays for anything more specific (an arbitrary custom range).
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [selectedYear, setSelectedYear] = useState("all");
+  const [selectedMonth, setSelectedMonth] = useState("all");
 
   const countyOptions = useMemo(
     () => Array.from(new Set(venues.map(v => v.county).filter((c): c is string => !!c))).sort(),
     [venues]
   );
+
+  // Years actually present in the data, newest first - avoids offering a
+  // 2027 or 2023 option when nothing's recorded for it.
+  const yearOptions = useMemo(
+    () => Array.from(new Set(requests.map(r => r.date?.slice(0, 4)).filter((y): y is string => !!y))).sort().reverse(),
+    [requests]
+  );
+
+  // Applies a Year (and optional Month) selection as a concrete dateRange -
+  // month end uses day 0 of the following month (= last day of this one) at
+  // 23:59:59.999 local time, generously inclusive of the whole last day
+  // rather than day 0 at local midnight, so a record dated exactly on the
+  // last day isn't excluded by a UTC-string-vs-local-Date boundary mismatch
+  // (see isWithinInterval/new Date(r.date) above - same characteristic the
+  // calendar picker already has, not something new introduced here).
+  const applyYearMonth = (year: string, month: string) => {
+    setSelectedYear(year);
+    setSelectedMonth(month);
+    if (year === "all") {
+      setSelectedMonth("all");
+      setDateRange(undefined);
+      return;
+    }
+    const y = Number(year);
+    if (month === "all") {
+      setDateRange({ from: new Date(y, 0, 1), to: new Date(y, 11, 31, 23, 59, 59, 999) });
+    } else {
+      const m = Number(month) - 1;
+      setDateRange({ from: new Date(y, m, 1), to: new Date(y, m + 1, 0, 23, 59, 59, 999) });
+    }
+  };
+
+  // The calendar picker sets an arbitrary range directly - Year/Month no
+  // longer describes it accurately once that happens, so both reset to
+  // "all" rather than keep showing a year/month that isn't what's applied.
+  const handleCalendarSelect = (range: DateRange | undefined) => {
+    setSelectedYear("all");
+    setSelectedMonth("all");
+    setDateRange(range);
+  };
 
   // null (not just "all") when unfiltered, same reasoning as
   // eventIdsInCounty below.
@@ -144,6 +196,26 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
               </SelectContent>
             </Select>
           </div>
+          <div className="w-full max-w-[10rem] space-y-1.5">
+            <Label htmlFor="insights-year">Year</Label>
+            <Select value={selectedYear} onValueChange={(v) => applyYearMonth(v, selectedMonth)}>
+              <SelectTrigger id="insights-year"><SelectValue placeholder="All Years" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Years</SelectItem>
+                {yearOptions.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-full max-w-[11rem] space-y-1.5">
+            <Label htmlFor="insights-month">Month</Label>
+            <Select value={selectedMonth} onValueChange={(v) => applyYearMonth(selectedYear, v)} disabled={selectedYear === "all"}>
+              <SelectTrigger id="insights-month"><SelectValue placeholder="All Months" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Months</SelectItem>
+                {MONTH_OPTIONS.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="w-full max-w-xs space-y-1.5">
             <Label htmlFor="insights-date-range">Payment Date Range</Label>
             <Popover>
@@ -164,10 +236,10 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
-                <Calendar initialFocus mode="range" selected={dateRange} onSelect={setDateRange} numberOfMonths={2} />
+                <Calendar initialFocus mode="range" selected={dateRange} onSelect={handleCalendarSelect} numberOfMonths={2} />
                 {dateRange && (
                   <div className="border-t p-2">
-                    <Button variant="ghost" size="sm" className="w-full" onClick={() => setDateRange(undefined)}>
+                    <Button variant="ghost" size="sm" className="w-full" onClick={() => applyYearMonth("all", "all")}>
                       Clear dates
                     </Button>
                   </div>
