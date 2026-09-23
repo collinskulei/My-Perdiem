@@ -62,10 +62,21 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [selectedYear, setSelectedYear] = useState("all");
   const [selectedMonth, setSelectedMonth] = useState("all");
+  // The specific event, by name - matched on PerdiemRequest.eventName/
+  // AppEvent.name directly rather than eventId, since a name is what an
+  // admin actually recognizes an event by, and (as seen in real data) two
+  // separate event rows can legitimately share one name - filtering by name
+  // catches both rather than picking one arbitrarily.
+  const [eventName, setEventName] = useState("all");
 
   const countyOptions = useMemo(
     () => Array.from(new Set(venues.map(v => v.county).filter((c): c is string => !!c))).sort(),
     [venues]
+  );
+
+  const eventNameOptions = useMemo(
+    () => Array.from(new Set(events.map(e => e.name).filter((n): n is string => !!n))).sort(),
+    [events]
   );
 
   // Years actually present in the data, newest first - avoids offering a
@@ -115,6 +126,13 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
     return new Set(events.filter(e => e.eventType === eventType).map(e => e.id));
   }, [eventType, events]);
 
+  // null (not just "all") when unfiltered, same reasoning as
+  // eventIdsInCounty below.
+  const eventIdsOfName = useMemo(() => {
+    if (eventName === "all") return null;
+    return new Set(events.filter(e => e.name === eventName).map(e => e.id));
+  }, [eventName, events]);
+
   // null (not just "all") when unfiltered, so filteredRequests/filteredEvents
   // below can tell "no county filter applied" apart from "this county has
   // zero matching events" without an extra branch at each call site.
@@ -140,20 +158,22 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
   const filteredRequests = useMemo(() => {
     let data = requests;
     if (eventIdsOfType) data = data.filter(r => eventIdsOfType.has(r.eventId));
+    if (eventIdsOfName) data = data.filter(r => eventIdsOfName.has(r.eventId));
     if (eventIdsInCounty) data = data.filter(r => eventIdsInCounty.has(r.eventId));
     if (dateRange?.from && dateRange.to) {
       const { from, to } = dateRange;
       data = data.filter(r => isWithinInterval(new Date(r.date), { start: from, end: to }));
     }
     return data;
-  }, [requests, eventIdsOfType, eventIdsInCounty, dateRange]);
+  }, [requests, eventIdsOfType, eventIdsOfName, eventIdsInCounty, dateRange]);
   const filteredEvents = useMemo(() => {
     let data = events;
     if (eventIdsOfType) data = data.filter(e => eventIdsOfType.has(e.id));
+    if (eventIdsOfName) data = data.filter(e => eventIdsOfName.has(e.id));
     if (eventIdsInCounty) data = data.filter(e => eventIdsInCounty.has(e.id));
     if (eventIdsInDateRange) data = data.filter(e => eventIdsInDateRange.has(e.id));
     return data;
-  }, [events, eventIdsOfType, eventIdsInCounty, eventIdsInDateRange]);
+  }, [events, eventIdsOfType, eventIdsOfName, eventIdsInCounty, eventIdsInDateRange]);
 
   if (loading) {
     return <InsightsLoadingSkeleton />;
@@ -183,6 +203,16 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
               <SelectContent>
                 <SelectItem value="all">All Event Types</SelectItem>
                 {EVENT_TYPE_CATEGORIES.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-full max-w-xs space-y-1.5">
+            <Label htmlFor="insights-event-name">Event Name</Label>
+            <Select value={eventName} onValueChange={setEventName}>
+              <SelectTrigger id="insights-event-name"><SelectValue placeholder="All Events" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Events</SelectItem>
+                {eventNameOptions.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
