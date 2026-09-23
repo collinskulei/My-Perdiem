@@ -15,7 +15,7 @@ export default function MasterAdminDashboardPage({
 }: {
   searchParams: { [key: string]: string | undefined };
 }) {
-  const tab = searchParams.tab || "requests";
+  const tab = searchParams.tab || "overview";
 
   return <AdminDashboard currentTab={tab} basePath="/master-admin/dashboard" />;
 }

@@ -95,7 +95,7 @@ export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: str
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <Link href={basePath} onClick={() => setActiveTab('requests')}>
+        <Link href={basePath} onClick={() => setActiveTab('overview')}>
           <SidebarMenuButton isActive={isLinkActive(basePath, null)}>
             <Home />
             Dashboard

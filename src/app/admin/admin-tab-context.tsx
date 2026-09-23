@@ -34,7 +34,7 @@ export function AdminTabProvider({ children }: { children: React.ReactNode }) {
   // admin-dashboard.tsx currentTab-prop sync (browser back/forward, direct
   // URL visits) are what keep this current, not re-reading searchParams
   // continuously.
-  const [activeTab, setActiveTab] = useState(() => searchParams.get("tab") || "requests");
+  const [activeTab, setActiveTab] = useState(() => searchParams.get("tab") || "overview");
 
   const value = useMemo(() => ({ activeTab, setActiveTab }), [activeTab]);
 

@@ -17,7 +17,7 @@ export default function ClientAdminDashboardPage({
   params: { clientSlug: string };
   searchParams: { [key: string]: string | undefined };
 }) {
-  const tab = searchParams.tab || "requests";
+  const tab = searchParams.tab || "overview";
 
   return <AdminDashboard currentTab={tab} basePath={`/${params.clientSlug}-admin/dashboard`} />;
 }

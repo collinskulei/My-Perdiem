@@ -109,6 +109,7 @@ import { AdminClientsOverview } from "./admin-clients-overview";
 import { AdminDocumentsTab } from "./admin-documents-tab";
 import { AdminSubmissionsTab } from "./admin-submissions-tab";
 import { AdminInsightsTab } from "./admin-insights";
+import { AdminOverviewTab } from "./admin-overview-tab";
 import { ParticipantLookup } from "./insights/participant-lookup";
 import { useAdminTab } from "./admin-tab-context";
 import { inviteAdmin, setParticipantDisabled } from "@/lib/admin-api-client";
@@ -154,6 +155,7 @@ const defaultFilters = {
 // admin-sidebar-navigation.tsx) is the only navigation surface - the
 // horizontal TabsList that used to communicate "you are here" was removed.
 const TAB_LABELS: Record<string, string> = {
+  overview: "Dashboard",
   requests: "Perdiem Requests",
   events: "Events",
   checkins: "Event Check-ins",
@@ -1370,6 +1372,20 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
       </div>
       <ClientOnly>
       <Tabs value={activeTab}>
+        <TabsContent value="overview">
+          <AdminOverviewTab
+            requests={perdiemRequests}
+            events={events}
+            participants={participants}
+            venues={venues}
+            clients={clients}
+            documents={documents}
+            currentAdmin={currentAdmin}
+            isMultiClientAdmin={isMultiClientAdmin}
+            basePath={basePath}
+            setActiveTab={setActiveTab}
+          />
+        </TabsContent>
         <TabsContent value="requests">
           <Card>
             <CardHeader><CardTitle>Perdiem Requests</CardTitle><CardDescription>Overview of all submitted per diem requests.</CardDescription></CardHeader>
