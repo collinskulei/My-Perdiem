@@ -25,9 +25,10 @@ export default async function ClientAdminDashboardLayout({
   params,
 }: {
   children: React.ReactNode;
-  params: { clientSlug: string };
+  params: Promise<{ clientSlug: string }>;
 }) {
-  const loginPath = `/${params.clientSlug}-admin`;
+  const { clientSlug } = await params;
+  const loginPath = `/${clientSlug}-admin`;
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -73,7 +74,7 @@ export default async function ClientAdminDashboardLayout({
       .eq('id', participant.client_id)
       .single();
 
-    if (!client || client.slug !== params.clientSlug) {
+    if (!client || client.slug !== clientSlug) {
       redirect(loginPath);
     }
   }
@@ -85,7 +86,7 @@ export default async function ClientAdminDashboardLayout({
   return (
     <AdminDashboardDataProvider data={initialData}>
       <AdminLayoutClient
-        basePath={`/${params.clientSlug}-admin/dashboard`}
+        basePath={`/${clientSlug}-admin/dashboard`}
         loginPath={loginPath}
         portalLabel="Client Admin"
       >

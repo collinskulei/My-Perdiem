@@ -11,15 +11,17 @@ export const dynamic = "force-dynamic";
  * get-initial-dashboard-data.ts) - not here, since this page re-renders on
  * every ?tab= sidebar click and a fetch here would re-run per click.
  *
- * @param {{ searchParams: { tab?: string } }} props - The props object, containing searchParams.
- * @returns {JSX.Element} The rendered admin dashboard page.
+ * @param {{ searchParams: Promise<{ tab?: string }> }} props - The props object, containing searchParams
+ * (a Promise as of Next.js 15 - must be awaited before reading its properties).
+ * @returns {Promise<JSX.Element>} The rendered admin dashboard page.
  */
-export default function AdminDashboardPage({
+export default async function AdminDashboardPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | undefined };
+  searchParams: Promise<{ [key: string]: string | undefined }>;
 }) {
-  const tab = searchParams.tab || "overview";
+  const params = await searchParams;
+  const tab = params.tab || "overview";
 
   return <AdminDashboard currentTab={tab} />;
 }

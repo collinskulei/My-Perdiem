@@ -10,12 +10,13 @@ export const dynamic = "force-dynamic";
  * get-initial-dashboard-data.ts) - not here, since this page re-renders on
  * every ?tab= sidebar click and a fetch here would re-run per click.
  */
-export default function SuperAdminDashboardPage({
+export default async function SuperAdminDashboardPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | undefined };
+  searchParams: Promise<{ [key: string]: string | undefined }>;
 }) {
-  const tab = searchParams.tab || "overview";
+  const params = await searchParams;
+  const tab = params.tab || "overview";
 
   return <AdminDashboard currentTab={tab} basePath="/super-admin/dashboard" />;
 }

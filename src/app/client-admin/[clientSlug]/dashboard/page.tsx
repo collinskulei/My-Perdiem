@@ -10,14 +10,15 @@ export const dynamic = "force-dynamic";
  * get-initial-dashboard-data.ts) - not here, since this page re-renders on
  * every ?tab= sidebar click and a fetch here would re-run per click.
  */
-export default function ClientAdminDashboardPage({
+export default async function ClientAdminDashboardPage({
   params,
   searchParams,
 }: {
-  params: { clientSlug: string };
-  searchParams: { [key: string]: string | undefined };
+  params: Promise<{ clientSlug: string }>;
+  searchParams: Promise<{ [key: string]: string | undefined }>;
 }) {
-  const tab = searchParams.tab || "overview";
+  const [{ clientSlug }, resolvedSearchParams] = await Promise.all([params, searchParams]);
+  const tab = resolvedSearchParams.tab || "overview";
 
-  return <AdminDashboard currentTab={tab} basePath={`/${params.clientSlug}-admin/dashboard`} />;
+  return <AdminDashboard currentTab={tab} basePath={`/${clientSlug}-admin/dashboard`} />;
 }
