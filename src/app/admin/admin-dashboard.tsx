@@ -427,6 +427,10 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
   };
 
   const [loading, setLoading] = useState(!initialData);
+  // Separate from `loading` - see fetchFastData/fetchRequestsData below for
+  // why perdiem_requests (29,000+ rows) gets its own independent flag
+  // instead of sharing one with the five small tables.
+  const [loadingRequests, setLoadingRequests] = useState(!initialData);
   const { toast } = useToast();
 
   // Correction path for browser back/forward and direct URL visits, which
@@ -460,13 +464,23 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
     return () => registerTour(null);
   }, [registerTour, currentAdmin]);
 
-  const fetchAllData = useCallback(async () => {
+  // Split in two so the five small tables (a few hundred rows between them,
+  // at most) don't sit blocked behind perdiem_requests - at 29,000+ rows
+  // and growing, that fetch alone can take well over a minute, and nothing
+  // else here has any reason to wait on it. Both groups start together;
+  // whichever finishes first updates its own state and clears its own
+  // loading flag independently, instead of one Promise.all gating
+  // everything on the slowest member. Tabs/cards that only need the fast
+  // group (Events, Participants, Venues, Clients, Documents, and the
+  // Overview cards for them) now render as soon as *that* group resolves;
+  // anything reading perdiemRequests (Requests tab, Reports, Analytics,
+  // Insights) still keys off loadingRequests, same as before.
+  const fetchFastData = useCallback(async () => {
     setLoading(true);
     try {
-      const [venuesData, participantsData, requestsData, eventsData, clientsData, documentsData] = await Promise.all([
+      const [venuesData, participantsData, eventsData, clientsData, documentsData] = await Promise.all([
         dataProvider.getVenues(),
         dataProvider.getParticipants(),
-        dataProvider.getPerDiemRequests(),
         dataProvider.getEvents(),
         dataProvider.getClients(),
         dataProvider.getDocuments()
@@ -475,7 +489,6 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
       setParticipants(participantsData);
       setClients(clientsData);
       setDocuments(documentsData);
-      setPerdiemRequests(sortRequestsByDateDesc(requestsData));
       setEvents(sortEventsByDateDesc(eventsData));
     } catch (error) {
       console.error("Failed to fetch data:", error);
@@ -488,6 +501,29 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
       setLoading(false);
     }
   }, [toast]);
+
+  const fetchRequestsData = useCallback(async () => {
+    setLoadingRequests(true);
+    try {
+      const requestsData = await dataProvider.getPerDiemRequests();
+      setPerdiemRequests(sortRequestsByDateDesc(requestsData));
+    } catch (error) {
+      console.error("Failed to fetch per diem requests:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load per diem requests from the database.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingRequests(false);
+    }
+  }, [toast]);
+
+  // Kept as one function - most callers just want "refresh everything after
+  // this mutation" and don't care that it's two fetches under the hood.
+  const fetchAllData = useCallback(async () => {
+    await Promise.all([fetchFastData(), fetchRequestsData()]);
+  }, [fetchFastData, fetchRequestsData]);
 
 
   useEffect(() => {
@@ -1364,7 +1400,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
 
   return (
     <>
-    <TopLoadingBar active={loading} />
+    <TopLoadingBar active={loading || loadingRequests} />
     <div className="grid flex-1 items-start gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{TAB_LABELS[activeTab] ?? "Dashboard"}</h1>
@@ -1393,7 +1429,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                 <Table>
                     <TableHeader><TableRow><TableHead>Participant</TableHead><TableHead>Event</TableHead><TableHead>Status</TableHead><TableHead>Date Submitted</TableHead><TableHead className="text-right">Amount</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
                     <TableBody>
-                    {loading ? <TableSkeletonRows columns={6} /> : requestsPagination.paged.map(request => (
+                    {loadingRequests ? <TableSkeletonRows columns={6} /> : requestsPagination.paged.map(request => (
                         <TableRow key={request.id}>
                         <TableCell><div className="font-medium">{request.participantName}</div><div className="hidden text-sm text-muted-foreground md:inline">{request.participantId ? participantsById.get(request.participantId)?.idNumber : undefined}</div></TableCell>
                         <TableCell>{request.eventName}</TableCell>
@@ -2257,7 +2293,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                            <ReportTabContent
                              title="Paid Perdiems"
                              data={filteredReportData.filter(r => r.status === 'Paid' || r.status === 'Confirmed')}
-                             loading={loading}
+                             loading={loadingRequests}
                              onDownload={() => handleDownloadPerDiemReport(filteredReportData.filter(r => r.status === 'Paid' || r.status === 'Confirmed'), 'paid_perdiems')}
                              isPaidReport={true}
                              onFlagOverpayment={isMultiClientAdmin ? (request) => setFlagOverpaymentState({ request, isOpen: true, payableAmount: '', reason: '' }) : undefined}
@@ -2269,15 +2305,15 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                            <ReportTabContent
                              title="Approved Perdiems"
                              data={filteredReportData.filter(r => r.status === 'Approved')}
-                             loading={loading}
+                             loading={loadingRequests}
                              onDownload={() => handleDownloadPerDiemReport(filteredReportData.filter(r => r.status === 'Approved'), 'approved_perdiems')}
                            />
                         </TabsContent>
                          <TabsContent value="rejected">
                            <ReportTabContent 
-                             title="Rejected Perdiems" 
+                             title="Rejected Perdiems"
                              data={filteredReportData.filter(r => r.status === 'Rejected')}
-                             loading={loading}
+                             loading={loadingRequests}
                              onDownload={() => handleDownloadPerDiemReport(filteredReportData.filter(r => r.status === 'Rejected'), 'rejected_perdiems')}
                            />
                         </TabsContent>
@@ -2285,7 +2321,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                            <AmendedReportTabContent
                              title="Amended Perdiems"
                              data={filteredReportData.filter(r => r.status === 'Amended')}
-                             loading={loading}
+                             loading={loadingRequests}
                              onRecordRecovery={isMultiClientAdmin ? (request) => setRecordRecoveryState({ request, isOpen: true, amount: '' }) : undefined}
                            />
                         </TabsContent>
@@ -2294,7 +2330,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
             </Card>
         </TabsContent>
         <TabsContent value="analytics">
-            <AnalyticsTabContent requests={perdiemRequests} clients={clients} loading={loading} />
+            <AnalyticsTabContent requests={perdiemRequests} clients={clients} loading={loadingRequests} />
         </TabsContent>
         {isMultiClientAdmin && (
           <TabsContent value="insights">
@@ -2304,7 +2340,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
               participants={participants}
               venues={venues}
               clients={clients}
-              loading={loading}
+              loading={loadingRequests}
             />
           </TabsContent>
         )}
