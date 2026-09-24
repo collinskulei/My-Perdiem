@@ -1,15 +1,15 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { format, isValid, startOfMonth, subMonths } from "date-fns";
+import { format, startOfMonth, subMonths } from "date-fns";
 import {
   ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   LineChart, Line,
 } from "recharts";
 import { ArrowUpDown, Building2 } from "lucide-react";
-import type { PerdiemRequest, AppEvent, Participant, Client } from "@/lib/data";
-import { isTransacted } from "@/lib/data";
+import type { AppEvent, Participant, Client } from "@/lib/data";
+import type { InsightsStats } from "@/lib/supabase/database";
 import { formatCurrency } from "@/lib/utils";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -18,8 +18,8 @@ import { ChartCard, SectionHeader, EmptyState, InsightCard, paletteColor, glassT
 type Rollup = { clientId: string; name: string; requestCount: number; totalPaid: number; participantCount: number; eventCount: number };
 type SortKey = keyof Omit<Rollup, "clientId" | "name">;
 
-export function CrossClientSection({ requests, events, participants, clients }: {
-  requests: PerdiemRequest[]; events: AppEvent[]; participants: Participant[]; clients: Client[];
+export function CrossClientSection({ stats, events, participants, clients }: {
+  stats: InsightsStats; events: AppEvent[]; participants: Participant[]; clients: Client[];
 }) {
   const tableRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
@@ -27,16 +27,20 @@ export function CrossClientSection({ requests, events, participants, clients }: 
   const lineRef = useRef<HTMLDivElement>(null);
   const [sortKey, setSortKey] = useState<SortKey>("totalPaid");
 
+  // Request count/total paid per client come pre-aggregated from
+  // get_insights_stats (0026_insights_stats_rpc.sql); participant/event
+  // counts from the (small, already-loaded) lists as before.
   const rollups = useMemo<Rollup[]>(() => {
+    const byClient = new Map(stats.byClient.map(c => [c.clientId, c]));
     return clients.map(c => ({
       clientId: c.id,
       name: c.name,
-      requestCount: requests.filter(r => r.clientId === c.id).length,
-      totalPaid: requests.filter(r => r.clientId === c.id && isTransacted(r)).reduce((s, r) => s + r.totalPerdiem, 0),
+      requestCount: byClient.get(c.id)?.requestCount ?? 0,
+      totalPaid: byClient.get(c.id)?.totalPaid ?? 0,
       participantCount: participants.filter(p => p.clientId === c.id && p.accessTier === "client_user").length,
       eventCount: events.filter(e => e.clientId === c.id).length,
     }));
-  }, [requests, events, participants, clients]);
+  }, [stats, events, participants, clients]);
 
   const sortedRollups = useMemo(
     () => [...rollups].sort((a, b) => (b[sortKey] as number) - (a[sortKey] as number)),
@@ -70,15 +74,13 @@ export function CrossClientSection({ requests, events, participants, clients }: 
       const key = format(monthStart, "yyyy-MM");
       const row: Record<string, string | number> = { month: format(monthStart, "MMM yyyy") };
       for (const client of topClients) {
-        row[client.name] = requests.filter(r => {
-          if (r.clientId !== client.clientId) return false;
-          const parsed = new Date(r.date);
-          return isValid(parsed) && format(parsed, "yyyy-MM") === key;
-        }).length;
+        row[client.name] = stats.monthlyByClient
+          .filter(m => m.clientId === client.clientId && m.month === key)
+          .reduce((sum, m) => sum + m.count, 0);
       }
       return row;
     });
-  }, [requests, topClients]);
+  }, [stats, topClients]);
 
   if (clients.length === 0) {
     return <EmptyState message="No clients yet - once more than one client has data, cross-client comparisons appear here." />;

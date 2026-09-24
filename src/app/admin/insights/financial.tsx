@@ -6,58 +6,49 @@ import {
   ScatterChart, Scatter, ZAxis,
 } from "recharts";
 import { DollarSign, TrendingUp, ArrowRightLeft } from "lucide-react";
-import type { PerdiemRequest } from "@/lib/data";
+import type { InsightsStats } from "@/lib/supabase/database";
 import { formatCurrency } from "@/lib/utils";
 import { StatCard, ChartCard, SectionHeader, EmptyState, STATUS_COLORS, paletteColor, glassTooltipStyle, downloadSectionAsPdf } from "./shared";
 
-const AMOUNT_BUCKETS: [number, number, string][] = [
-  [0, 5000, "0 - 5K"],
-  [5000, 10000, "5K - 10K"],
-  [10000, 20000, "10K - 20K"],
-  [20000, 30000, "20K - 30K"],
-  [30000, 50000, "30K - 50K"],
-  [50000, Infinity, "50K+"],
-];
+// Labels for the histogram counts get_insights_stats returns - the bucket
+// bounds themselves (0-5K, 5K-10K, ... 50K+) live in that SQL, in this order.
+const AMOUNT_BUCKET_LABELS = ["0 - 5K", "5K - 10K", "10K - 20K", "20K - 30K", "30K - 50K", "50K+"];
 
-export function FinancialSection({ requests }: { requests: PerdiemRequest[] }) {
+export function FinancialSection({ stats }: { stats: InsightsStats }) {
   const allowanceRef = useRef<HTMLDivElement>(null);
   const statusAmountRef = useRef<HTMLDivElement>(null);
   const scatterRef = useRef<HTMLDivElement>(null);
   const histogramRef = useRef<HTMLDivElement>(null);
 
+  // Sums/buckets arrive pre-aggregated from get_insights_stats
+  // (0026_insights_stats_rpc.sql) - this only reshapes them for the charts.
   const data = useMemo(() => {
-    const sum = (get: (r: PerdiemRequest) => number | undefined) => requests.reduce((s, r) => s + (get(r) ?? 0), 0);
+    const a = stats.allowances;
     const allowanceBreakdown = [
-      { name: "Mileage", value: sum(r => r.mileageTotal) },
-      { name: "Accommodation", value: sum(r => r.accommodationTotal) },
-      { name: "Out of Office", value: sum(r => r.outOfOfficeAllowance) },
-      { name: "Air Ticket", value: sum(r => r.airTicketCost) },
-      { name: "Ground Transfer", value: sum(r => r.groundTransferCost) },
-      { name: "Transport Allowance", value: sum(r => r.transportAllowance) },
-      { name: "DSA Allowance", value: sum(r => r.dsaAllowance) },
+      { name: "Mileage", value: a.mileage },
+      { name: "Accommodation", value: a.accommodation },
+      { name: "Out of Office", value: a.outOfOffice },
+      { name: "Air Ticket", value: a.airTicket },
+      { name: "Ground Transfer", value: a.groundTransfer },
+      { name: "Transport Allowance", value: a.transport },
+      { name: "DSA Allowance", value: a.dsa },
     ].filter(d => d.value > 0);
 
-    const totalPerdiemSum = requests.reduce((s, r) => s + r.totalPerdiem, 0);
-    const avgPerDiem = requests.length > 0 ? totalPerdiemSum / requests.length : 0;
+    const { requestCount, totalPerdiem } = stats.totals;
+    const avgPerDiem = requestCount > 0 ? totalPerdiem / requestCount : 0;
 
-    const amended = requests.filter(r => r.status === "Amended" && r.originalTotal !== undefined);
-    const totalAmendmentDelta = amended.reduce((s, r) => s + (r.totalPerdiem - (r.originalTotal ?? 0)), 0);
+    const statusAmountData = stats.byStatus.map(s => ({ name: s.status, value: s.amount }));
 
-    const byStatus = new Map<string, number>();
-    for (const r of requests) byStatus.set(r.status, (byStatus.get(r.status) || 0) + r.totalPerdiem);
-    const statusAmountData = Array.from(byStatus.entries()).map(([name, value]) => ({ name, value }));
+    const scatterData = stats.amendedRows
+      .filter(r => r.originalTotal !== undefined)
+      .map(r => ({ original: r.originalTotal ?? 0, amended: r.totalPerdiem, name: r.participantName }));
 
-    const scatterData = amended.map(r => ({ original: r.originalTotal ?? 0, amended: r.totalPerdiem, name: r.participantName }));
+    const histogram = AMOUNT_BUCKET_LABELS.map((range, i) => ({ range, count: stats.histogram[i] ?? 0 }));
 
-    const histogram = AMOUNT_BUCKETS.map(([min, max, label]) => ({
-      range: label,
-      count: requests.filter(r => r.totalPerdiem >= min && r.totalPerdiem < max).length,
-    }));
+    return { allowanceBreakdown, avgPerDiem, totalAmendmentDelta: stats.totals.amendmentDelta, statusAmountData, scatterData, histogram };
+  }, [stats]);
 
-    return { allowanceBreakdown, avgPerDiem, totalAmendmentDelta, statusAmountData, scatterData, histogram };
-  }, [requests]);
-
-  if (requests.length === 0) {
+  if (stats.totals.requestCount === 0) {
     return <EmptyState message="No per diem data yet - once requests exist, this section fills in automatically." />;
   }
 

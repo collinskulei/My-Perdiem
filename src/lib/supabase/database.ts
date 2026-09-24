@@ -619,6 +619,153 @@ export const getPerdiemOverviewStats = async (clientId: string | null = null, cl
 };
 
 /**
+ * Insights tab filters, as the RPCs in 0026_insights_stats_rpc.sql take
+ * them: eventIds null = no event filter (an empty array matches nothing),
+ * dates as inclusive 'YYYY-MM-DD' strings.
+ */
+export type InsightsFilters = {
+  eventIds: string[] | null;
+  dateFrom: string | null;
+  dateTo: string | null;
+};
+
+export type InsightsAmendedRow = {
+  id: string;
+  clientId: string;
+  participantName: string;
+  eventName: string;
+  date: string;
+  amendmentReason?: string;
+  totalPerdiem: number;
+  originalTotal?: number;
+  recoveredAmount: number;
+  isOverpayment: boolean;
+};
+
+export type InsightsStats = {
+  totals: { requestCount: number; totalPerdiem: number; totalPaidOut: number; amendmentDelta: number };
+  byStatus: { status: string; count: number; amount: number }[];
+  byClient: { clientId: string | null; requestCount: number; totalPaid: number }[];
+  monthlyByClient: { clientId: string | null; month: string; count: number; amount: number }[];
+  daily: { day: string; count: number }[];
+  allowances: { mileage: number; accommodation: number; outOfOffice: number; airTicket: number; groundTransfer: number; transport: number; dsa: number };
+  /** Counts per bucket, same order as AMOUNT_BUCKETS in insights/financial.tsx. */
+  histogram: number[];
+  amendedRows: InsightsAmendedRow[];
+  staffByStatus: { category: string; status: string; count: number }[];
+  topEmployers: { name: string; value: number }[];
+  trainingPoints: { days: number; amount: number }[];
+  eventIdsInRange: string[] | null;
+  years: string[];
+};
+
+/**
+ * Every requests-derived number the Insights tab shows, aggregated inside
+ * Postgres (see migration 0026_insights_stats_rpc.sql) instead of by
+ * summing the full perdiem_requests array in the browser. `security
+ * invoker`, so RLS scoping applies exactly as it does to getPerDiemRequests().
+ */
+export const getInsightsStats = async (filters: InsightsFilters, trendFrom: string, client: SupabaseClient = supabase): Promise<InsightsStats> => {
+  const { data, error } = await client.rpc('get_insights_stats', {
+    p_event_ids: filters.eventIds,
+    p_date_from: filters.dateFrom,
+    p_date_to: filters.dateTo,
+    p_trend_from: trendFrom,
+  });
+  if (error || !data) {
+    console.error("Error fetching insights stats: ", error);
+    throw error ?? new Error('get_insights_stats did not return a result');
+  }
+  const d = data as Record<string, any>;
+  return {
+    totals: {
+      requestCount: Number(d.totals.request_count),
+      totalPerdiem: Number(d.totals.total_perdiem),
+      totalPaidOut: Number(d.totals.total_paid_out),
+      amendmentDelta: Number(d.totals.amendment_delta),
+    },
+    byStatus: d.by_status.map((s: any) => ({ status: s.status, count: Number(s.count), amount: Number(s.amount) })),
+    byClient: d.by_client.map((c: any) => ({ clientId: c.client_id, requestCount: Number(c.request_count), totalPaid: Number(c.total_paid) })),
+    monthlyByClient: d.monthly_by_client.map((m: any) => ({ clientId: m.client_id, month: m.month, count: Number(m.count), amount: Number(m.amount) })),
+    daily: d.daily.map((x: any) => ({ day: x.day, count: Number(x.count) })),
+    allowances: {
+      mileage: Number(d.allowances.mileage),
+      accommodation: Number(d.allowances.accommodation),
+      outOfOffice: Number(d.allowances.out_of_office),
+      airTicket: Number(d.allowances.air_ticket),
+      groundTransfer: Number(d.allowances.ground_transfer),
+      transport: Number(d.allowances.transport),
+      dsa: Number(d.allowances.dsa),
+    },
+    histogram: d.histogram.map(Number),
+    amendedRows: d.amended_rows.map((r: any) => ({
+      id: r.id,
+      clientId: r.client_id,
+      participantName: r.participant_name,
+      eventName: r.event_name,
+      date: r.date,
+      amendmentReason: r.amendment_reason ?? undefined,
+      totalPerdiem: Number(r.total_perdiem),
+      originalTotal: r.original_total == null ? undefined : Number(r.original_total),
+      recoveredAmount: Number(r.recovered_amount ?? 0),
+      isOverpayment: !!r.is_overpayment,
+    })),
+    staffByStatus: d.staff_by_status.map((s: any) => ({ category: s.category, status: s.status, count: Number(s.count) })),
+    topEmployers: d.top_employers.map((e: any) => ({ name: e.name, value: Number(e.value) })),
+    trainingPoints: d.training_points.map((p: any) => ({ days: Number(p.days), amount: Number(p.amount) })),
+    eventIdsInRange: d.event_ids_in_range ?? null,
+    years: d.years,
+  };
+};
+
+export type InsightsSearchResult = {
+  matchCount: number;
+  totalPaid: number;
+  totalAll: number;
+  rows: Pick<PerdiemRequest, 'id' | 'clientId' | 'participantName' | 'participantPhone' | 'eventName' | 'date' | 'status' | 'totalPerdiem'>[];
+};
+
+/**
+ * Participant Lookup's name/phone search, run in Postgres (see
+ * search_insights_requests in 0026_insights_stats_rpc.sql) - matchCount and
+ * the totals cover every match, rows only the first `limit` (newest first).
+ */
+export const searchInsightsRequests = async (
+  query: string,
+  filters: InsightsFilters | null,
+  limit: number,
+  client: SupabaseClient = supabase
+): Promise<InsightsSearchResult> => {
+  const { data, error } = await client.rpc('search_insights_requests', {
+    p_query: query,
+    p_event_ids: filters?.eventIds ?? null,
+    p_date_from: filters?.dateFrom ?? null,
+    p_date_to: filters?.dateTo ?? null,
+    p_limit: limit,
+  });
+  if (error || !data) {
+    console.error("Error searching insights requests: ", error);
+    throw error ?? new Error('search_insights_requests did not return a result');
+  }
+  const d = data as Record<string, any>;
+  return {
+    matchCount: Number(d.match_count),
+    totalPaid: Number(d.total_paid),
+    totalAll: Number(d.total_all),
+    rows: d.rows.map((r: any) => ({
+      id: r.id,
+      clientId: r.client_id,
+      participantName: r.participant_name,
+      participantPhone: r.participant_phone ?? undefined,
+      eventName: r.event_name,
+      date: r.date,
+      status: r.status,
+      totalPerdiem: Number(r.total_perdiem),
+    })),
+  };
+};
+
+/**
  * Fetches all per diem requests from the 'perdiem_requests' table.
  * @returns {Promise<PerdiemRequest[]>} A promise that resolves to an array of per diem request objects.
  */

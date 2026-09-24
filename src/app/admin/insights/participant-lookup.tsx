@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search, UserSearch } from "lucide-react";
-import type { PerdiemRequest, Client } from "@/lib/data";
-import { isTransacted } from "@/lib/data";
+import type { Client } from "@/lib/data";
+import { searchInsightsRequests, type InsightsFilters, type InsightsSearchResult } from "@/lib/supabase/database";
 import { formatCurrency, formatDateSafe } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -19,28 +19,51 @@ import { InsightCard } from "./shared";
  * the equivalent fix on the Reports tab's Participant filter).
  */
 // A broad query (a common name, or a short digit prefix) can match
-// thousands of the 9,000+ requests - capping how many rows actually render
-// keeps the table from blocking the main thread, without affecting the
-// totals below, which are computed over every match, not just the shown rows.
-const MAX_VISIBLE_MATCHES = 200;
+// thousands of the 29,000+ requests - only this many rows (newest first)
+// come back for the table. The count and totals below are still computed
+// over every match, server-side.
+const MAX_VISIBLE_MATCHES = 500;
+// Waits for a pause in typing before searching, instead of a round trip
+// per keystroke.
+const SEARCH_DEBOUNCE_MS = 300;
 
-export function ParticipantLookup({ requests, clients }: { requests: PerdiemRequest[]; clients: Client[] }) {
+/**
+ * The search itself runs in Postgres (search_insights_requests in
+ * 0026_insights_stats_rpc.sql) rather than over a full requests array in
+ * the browser. `filters` narrows it the same way as the rest of the
+ * Insights tab; omitted (e.g. the Analytics tab) means no filter beyond RLS.
+ */
+export function ParticipantLookup({ clients, filters = null }: { clients: Client[]; filters?: InsightsFilters | null }) {
   const [query, setQuery] = useState("");
+  const [result, setResult] = useState<InsightsSearchResult | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const clientsById = useMemo(() => new Map(clients.map(c => [c.id, c])), [clients]);
 
-  const matches = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return requests.filter(r =>
-      r.participantName.toLowerCase().includes(q) ||
-      (r.participantPhone ?? "").includes(q)
-    );
-  }, [requests, query]);
+  useEffect(() => {
+    const q = query.trim();
+    if (!q) {
+      setResult(null);
+      setSearching(false);
+      return;
+    }
+    // `cancelled` drops a slower, older search that lands after a newer one.
+    let cancelled = false;
+    setSearching(true);
+    const timer = setTimeout(() => {
+      searchInsightsRequests(q, filters, MAX_VISIBLE_MATCHES)
+        .then((r) => { if (!cancelled) { setResult(r); setFailed(false); } })
+        .catch(() => { if (!cancelled) setFailed(true); })
+        .finally(() => { if (!cancelled) setSearching(false); });
+    }, SEARCH_DEBOUNCE_MS);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [query, filters]);
 
-  const visibleMatches = matches.length > MAX_VISIBLE_MATCHES ? matches.slice(0, MAX_VISIBLE_MATCHES) : matches;
-  const totalPaid = matches.filter(isTransacted).reduce((s, r) => s + r.totalPerdiem, 0);
-  const totalAll = matches.reduce((s, r) => s + r.totalPerdiem, 0);
+  const matchCount = result?.matchCount ?? 0;
+  const visibleMatches = result?.rows ?? [];
+  const totalPaid = result?.totalPaid ?? 0;
+  const totalAll = result?.totalAll ?? 0;
 
   return (
     <InsightCard>
@@ -60,14 +83,18 @@ export function ParticipantLookup({ requests, clients }: { requests: PerdiemRequ
         </div>
         {query.trim() === "" ? (
           <p className="text-sm text-muted-foreground">Search a participant to see their total paid and every payment record, across all clients.</p>
-        ) : matches.length === 0 ? (
+        ) : failed ? (
+          <p className="text-sm text-destructive">Search failed - please try again.</p>
+        ) : !result || (searching && matchCount === 0) ? (
+          <p className="text-sm text-muted-foreground">Searching...</p>
+        ) : matchCount === 0 ? (
           <p className="text-sm text-muted-foreground">No matching participant found.</p>
         ) : (
           <>
             <div className="flex flex-wrap gap-x-8 gap-y-2">
               <div>
                 <p className="text-sm text-muted-foreground">Matching Requests</p>
-                <p className="text-2xl font-bold">{matches.length}</p>
+                <p className="text-2xl font-bold">{matchCount}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Paid</p>
@@ -106,9 +133,9 @@ export function ParticipantLookup({ requests, clients }: { requests: PerdiemRequ
                 </TableBody>
               </Table>
             </div>
-            {matches.length > MAX_VISIBLE_MATCHES && (
+            {matchCount > visibleMatches.length && (
               <p className="text-sm text-muted-foreground">
-                Showing the first {MAX_VISIBLE_MATCHES} of {matches.length} matches - refine your search to narrow this down.
+                Showing the first {visibleMatches.length} of {matchCount} matches - refine your search to narrow this down.
               </p>
             )}
           </>

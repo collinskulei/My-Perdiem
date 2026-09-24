@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef } from "react";
-import { format, isValid, subDays, subMonths, startOfMonth } from "date-fns";
+import { format, subDays, subMonths, startOfMonth } from "date-fns";
 import {
   ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend,
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
@@ -10,16 +10,16 @@ import {
   Treemap,
 } from "recharts";
 import { ClipboardList, Wallet, Users, CalendarDays, Building2 } from "lucide-react";
-import type { PerdiemRequest, AppEvent, Participant, Client } from "@/lib/data";
-import { isTransacted } from "@/lib/data";
+import type { AppEvent, Participant, Client } from "@/lib/data";
+import type { InsightsStats } from "@/lib/supabase/database";
 import { formatCurrency } from "@/lib/utils";
 import {
   StatCard, ChartCard, SectionHeader, EmptyState,
   STATUS_COLORS, paletteColor, glassTooltipStyle, downloadSectionAsPdf,
 } from "./shared";
 
-export function OverviewSection({ requests, events, participants, clients }: {
-  requests: PerdiemRequest[];
+export function OverviewSection({ stats, events, participants, clients }: {
+  stats: InsightsStats;
   events: AppEvent[];
   participants: Participant[];
   clients: Client[];
@@ -30,65 +30,48 @@ export function OverviewSection({ requests, events, participants, clients }: {
   const composedRef = useRef<HTMLDivElement>(null);
   const treemapRef = useRef<HTMLDivElement>(null);
 
+  // Request-derived numbers arrive pre-aggregated from get_insights_stats
+  // (0026_insights_stats_rpc.sql) - this only reshapes them for the charts.
   const data = useMemo(() => {
-    // Includes overpayment-flagged Amended rows - see isTransacted's comment.
-    // Overpayment/recovery amounts get their own breakdown in the
-    // Amendments section, not a silent subtraction from this total.
-    const totalPaidOut = requests.filter(isTransacted).reduce((sum, r) => sum + r.totalPerdiem, 0);
     const nonAdminParticipants = participants.filter(p => p.accessTier === "client_user");
+    const clientName = (clientId: string | null) => clients.find(c => c.id === clientId)?.name ?? "Unknown";
 
-    const byStatus = requests.reduce((acc, r) => {
-      acc[r.status] = (acc[r.status] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-    const statusData = Object.entries(byStatus).map(([name, value]) => ({ name, value }));
+    const statusData = stats.byStatus.map(s => ({ name: s.status, value: s.count }));
 
-    const byDate = requests.reduce((acc, r) => {
-      const parsed = new Date(r.date);
-      if (!isValid(parsed)) return acc;
-      const key = format(parsed, "yyyy-MM-dd");
-      acc[key] = (acc[key] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const byDate = new Map(stats.daily.map(d => [d.day, d.count]));
     const trendData = Array.from({ length: 90 }, (_, i) => {
       const date = subDays(new Date(), 89 - i);
       const key = format(date, "yyyy-MM-dd");
-      return { date: format(date, "MMM d"), count: byDate[key] || 0 };
+      return { date: format(date, "MMM d"), count: byDate.get(key) || 0 };
     });
 
-    const paidByClient = new Map<string, number>();
-    for (const r of requests) {
-      if (!isTransacted(r)) continue;
-      paidByClient.set(r.clientId, (paidByClient.get(r.clientId) || 0) + r.totalPerdiem);
-    }
-    const topClients = Array.from(paidByClient.entries())
-      .map(([clientId, amount]) => ({ name: clients.find(c => c.id === clientId)?.name ?? "Unknown", amount }))
+    // total_paid includes overpayment-flagged Amended rows - see
+    // isTransacted's comment. Overpayment/recovery amounts get their own
+    // breakdown in the Amendments section, not a silent subtraction here.
+    const paidClients = stats.byClient.filter(c => c.totalPaid > 0);
+    const topClients = paidClients
+      .map(c => ({ name: clientName(c.clientId), amount: c.totalPaid }))
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 8);
 
-    const monthly = new Map<string, { count: number; amount: number }>();
+    const monthly = new Map<string, { month: string; count: number; amount: number }>();
     for (let i = 5; i >= 0; i--) {
-      const key = format(startOfMonth(subMonths(new Date(), i)), "MMM yyyy");
-      monthly.set(key, { count: 0, amount: 0 });
+      const monthStart = startOfMonth(subMonths(new Date(), i));
+      monthly.set(format(monthStart, "yyyy-MM"), { month: format(monthStart, "MMM yyyy"), count: 0, amount: 0 });
     }
-    for (const r of requests) {
-      const parsed = new Date(r.date);
-      if (!isValid(parsed)) continue;
-      const key = format(startOfMonth(parsed), "MMM yyyy");
-      const bucket = monthly.get(key);
+    for (const m of stats.monthlyByClient) {
+      const bucket = monthly.get(m.month);
       if (!bucket) continue; // outside the 6-month window
-      bucket.count += 1;
-      bucket.amount += r.totalPerdiem;
+      bucket.count += m.count;
+      bucket.amount += m.amount;
     }
-    const composedData = Array.from(monthly.entries()).map(([month, v]) => ({ month, ...v }));
+    const composedData = Array.from(monthly.values());
 
-    const treemapData = Array.from(paidByClient.entries())
-      .map(([clientId, amount]) => ({ name: clients.find(c => c.id === clientId)?.name ?? "Unknown", size: amount }))
-      .filter(d => d.size > 0);
+    const treemapData = paidClients.map(c => ({ name: clientName(c.clientId), size: c.totalPaid }));
 
     return {
-      totalRequests: requests.length,
-      totalPaidOut,
+      totalRequests: stats.totals.requestCount,
+      totalPaidOut: stats.totals.totalPaidOut,
       totalParticipants: nonAdminParticipants.length,
       totalEvents: events.length,
       activeClients: clients.length,
@@ -98,9 +81,9 @@ export function OverviewSection({ requests, events, participants, clients }: {
       composedData,
       treemapData,
     };
-  }, [requests, events, participants, clients]);
+  }, [stats, events, participants, clients]);
 
-  if (requests.length === 0) {
+  if (stats.totals.requestCount === 0) {
     return <EmptyState message="No per diem data yet - once requests exist, this section fills in automatically." />;
   }
 

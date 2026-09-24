@@ -2,7 +2,8 @@
 
 import { useMemo, useRef } from "react";
 import { FileEdit, AlertCircle, CheckCircle2, Hourglass } from "lucide-react";
-import type { PerdiemRequest, Client } from "@/lib/data";
+import type { Client } from "@/lib/data";
+import type { InsightsStats } from "@/lib/supabase/database";
 import { formatCurrency, formatDateSafe } from "@/lib/utils";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { StatCard, SectionHeader, EmptyState, InsightCard, downloadSectionAsPdf } from "./shared";
@@ -18,12 +19,14 @@ import { StatCard, SectionHeader, EmptyState, InsightCard, downloadSectionAsPdf 
  * across every client, matching every other Insights section's read-only
  * pattern.
  */
-export function AmendmentsSection({ requests, clients }: { requests: PerdiemRequest[]; clients: Client[] }) {
+export function AmendmentsSection({ stats, clients }: { stats: InsightsStats; clients: Client[] }) {
   const tableRef = useRef<HTMLDivElement>(null);
   const clientsById = useMemo(() => new Map(clients.map(c => [c.id, c])), [clients]);
 
   const data = useMemo(() => {
-    const amended = requests.filter(r => r.status === "Amended");
+    // Only the Amended subset comes back from get_insights_stats
+    // (0026_insights_stats_rpc.sql), not every request.
+    const amended = stats.amendedRows;
     // isOverpayment (supabase/migrations/0023) is the authoritative signal,
     // not a totalPerdiem/originalTotal comparison - the ordinary
     // amend-a-pending-request flow can also land above the original total
@@ -43,9 +46,9 @@ export function AmendmentsSection({ requests, clients }: { requests: PerdiemRequ
     // non-overpayment amendments (pending <= 0) sink to the bottom.
     const sorted = [...rows].sort((a, b) => b.pending - a.pending);
     return { rows: sorted, totalOverpaid, totalRecovered, totalPending, overpaymentCount: rows.filter(r => r.overpaid > 0).length };
-  }, [requests]);
+  }, [stats]);
 
-  if (requests.filter(r => r.status === "Amended").length === 0) {
+  if (stats.amendedRows.length === 0) {
     return <EmptyState message="No amended requests yet - once a request is corrected or flagged as overpaid, it'll show up here." />;
   }
 

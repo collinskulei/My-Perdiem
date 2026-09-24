@@ -2389,13 +2389,15 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
         </TabsContent>
         {isMultiClientAdmin && (
           <TabsContent value="insights">
+            {/* Waits only on the fast (events/participants/venues/clients)
+            fetch, not the full requests download - Insights gets its
+            requests-derived numbers from get_insights_stats instead. */}
             <AdminInsightsTab
-              requests={perdiemRequests}
               events={events}
               participants={participants}
               venues={venues}
               clients={clients}
-              loading={loadingRequests}
+              loading={loading}
             />
           </TabsContent>
         )}
@@ -2978,7 +2980,7 @@ function AnalyticsTabContent({ requests, clients, loading }: { requests: Perdiem
         <p className="text-muted-foreground">A high-level view of per diem request trends.</p>
       </div>
 
-      <ParticipantLookup requests={requests} clients={clients} />
+      <ParticipantLookup clients={clients} />
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card>

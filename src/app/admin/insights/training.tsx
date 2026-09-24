@@ -8,14 +8,17 @@ import {
   ScatterChart, Scatter, ZAxis,
 } from "recharts";
 import { GraduationCap } from "lucide-react";
-import type { PerdiemRequest, AppEvent, Venue } from "@/lib/data";
+import type { AppEvent, Venue } from "@/lib/data";
+import type { InsightsStats } from "@/lib/supabase/database";
 import { formatCurrency } from "@/lib/utils";
 import { ChartCard, SectionHeader, EmptyState, paletteColor, glassTooltipStyle, downloadSectionAsPdf } from "./shared";
 
 /** Prefers the dedicated training-days field from the newer historical
  * import format; falls back to the raw count of attended/paid dates for
  * older-format events that predate it - same fallback convention already
- * used in admin-dashboard.tsx's handleDownloadPerDiemReport CSV export. */
+ * used in admin-dashboard.tsx's handleDownloadPerDiemReport CSV export.
+ * Mirrored in SQL by get_insights_stats' training_points
+ * (0026_insights_stats_rpc.sql) - keep the two in sync. */
 function trainingDaysFor(event: AppEvent): number {
   if (event.numberOfTrainingDays && event.numberOfTrainingDays > 0) return event.numberOfTrainingDays;
   return event.eventDates?.length ?? 0;
@@ -28,7 +31,7 @@ function eventTimestamp(event: AppEvent): Date | null {
   return isValid(parsed) ? parsed : null;
 }
 
-export function TrainingSection({ requests, events, venues }: { requests: PerdiemRequest[]; events: AppEvent[]; venues: Venue[] }) {
+export function TrainingSection({ stats, events, venues }: { stats: InsightsStats; events: AppEvent[]; venues: Venue[] }) {
   const durationRef = useRef<HTMLDivElement>(null);
   const venuesRef = useRef<HTMLDivElement>(null);
   const countiesRef = useRef<HTMLDivElement>(null);
@@ -36,11 +39,6 @@ export function TrainingSection({ requests, events, venues }: { requests: Perdie
   const scatterRef = useRef<HTMLDivElement>(null);
 
   const data = useMemo(() => {
-    // O(1) lookup instead of events.find() per request below - with 9,000+
-    // requests, a linear scan through events on every one of them was the
-    // dominant cost of this section's data prep.
-    const eventsById = new Map(events.map(e => [e.id, e]));
-
     const durationBuckets = new Map<string, number>([["1 day", 0], ["2 days", 0], ["3 days", 0], ["4+ days", 0]]);
     for (const e of events) {
       const days = trainingDaysFor(e);
@@ -82,18 +80,12 @@ export function TrainingSection({ requests, events, venues }: { requests: Perdie
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, count]) => ({ month: format(new Date(`${key}-01`), "MMM yyyy"), count }));
 
-    const scatterData = requests
-      .map(r => {
-        const event = eventsById.get(r.eventId);
-        if (!event) return null;
-        const days = trainingDaysFor(event);
-        if (days <= 0) return null;
-        return { days, amount: r.totalPerdiem };
-      })
-      .filter((d): d is { days: number; amount: number } => d !== null);
+    // One point per distinct (days, amount) pair, computed server-side by
+    // get_insights_stats - identical points overlapped exactly anyway.
+    const scatterData = stats.trainingPoints;
 
     return { durationData, venueData, countyData, timeData, scatterData };
-  }, [requests, events, venues]);
+  }, [stats, events, venues]);
 
   if (events.length === 0) {
     return <EmptyState message="No event/training data yet - once events exist, this section fills in automatically." />;

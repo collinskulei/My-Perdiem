@@ -7,10 +7,10 @@
  */
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ListFilter, Calendar as CalendarIcon } from "lucide-react";
 import { DateRange } from "react-day-picker";
-import { format, isWithinInterval } from "date-fns";
+import { format, subDays } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -18,8 +18,10 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import type { PerdiemRequest, AppEvent, Participant, Venue, Client } from "@/lib/data";
+import type { AppEvent, Participant, Venue, Client } from "@/lib/data";
 import { EVENT_TYPE_CATEGORIES } from "@/lib/data";
+import { getInsightsStats, type InsightsFilters, type InsightsStats } from "@/lib/supabase/database";
+import { useToast } from "@/hooks/use-toast";
 import { InsightsLoadingSkeleton, InsightCard } from "./insights/shared";
 import { ParticipantLookup } from "./insights/participant-lookup";
 import { OverviewSection } from "./insights/overview";
@@ -36,8 +38,7 @@ const MONTH_OPTIONS = [
   { value: "10", label: "October" }, { value: "11", label: "November" }, { value: "12", label: "December" },
 ];
 
-export function AdminInsightsTab({ requests, events, participants, venues, clients, loading }: {
-  requests: PerdiemRequest[];
+export function AdminInsightsTab({ events, participants, venues, clients, loading }: {
   events: AppEvent[];
   participants: Participant[];
   venues: Venue[];
@@ -79,20 +80,10 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
     [events]
   );
 
-  // Years actually present in the data, newest first - avoids offering a
-  // 2027 or 2023 option when nothing's recorded for it.
-  const yearOptions = useMemo(
-    () => Array.from(new Set(requests.map(r => r.date?.slice(0, 4)).filter((y): y is string => !!y))).sort().reverse(),
-    [requests]
-  );
-
   // Applies a Year (and optional Month) selection as a concrete dateRange -
-  // month end uses day 0 of the following month (= last day of this one) at
-  // 23:59:59.999 local time, generously inclusive of the whole last day
-  // rather than day 0 at local midnight, so a record dated exactly on the
-  // last day isn't excluded by a UTC-string-vs-local-Date boundary mismatch
-  // (see isWithinInterval/new Date(r.date) above - same characteristic the
-  // calendar picker already has, not something new introduced here).
+  // month end uses day 0 of the following month (= last day of this one).
+  // Only the calendar day matters (it's sent to the server as a plain
+  // YYYY-MM-DD string, see dateFrom/dateTo below), not the time of day.
   const applyYearMonth = (year: string, month: string) => {
     setSelectedYear(year);
     setSelectedMonth(month);
@@ -133,7 +124,7 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
     return new Set(events.filter(e => e.name === eventName).map(e => e.id));
   }, [eventName, events]);
 
-  // null (not just "all") when unfiltered, so filteredRequests/filteredEvents
+  // null (not just "all") when unfiltered, so eventIdsFilter/filteredEvents
   // below can tell "no county filter applied" apart from "this county has
   // zero matching events" without an extra branch at each call site.
   const eventIdsInCounty = useMemo(() => {
@@ -142,40 +133,72 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
     return new Set(events.filter(e => venueIds.has(e.venueId)).map(e => e.id));
   }, [county, venues, events]);
 
-  // null (not just "no range picked") when unfiltered, same reasoning as
-  // eventIdsInCounty above - lets filteredEvents tell "no date filter" apart
-  // from "no events have a request in this range" without an extra branch.
-  const eventIdsInDateRange = useMemo(() => {
-    if (!dateRange?.from || !dateRange.to) return null;
-    const { from, to } = dateRange;
-    return new Set(
-      requests
-        .filter(r => isWithinInterval(new Date(r.date), { start: from, end: to }))
-        .map(r => r.eventId)
-    );
-  }, [dateRange, requests]);
+  // Event Type / Event Name / County all narrow by event, so they collapse
+  // into one event-ID list for the server (see get_insights_stats in
+  // 0026_insights_stats_rpc.sql) - null when none of them is applied, an
+  // empty list when they're applied but match no events.
+  const eventIdsFilter = useMemo(() => {
+    const sets = [eventIdsOfType, eventIdsOfName, eventIdsInCounty].filter((x): x is Set<string> => x !== null);
+    if (sets.length === 0) return null;
+    const [first, ...rest] = sets;
+    return Array.from(first).filter(id => rest.every(set => set.has(id))).sort();
+  }, [eventIdsOfType, eventIdsOfName, eventIdsInCounty]);
 
-  const filteredRequests = useMemo(() => {
-    let data = requests;
-    if (eventIdsOfType) data = data.filter(r => eventIdsOfType.has(r.eventId));
-    if (eventIdsOfName) data = data.filter(r => eventIdsOfName.has(r.eventId));
-    if (eventIdsInCounty) data = data.filter(r => eventIdsInCounty.has(r.eventId));
-    if (dateRange?.from && dateRange.to) {
-      const { from, to } = dateRange;
-      data = data.filter(r => isWithinInterval(new Date(r.date), { start: from, end: to }));
-    }
-    return data;
-  }, [requests, eventIdsOfType, eventIdsOfName, eventIdsInCounty, dateRange]);
+  // Payment Date range as inclusive 'YYYY-MM-DD' strings, compared directly
+  // against the text `date` column server-side - which also means a record
+  // dated on the range's last day is always included, regardless of the
+  // browser's timezone. Both ends required, same as before.
+  const dateFrom = dateRange?.from && dateRange.to ? format(dateRange.from, "yyyy-MM-dd") : null;
+  const dateTo = dateRange?.from && dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : null;
+
+  const filters = useMemo<InsightsFilters>(
+    () => ({ eventIds: eventIdsFilter, dateFrom, dateTo }),
+    [eventIdsFilter, dateFrom, dateTo]
+  );
+
+  // Every requests-derived number comes from Postgres rather than summing
+  // the full perdiem_requests array here, so this tab no longer waits on
+  // that (29,000+ row) download at all. Refetched whenever a filter
+  // changes; `cancelled` drops an older response that lands after a newer one.
+  const { toast } = useToast();
+  const [stats, setStats] = useState<InsightsStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    setStatsLoading(true);
+    const trendFrom = format(subDays(new Date(), 89), "yyyy-MM-dd");
+    getInsightsStats(filters, trendFrom)
+      .then((result) => { if (!cancelled) setStats(result); })
+      .catch(() => {
+        if (!cancelled) toast({ title: "Error", description: "Failed to load insights from the database.", variant: "destructive" });
+      })
+      .finally(() => { if (!cancelled) setStatsLoading(false); });
+    return () => { cancelled = true; };
+  }, [filters, toast]);
+
+  // Years actually present in the data, newest first (unfiltered, from the
+  // server) - avoids offering a 2027 or 2023 option when nothing's recorded.
+  const yearOptions = stats?.years ?? [];
+
   const filteredEvents = useMemo(() => {
     let data = events;
     if (eventIdsOfType) data = data.filter(e => eventIdsOfType.has(e.id));
     if (eventIdsOfName) data = data.filter(e => eventIdsOfName.has(e.id));
     if (eventIdsInCounty) data = data.filter(e => eventIdsInCounty.has(e.id));
-    if (eventIdsInDateRange) data = data.filter(e => eventIdsInDateRange.has(e.id));
+    // Only events that had a request in the chosen date range - null when
+    // no date filter is applied. Derived from requests, so it comes back
+    // with the stats.
+    const inRange = stats?.eventIdsInRange;
+    if (inRange) {
+      const ids = new Set(inRange);
+      data = data.filter(e => ids.has(e.id));
+    }
     return data;
-  }, [events, eventIdsOfType, eventIdsOfName, eventIdsInCounty, eventIdsInDateRange]);
+  }, [events, eventIdsOfType, eventIdsOfName, eventIdsInCounty, stats]);
 
-  if (loading) {
+  // Skeleton only until the first stats arrive - later filter changes keep
+  // the previous numbers on screen (dimmed below) until the new ones land.
+  if (loading || !stats) {
     return <InsightsLoadingSkeleton />;
   }
 
@@ -280,9 +303,9 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
         </div>
       </InsightCard>
 
-      <ParticipantLookup requests={filteredRequests} clients={clients} />
+      <ParticipantLookup clients={clients} filters={filters} />
 
-      <Tabs defaultValue="overview">
+      <Tabs defaultValue="overview" className={cn("transition-opacity", statsLoading && "opacity-60")}>
         <div className="overflow-x-auto pb-2">
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -295,22 +318,22 @@ export function AdminInsightsTab({ requests, events, participants, venues, clien
         </div>
 
         <TabsContent value="overview">
-          <OverviewSection requests={filteredRequests} events={filteredEvents} participants={participants} clients={clients} />
+          <OverviewSection stats={stats} events={filteredEvents} participants={participants} clients={clients} />
         </TabsContent>
         <TabsContent value="financial">
-          <FinancialSection requests={filteredRequests} />
+          <FinancialSection stats={stats} />
         </TabsContent>
         <TabsContent value="staff-employer">
-          <StaffEmployerSection requests={filteredRequests} participants={participants} />
+          <StaffEmployerSection stats={stats} participants={participants} />
         </TabsContent>
         <TabsContent value="training">
-          <TrainingSection requests={filteredRequests} events={filteredEvents} venues={venues} />
+          <TrainingSection stats={stats} events={filteredEvents} venues={venues} />
         </TabsContent>
         <TabsContent value="cross-client">
-          <CrossClientSection requests={filteredRequests} events={filteredEvents} participants={participants} clients={clients} />
+          <CrossClientSection stats={stats} events={filteredEvents} participants={participants} clients={clients} />
         </TabsContent>
         <TabsContent value="amendments">
-          <AmendmentsSection requests={filteredRequests} clients={clients} />
+          <AmendmentsSection stats={stats} clients={clients} />
         </TabsContent>
       </Tabs>
     </div>

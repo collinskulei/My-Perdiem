@@ -6,16 +6,13 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from "recharts";
 import { Users } from "lucide-react";
-import type { PerdiemRequest, Participant } from "@/lib/data";
+import type { Participant } from "@/lib/data";
+import type { InsightsStats } from "@/lib/supabase/database";
 import { ChartCard, SectionHeader, EmptyState, STATUS_COLORS, paletteColor, glassTooltipStyle, downloadSectionAsPdf } from "./shared";
 
-const STAFF_CATEGORIES = [
-  { key: "dhaStaff", label: "DHA" },
-  { key: "mohStaff", label: "MOH" },
-  { key: "knhStaff", label: "KNH" },
-  { key: "shaStaff", label: "SHA" },
-  { key: "otherStaff", label: "Other" },
-] as const;
+// Display order - the labels match the categories get_insights_stats
+// returns in staff_by_status (dha_staff -> "DHA", etc.).
+const STAFF_CATEGORIES = ["DHA", "MOH", "KNH", "SHA", "Other"] as const;
 
 function topCounts(values: (string | undefined)[], limit = 10) {
   const counts = new Map<string, number>();
@@ -29,7 +26,7 @@ function topCounts(values: (string | undefined)[], limit = 10) {
     .slice(0, limit);
 }
 
-export function StaffEmployerSection({ requests, participants }: { requests: PerdiemRequest[]; participants: Participant[] }) {
+export function StaffEmployerSection({ stats, participants }: { stats: InsightsStats; participants: Participant[] }) {
   const staffCatRef = useRef<HTMLDivElement>(null);
   const employerRef = useRef<HTMLDivElement>(null);
   const jobGroupRef = useRef<HTMLDivElement>(null);
@@ -37,27 +34,32 @@ export function StaffEmployerSection({ requests, participants }: { requests: Per
   const stackedRef = useRef<HTMLDivElement>(null);
 
   const data = useMemo(() => {
+    // Staff/employer counts arrive pre-aggregated from get_insights_stats
+    // (0026_insights_stats_rpc.sql); job group/designation come from the
+    // (small, already-loaded) participants list as before.
+    const countFor = (category: string, status?: string) => stats.staffByStatus
+      .filter(s => s.category === category && (status === undefined || s.status === status))
+      .reduce((sum, s) => sum + s.count, 0);
+
     const staffCategoryData = STAFF_CATEGORIES
-      .map(c => ({ name: c.label, value: requests.filter(r => r[c.key] === true).length }))
+      .map(c => ({ name: c, value: countFor(c) }))
       .filter(d => d.value > 0);
 
-    const employerData = topCounts(requests.map(r => r.employer));
+    const employerData = stats.topEmployers;
     const jobGroupData = topCounts(participants.map(p => p.jobGroup));
     const designationData = topCounts(participants.map(p => p.designation));
 
-    const statuses = Array.from(new Set(requests.map(r => r.status)));
+    const statuses = stats.byStatus.map(s => s.status);
     const stackedData = STAFF_CATEGORIES.map(c => {
-      const row: Record<string, string | number> = { category: c.label };
-      for (const status of statuses) {
-        row[status] = requests.filter(r => r[c.key] === true && r.status === status).length;
-      }
+      const row: Record<string, string | number> = { category: c };
+      for (const status of statuses) row[status] = countFor(c, status);
       return row;
     }).filter(row => statuses.some(s => (row[s] as number) > 0));
 
     return { staffCategoryData, employerData, jobGroupData, designationData, stackedData, statuses };
-  }, [requests, participants]);
+  }, [stats, participants]);
 
-  if (requests.length === 0 && participants.length === 0) {
+  if (stats.totals.requestCount === 0 && participants.length === 0) {
     return <EmptyState message="No staff/employer data yet - once requests and participants exist, this section fills in automatically." />;
   }
 
