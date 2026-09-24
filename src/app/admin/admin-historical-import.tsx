@@ -941,8 +941,7 @@ export function HistoricalImportDialog({ clientId, clientName, onImported }: { c
               </div>
             )}
 
-            <div className="overflow-x-auto max-h-64 border rounded-md">
-              <Table>
+              <Table containerClassName="max-h-64 border rounded-md" stickyHeader>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Event</TableHead>
@@ -978,10 +977,13 @@ export function HistoricalImportDialog({ clientId, clientName, onImported }: { c
                         <TableCell>{v.row.participantPhone ?? "—"}</TableCell>
                         <TableCell>{Number.isNaN(v.row.totalPerdiem) ? <span className="text-destructive">invalid</span> : v.row.totalPerdiem}</TableCell>
                         <TableCell>
+                          {/* Errors/warnings wrap (overriding the table's no-wrap
+                          default) - they must be fully readable before an
+                          admin confirms the import, not clipped. */}
                           {v.errors.length > 0 ? (
-                            <Badge variant="destructive">{v.errors[0]}</Badge>
+                            <Badge variant="destructive" className="whitespace-normal min-w-[10rem] max-w-xs">{v.errors[0]}</Badge>
                           ) : v.warnings.length > 0 ? (
-                            <Badge variant="destructive" title="Not blocked from import - review before confirming">{v.warnings[0]}</Badge>
+                            <Badge variant="destructive" className="whitespace-normal min-w-[10rem] max-w-xs" title="Not blocked from import - review before confirming">{v.warnings[0]}</Badge>
                           ) : (
                             <Badge variant="secondary">{v.row.status}</Badge>
                           )}
@@ -991,7 +993,6 @@ export function HistoricalImportDialog({ clientId, clientName, onImported }: { c
                   })}
                 </TableBody>
               </Table>
-            </div>
             {validated.length > 50 && (
               <p className="text-xs text-muted-foreground">Showing first 50 of {validated.length} rows.</p>
             )}

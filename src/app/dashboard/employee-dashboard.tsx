@@ -417,7 +417,6 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                         <CardDescription>Events you are allocated to. Check-in daily to record your attendance.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                       <div className="overflow-x-auto">
                         <Table>
                             <TableHeader>
                               <TableRow>
@@ -493,7 +492,6 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                 })}
                             </TableBody>
                         </Table>
-                       </div>
                     </CardContent>
                 </Card>
             </TabsContent>
@@ -504,7 +502,6 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                         <CardDescription>A record of all your event check-ins.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -547,7 +544,6 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                     )}
                                 </TableBody>
                             </Table>
-                        </div>
                     </CardContent>
                 </Card>
             </TabsContent>
@@ -560,7 +556,6 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                     <div className="overflow-x-auto">
                         <Table>
                         <TableHeader>
                             <TableRow>
@@ -581,10 +576,12 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                                 <TableCell>
                                 <div className="font-medium">{request.eventName}</div>
                                  {request.rejectionReason && (
-                                     <p className="text-xs text-destructive mt-1">Reason: {request.rejectionReason}</p>
+                                     // Wraps (overriding the table's no-wrap default) - a participant
+                                     // needs to read their full reason, not scroll one long line.
+                                     <p className="text-xs text-destructive mt-1 whitespace-normal min-w-[12rem] max-w-xs">Reason: {request.rejectionReason}</p>
                                  )}
                                  {request.amendmentReason && (
-                                     <p className="text-xs text-muted-foreground mt-1">Amendment: {request.amendmentReason}</p>
+                                     <p className="text-xs text-muted-foreground mt-1 whitespace-normal min-w-[12rem] max-w-xs">Amendment: {request.amendmentReason}</p>
                                  )}
                                 </TableCell>
                                 <TableCell>
@@ -604,7 +601,6 @@ export function EmployeeDashboard({ currentTab }: { currentTab: string }) {
                             ))}
                         </TableBody>
                         </Table>
-                    </div>
                   </CardContent>
                 </Card>
             </TabsContent>

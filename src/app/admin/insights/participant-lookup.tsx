@@ -105,8 +105,7 @@ export function ParticipantLookup({ clients, filters = null }: { clients: Client
                 <p className="text-2xl font-bold">{formatCurrency(totalAll)}</p>
               </div>
             </div>
-            <div className="overflow-x-auto max-h-80 border rounded-md">
-              <Table>
+              <Table containerClassName="max-h-80 border rounded-md" stickyHeader>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
@@ -132,7 +131,6 @@ export function ParticipantLookup({ clients, filters = null }: { clients: Client
                   ))}
                 </TableBody>
               </Table>
-            </div>
             {matchCount > visibleMatches.length && (
               <p className="text-sm text-muted-foreground">
                 Showing the first {visibleMatches.length} of {matchCount} matches - refine your search to narrow this down.

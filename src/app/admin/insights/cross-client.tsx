@@ -115,7 +115,6 @@ export function CrossClientSection({ stats, events, participants, clients }: {
       <InsightCard>
         <div ref={tableRef} className="p-6 space-y-4">
           <h4 className="font-medium">Per-Client Rollup</h4>
-          <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -138,7 +137,6 @@ export function CrossClientSection({ stats, events, participants, clients }: {
                 ))}
               </TableBody>
             </Table>
-          </div>
         </div>
       </InsightCard>
 

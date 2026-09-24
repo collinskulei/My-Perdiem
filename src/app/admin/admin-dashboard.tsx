@@ -1476,7 +1476,6 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
           <Card>
             <CardHeader><CardTitle>Perdiem Requests</CardTitle><CardDescription>Overview of all submitted per diem requests.</CardDescription></CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
                 <Table>
                     <TableHeader><TableRow><TableHead>Participant</TableHead><TableHead>Event</TableHead><PerdiemDetailColumnHeaders /><TableHead className="text-right whitespace-nowrap">Total Amount</TableHead><TableHead>Status</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
                     <TableBody>
@@ -1514,7 +1513,6 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                     ))}
                     </TableBody>
                 </Table>
-              </div>
               <TablePagination page={requestsPagination.page} pageCount={requestsPagination.pageCount} totalItems={perdiemRequests.length} pageSize={TABLE_PAGE_SIZE} onPageChange={requestsPagination.setPage} />
             </CardContent>
           </Card>
@@ -1792,7 +1790,6 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                 </Dialog>
             </CardHeader>
             <CardContent>
-                <div className="overflow-x-auto">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -1859,7 +1856,6 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                             })}
                         </TableBody>
                     </Table>
-                </div>
             </CardContent>
            </Card>
         </TabsContent>
@@ -1898,7 +1894,6 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                                                 </Button>
                                             </CardHeader>
                                             <CardContent>
-                                                <div className="overflow-x-auto">
                                                     <Table>
                                                         <TableHeader>
                                                             <TableRow>
@@ -1925,7 +1920,6 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                                                             ))}
                                                         </TableBody>
                                                     </Table>
-                                                </div>
                                             </CardContent>
                                         </Card>
                                     </TabsContent>
@@ -1998,7 +1992,6 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                     </Select>
                   )}
               </div>
-              <div className="overflow-x-auto">
                 <Table>
                     <TableHeader><TableRow><TableHead className="w-[64px]"><span className="sr-only">Image</span></TableHead><TableHead>Name</TableHead><TableHead>ID Number</TableHead><TableHead>Role</TableHead><TableHead>Duty Station</TableHead><TableHead>Job Group</TableHead><TableHead>Status</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
                     <TableBody>
@@ -2038,7 +2031,6 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                     ))}
                     </TableBody>
                 </Table>
-              </div>
               <TablePagination page={participantsPagination.page} pageCount={participantsPagination.pageCount} totalItems={filteredParticipants.length} pageSize={TABLE_PAGE_SIZE} onPageChange={participantsPagination.setPage} />
             </CardContent>
           </Card>
@@ -2075,7 +2067,6 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
               </Dialog>
             </CardHeader>
             <CardContent>
-                <div className="overflow-x-auto">
                     <Table>
                         <TableHeader><TableRow><TableHead>Venue Name</TableHead><TableHead>City</TableHead><TableHead>County</TableHead><TableHead>Coordinates</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
                         <TableBody>
@@ -2108,7 +2099,6 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                         ))}
                         </TableBody>
                     </Table>
-                </div>
             </CardContent>
           </Card>
           <Dialog open={!!editingVenue} onOpenChange={(open) => { if (!open) setEditingVenue(null); }}>
@@ -2713,7 +2703,6 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
                 </div>
             </CardHeader>
             <CardContent>
-                 <div className="overflow-x-auto">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -2789,7 +2778,6 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
                         ))}
                         </TableBody>
                     </Table>
-                </div>
                 <TablePagination page={page} pageCount={pageCount} totalItems={data.length} pageSize={TABLE_PAGE_SIZE} onPageChange={setPage} />
             </CardContent>
         </Card>
@@ -2815,7 +2803,6 @@ function AmendedReportTabContent({ title, data, loading, onRecordRecovery, event
                 {/* Add download button if needed */}
             </CardHeader>
             <CardContent>
-                <div className="overflow-x-auto">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -2845,7 +2832,7 @@ function AmendedReportTabContent({ title, data, loading, onRecordRecovery, event
                                 <TableCell>{request.participantName}</TableCell>
                                 <TableCell>{request.eventName}</TableCell>
                                 <PerdiemDetailColumnCells request={request} event={eventsById.get(request.eventId)} />
-                                <TableCell className="max-w-xs truncate">{request.amendmentReason}</TableCell>
+                                <TableCell className="max-w-xs truncate" title={request.amendmentReason}>{request.amendmentReason}</TableCell>
                                 <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.originalTotal ?? 0)}</TableCell>
                                 <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.totalPerdiem)}</TableCell>
                                 <TableCell className="text-right whitespace-nowrap">{overpaid > 0 ? formatCurrency(overpaid) : '-'}</TableCell>
@@ -2870,7 +2857,6 @@ function AmendedReportTabContent({ title, data, loading, onRecordRecovery, event
                         )})}
                         </TableBody>
                     </Table>
-                </div>
                 <TablePagination page={page} pageCount={pageCount} totalItems={data.length} pageSize={TABLE_PAGE_SIZE} onPageChange={setPage} />
             </CardContent>
         </Card>

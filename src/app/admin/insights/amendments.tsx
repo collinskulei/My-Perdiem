@@ -71,8 +71,7 @@ export function AmendmentsSection({ stats, clients }: { stats: InsightsStats; cl
       <InsightCard>
         <div ref={tableRef} className="p-6 space-y-4">
           <h3 className="text-lg font-semibold">All Amended Records</h3>
-          <div className="overflow-x-auto max-h-[32rem] border rounded-md">
-            <Table>
+            <Table containerClassName="max-h-[32rem] border rounded-md" stickyHeader>
               <TableHeader>
                 <TableRow>
                   <TableHead>Participant</TableHead>
@@ -106,7 +105,6 @@ export function AmendmentsSection({ stats, clients }: { stats: InsightsStats; cl
                 ))}
               </TableBody>
             </Table>
-          </div>
           {data.overpaymentCount === 0 && (
             <p className="text-sm text-muted-foreground">None of the amendments above are overpayments needing recovery - just requests corrected before payment.</p>
           )}

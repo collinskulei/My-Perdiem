@@ -1,19 +1,15 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { ScrollableTable, type ScrollableTableProps } from "@/components/ui/scrollable-table"
 
-const Table = React.forwardRef<
-  HTMLTableElement,
-  React.HTMLAttributes<HTMLTableElement>
->(({ className, ...props }, ref) => (
-  <div className="relative w-full overflow-auto">
-    <table
-      ref={ref}
-      className={cn("w-full caption-bottom text-sm", className)}
-      {...props}
-    />
-  </div>
-))
+// Every table in the app goes through ScrollableTable (see its comment) -
+// one internal horizontal scroll container, non-wrapping cells, never
+// widens the page. Callers shouldn't add their own overflow-x-auto wrapper;
+// pass `containerClassName` (e.g. a max-height + border) instead.
+const Table = React.forwardRef<HTMLTableElement, ScrollableTableProps>(
+  (props, ref) => <ScrollableTable ref={ref} {...props} />
+)
 Table.displayName = "Table"
 
 const TableHeader = React.forwardRef<
