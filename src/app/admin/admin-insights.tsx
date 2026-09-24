@@ -169,8 +169,12 @@ export function AdminInsightsTab({ events, participants, venues, clients, loadin
     const trendFrom = format(subDays(new Date(), 89), "yyyy-MM-dd");
     getInsightsStats(filters, trendFrom)
       .then((result) => { if (!cancelled) setStats(result); })
-      .catch(() => {
-        if (!cancelled) toast({ title: "Error", description: "Failed to load insights from the database.", variant: "destructive" });
+      .catch((error) => {
+        // The underlying Postgres/PostgREST message (e.g. a missing function
+        // or a statement timeout) is shown too - "failed to load" alone
+        // gives nothing to diagnose from.
+        const detail = error?.message ? ` (${error.code ? `${error.code}: ` : ""}${error.message})` : "";
+        if (!cancelled) toast({ title: "Error", description: `Failed to load insights from the database.${detail}`, variant: "destructive" });
       })
       .finally(() => { if (!cancelled) setStatsLoading(false); });
     return () => { cancelled = true; };
