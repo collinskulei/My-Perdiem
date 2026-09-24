@@ -178,6 +178,54 @@ const STAFF_CATEGORIES = [
   { value: "other", label: "Other", field: "otherStaff" as const },
 ];
 
+function getStaffCategoryLabel(request: PerdiemRequest): string {
+  return STAFF_CATEGORIES.find(c => request[c.field])?.label ?? '';
+}
+
+// The 9 payment-detail columns shown identically across every per-diem
+// table (Requests tab, Reports sub-tabs, Amended) - defined once so the
+// three separate table-rendering call sites can't drift out of sync with
+// each other. Training Start/End Date and Number of Training Days live on
+// the event, not the request, hence the separate `event` lookup (each call
+// site passes eventsById.get(request.eventId)). "County" isn't a field
+// this system stores - the source data's single "County/Employer" column
+// became `employer` (free text) plus DHA/MOH/KNH/SHA/Other boolean flags,
+// shown here as Staff Category + Employer rather than inventing a county
+// column that doesn't exist.
+const PERDIEM_DETAIL_COLUMN_COUNT = 9;
+
+function PerdiemDetailColumnHeaders() {
+  return (
+    <>
+      <TableHead className="whitespace-nowrap">Payment Date</TableHead>
+      <TableHead>Tel Number</TableHead>
+      <TableHead className="whitespace-nowrap">Training Start Date</TableHead>
+      <TableHead className="whitespace-nowrap">Training End Date</TableHead>
+      <TableHead className="whitespace-nowrap">No. of Training Days</TableHead>
+      <TableHead>Staff Category</TableHead>
+      <TableHead>Employer</TableHead>
+      <TableHead className="text-right whitespace-nowrap">Transport Allowance</TableHead>
+      <TableHead className="text-right whitespace-nowrap">DSA Allowance</TableHead>
+    </>
+  );
+}
+
+function PerdiemDetailColumnCells({ request, event }: { request: PerdiemRequest; event: AppEvent | undefined }) {
+  return (
+    <>
+      <TableCell className="whitespace-nowrap">{formatDateSafe(request.date)}</TableCell>
+      <TableCell className="whitespace-nowrap">{request.participantPhone || '—'}</TableCell>
+      <TableCell className="whitespace-nowrap">{formatDateSafe(event?.trainingStartDate)}</TableCell>
+      <TableCell className="whitespace-nowrap">{formatDateSafe(event?.trainingEndDate)}</TableCell>
+      <TableCell>{event?.numberOfTrainingDays ?? '—'}</TableCell>
+      <TableCell>{getStaffCategoryLabel(request) || '—'}</TableCell>
+      <TableCell>{request.employer || '—'}</TableCell>
+      <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.transportAllowance ?? 0)}</TableCell>
+      <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.dsaAllowance ?? 0)}</TableCell>
+    </>
+  );
+}
+
 const designations = [
     "Medical Director", "Chief Nursing Officer", "Resident Doctor", "Registered Nurse", "Clinical Officer",
     "Pharmacist", "Laboratory Technologist", "Radiographer", "Physiotherapist", "Hospital Administrator",
@@ -345,6 +393,9 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
   // on every row was part of what made that table's render block the main
   // thread long enough to trigger the browser's "Page Unresponsive" warning.
   const participantsById = useMemo(() => new Map(participants.map((p) => [p.id, p])), [participants]);
+  // Feeds PerdiemDetailColumnCells' event lookup (training start/end date,
+  // number of training days) across every per-diem table below.
+  const eventsById = useMemo(() => new Map(events.map((e) => [e.id, e])), [events]);
   const requestsPagination = usePagination(perdiemRequests);
   // O(1) lookup instead of perdiemRequests.some() per row in the Events
   // table below (unmemoized there, so it re-ran on every render, not just
@@ -1427,15 +1478,15 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
             <CardContent>
               <div className="overflow-x-auto">
                 <Table>
-                    <TableHeader><TableRow><TableHead>Participant</TableHead><TableHead>Event</TableHead><TableHead>Status</TableHead><TableHead>Date Submitted</TableHead><TableHead className="text-right">Amount</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead>Participant</TableHead><TableHead>Event</TableHead><PerdiemDetailColumnHeaders /><TableHead className="text-right whitespace-nowrap">Total Amount</TableHead><TableHead>Status</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
                     <TableBody>
-                    {loadingRequests ? <TableSkeletonRows columns={6} /> : requestsPagination.paged.map(request => (
+                    {loadingRequests ? <TableSkeletonRows columns={2 + PERDIEM_DETAIL_COLUMN_COUNT + 3} /> : requestsPagination.paged.map(request => (
                         <TableRow key={request.id}>
                         <TableCell><div className="font-medium">{request.participantName}</div><div className="hidden text-sm text-muted-foreground md:inline">{request.participantId ? participantsById.get(request.participantId)?.idNumber : undefined}</div></TableCell>
                         <TableCell>{request.eventName}</TableCell>
-                        <TableCell><Badge variant={getBadgeVariant(request.status)}>{request.status}</Badge></TableCell>
-                        <TableCell>{formatDateSafe(request.date)}</TableCell>
+                        <PerdiemDetailColumnCells request={request} event={eventsById.get(request.eventId)} />
                         <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.totalPerdiem)}</TableCell>
+                        <TableCell><Badge variant={getBadgeVariant(request.status)}>{request.status}</Badge></TableCell>
                         <TableCell>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
@@ -2298,6 +2349,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                              isPaidReport={true}
                              onFlagOverpayment={isMultiClientAdmin ? (request) => setFlagOverpaymentState({ request, isOpen: true, payableAmount: '', reason: '' }) : undefined}
                              onBulkFlagOverpayment={isMultiClientAdmin ? (requests) => setBulkFlagOverpaymentState({ requests, isOpen: true, payableAmount: '', reason: '' }) : undefined}
+                             eventsById={eventsById}
                            />
                         </TabsContent>
 
@@ -2307,14 +2359,16 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                              data={filteredReportData.filter(r => r.status === 'Approved')}
                              loading={loadingRequests}
                              onDownload={() => handleDownloadPerDiemReport(filteredReportData.filter(r => r.status === 'Approved'), 'approved_perdiems')}
+                             eventsById={eventsById}
                            />
                         </TabsContent>
                          <TabsContent value="rejected">
-                           <ReportTabContent 
+                           <ReportTabContent
                              title="Rejected Perdiems"
                              data={filteredReportData.filter(r => r.status === 'Rejected')}
                              loading={loadingRequests}
                              onDownload={() => handleDownloadPerDiemReport(filteredReportData.filter(r => r.status === 'Rejected'), 'rejected_perdiems')}
+                             eventsById={eventsById}
                            />
                         </TabsContent>
                         <TabsContent value="amended">
@@ -2323,6 +2377,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                              data={filteredReportData.filter(r => r.status === 'Amended')}
                              loading={loadingRequests}
                              onRecordRecovery={isMultiClientAdmin ? (request) => setRecordRecoveryState({ request, isOpen: true, amount: '' }) : undefined}
+                             eventsById={eventsById}
                            />
                         </TabsContent>
                     </Tabs>
@@ -2591,7 +2646,7 @@ function TablePagination({ page, pageCount, totalItems, pageSize, onPageChange }
 }
 
 // Helper component for the report tabs to reduce repetition
-function ReportTabContent({ title, data, loading, onDownload, isPaidReport = false, onFlagOverpayment, onBulkFlagOverpayment }: { title: string, data: PerdiemRequest[], loading: boolean, onDownload: () => void, isPaidReport?: boolean, onFlagOverpayment?: (request: PerdiemRequest) => void, onBulkFlagOverpayment?: (requests: PerdiemRequest[]) => void }) {
+function ReportTabContent({ title, data, loading, onDownload, isPaidReport = false, onFlagOverpayment, onBulkFlagOverpayment, eventsById }: { title: string, data: PerdiemRequest[], loading: boolean, onDownload: () => void, isPaidReport?: boolean, onFlagOverpayment?: (request: PerdiemRequest) => void, onBulkFlagOverpayment?: (requests: PerdiemRequest[]) => void, eventsById: Map<string, AppEvent> }) {
     const { page, pageCount, setPage, paged } = usePagination(data);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const canBulkFlag = isPaidReport && !!onBulkFlagOverpayment;
@@ -2635,7 +2690,9 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
     };
 
     const actionsColumn = isPaidReport && (onFlagOverpayment || canBulkFlag);
-    const columnCount = (canBulkFlag ? 1 : 0) + (isPaidReport ? (actionsColumn ? 7 : 6) : 5);
+    // Participant + Event + the 9 shared payment-detail columns + (Confirmation
+    // & Transaction Code, or Status) + Total Amount + optional Checkbox/Actions.
+    const columnCount = (canBulkFlag ? 1 : 0) + 2 + PERDIEM_DETAIL_COLUMN_COUNT + (isPaidReport ? 2 : 1) + 1 + (actionsColumn ? 1 : 0);
 
     return (
         <Card>
@@ -2665,6 +2722,7 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
                                 )}
                                 <TableHead>Participant</TableHead>
                                 <TableHead>Event</TableHead>
+                                <PerdiemDetailColumnHeaders />
                                 {isPaidReport ? (
                                     <>
                                         <TableHead>Confirmation</TableHead>
@@ -2673,8 +2731,7 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
                                 ) : (
                                     <TableHead>Status</TableHead>
                                 )}
-                                <TableHead>Date</TableHead>
-                                <TableHead className="text-right">Amount</TableHead>
+                                <TableHead className="text-right whitespace-nowrap">Total Amount</TableHead>
                                 {actionsColumn && <TableHead className="text-right">Actions</TableHead>}
                             </TableRow>
                         </TableHeader>
@@ -2707,6 +2764,7 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
                                 )}
                             </TableCell>
                             <TableCell>{request.eventName}</TableCell>
+                            <PerdiemDetailColumnCells request={request} event={eventsById.get(request.eventId)} />
                              {isPaidReport ? (
                                 <>
                                     <TableCell><Badge variant={getBadgeVariant(request.status)}>{request.status}</Badge></TableCell>
@@ -2715,7 +2773,6 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
                             ) : (
                                 <TableCell><Badge variant={getBadgeVariant(request.status)}>{request.status}</Badge></TableCell>
                             )}
-                            <TableCell className="whitespace-nowrap">{request.date}</TableCell>
                             <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.totalPerdiem)}</TableCell>
                             {actionsColumn && (
                                 <TableCell className="text-right whitespace-nowrap">
@@ -2737,7 +2794,7 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
     )
 }
 
-function AmendedReportTabContent({ title, data, loading, onRecordRecovery }: { title: string, data: PerdiemRequest[], loading: boolean, onRecordRecovery?: (request: PerdiemRequest) => void }) {
+function AmendedReportTabContent({ title, data, loading, onRecordRecovery, eventsById }: { title: string, data: PerdiemRequest[], loading: boolean, onRecordRecovery?: (request: PerdiemRequest) => void, eventsById: Map<string, AppEvent> }) {
     const { page, pageCount, setPage, paged } = usePagination(data);
     // An 'Amended' record covers two different flows sharing the same status
     // (see supabase/migrations/0022's header comment): a Pending request
@@ -2762,6 +2819,7 @@ function AmendedReportTabContent({ title, data, loading, onRecordRecovery }: { t
                             <TableRow>
                                 <TableHead>Participant</TableHead>
                                 <TableHead>Event</TableHead>
+                                <PerdiemDetailColumnHeaders />
                                 <TableHead>Reason for Amendment</TableHead>
                                 <TableHead className="text-right">Original Amount</TableHead>
                                 <TableHead className="text-right">Amended Amount</TableHead>
@@ -2773,9 +2831,9 @@ function AmendedReportTabContent({ title, data, loading, onRecordRecovery }: { t
                         </TableHeader>
                         <TableBody>
                         {loading ? (
-                            <TableSkeletonRows columns={onRecordRecovery ? 9 : 8} />
+                            <TableSkeletonRows columns={2 + PERDIEM_DETAIL_COLUMN_COUNT + (onRecordRecovery ? 7 : 6)} />
                         ) : data.length === 0 ? (
-                             <TableRow><TableCell colSpan={onRecordRecovery ? 9 : 8} className="h-24 text-center">No amended requests match the current filters.</TableCell></TableRow>
+                             <TableRow><TableCell colSpan={2 + PERDIEM_DETAIL_COLUMN_COUNT + (onRecordRecovery ? 7 : 6)} className="h-24 text-center">No amended requests match the current filters.</TableCell></TableRow>
                         ) : paged.map(request => {
                             const overpaid = overpaidAmount(request);
                             const recovered = request.recoveredAmount ?? 0;
@@ -2784,6 +2842,7 @@ function AmendedReportTabContent({ title, data, loading, onRecordRecovery }: { t
                             <TableRow key={request.id}>
                                 <TableCell>{request.participantName}</TableCell>
                                 <TableCell>{request.eventName}</TableCell>
+                                <PerdiemDetailColumnCells request={request} event={eventsById.get(request.eventId)} />
                                 <TableCell className="max-w-xs truncate">{request.amendmentReason}</TableCell>
                                 <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.originalTotal ?? 0)}</TableCell>
                                 <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.totalPerdiem)}</TableCell>
