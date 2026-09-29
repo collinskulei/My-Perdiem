@@ -96,7 +96,7 @@ function AdminsSection({
     );
     setIsSubmitting(false);
     if (result.success) {
-      toast({ title: "Invite sent", description: `${name} has been invited as ${isMasterAdmin ? "a Super Admin" : "a Client Admin"}.` });
+      toast({ title: "Invite sent", description: `${name} has been invited as ${isMasterAdmin ? "a Super Admin" : "an Organization Admin"}.` });
       setIsOpen(false);
       setEmail("");
       setName("");
@@ -126,20 +126,20 @@ function AdminsSection({
           <CardTitle>Admins</CardTitle>
           <CardDescription>
             {isMasterAdmin
-              ? "Master, Super, and Client Admin accounts across the platform."
-              : "Client Admins at your organization."}
+              ? "Master, Super, and Organization Admin accounts across the platform."
+              : "Organization Admins at your organization."}
           </CardDescription>
         </div>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
             <Button>
               <UserPlus className="mr-2 h-4 w-4" />
-              {isMasterAdmin ? "Invite Super Admin" : "Invite Client Admin"}
+              {isMasterAdmin ? "Invite Super Admin" : "Invite Organization Admin"}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{isMasterAdmin ? "Invite a Super Admin" : "Invite a Client Admin"}</DialogTitle>
+              <DialogTitle>{isMasterAdmin ? "Invite a Super Admin" : "Invite an Organization Admin"}</DialogTitle>
               <DialogDescription>They&apos;ll receive an email invite to set their password.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-2">
@@ -195,7 +195,7 @@ function AdminsSection({
                         <AlertDialogHeader>
                           <AlertDialogTitle>Demote {p.name}?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            They&apos;ll lose {p.accessTier === "super_admin" ? "Super Admin" : "Client Admin"} access and become a regular participant. This can be undone by inviting them again.
+                            They&apos;ll lose {p.accessTier === "super_admin" ? "Super Admin" : "Organization Admin"} access and become a regular participant. This can be undone by inviting them again.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>

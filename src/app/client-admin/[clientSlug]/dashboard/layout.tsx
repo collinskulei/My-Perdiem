@@ -88,7 +88,7 @@ export default async function ClientAdminDashboardLayout({
       <AdminLayoutClient
         basePath={`/${clientSlug}-admin/dashboard`}
         loginPath={loginPath}
-        portalLabel="Client Admin"
+        portalLabel="Organization Admin"
       >
         {children}
       </AdminLayoutClient>

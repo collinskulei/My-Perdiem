@@ -22,7 +22,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { isPast, endOfDay, parseISO } from "date-fns";
 import {
-  ClipboardList, CalendarDays, ClipboardCheck, Users, MapPin,
+  ClipboardList, Wallet, CalendarDays, ClipboardCheck, Users, MapPin,
   FileText, BarChart, Sparkles, ShieldCheck, Building2, FileStack,
 } from "lucide-react";
 import type { ComponentType } from "react";
@@ -134,6 +134,14 @@ export function AdminOverviewTab({
         loading={requestsLoading}
         href={link("requests")} onNavigate={go("requests")} delay={next()}
       />
+      {/* Hidden until 0028_overview_stats_split_payments.sql is applied (totalPayments null before that). */}
+      {requestStats?.totalPayments != null && (
+        <OverviewCard
+          icon={Wallet} label="Per Diem Payments" value={requestStats.totalPayments}
+          subtitle="historical payments"
+          href={link("payments")} onNavigate={go("payments")} delay={next()}
+        />
+      )}
       <OverviewCard
         icon={CalendarDays} label="Events" value={stats.upcomingEvents}
         subtitle={`${events.length.toLocaleString()} total`}
@@ -153,7 +161,7 @@ export function AdminOverviewTab({
         href={link("venues")} onNavigate={go("venues")} delay={next()}
       />
       <OverviewCard
-        icon={FileText} label="Reports" value={requestStats?.totalRequests ?? 0}
+        icon={FileText} label="Reports" value={(requestStats?.totalRequests ?? 0) + (requestStats?.totalPayments ?? 0)}
         subtitle="total records"
         loading={requestsLoading}
         href={link("reports")} onNavigate={go("reports")} delay={next()}

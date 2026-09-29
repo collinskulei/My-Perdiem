@@ -8,6 +8,7 @@ import {
   Home,
   User,
   ClipboardList,
+  Wallet,
   CalendarDays,
   ClipboardCheck,
   Users,
@@ -107,6 +108,14 @@ export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: str
           <SidebarMenuButton isActive={isLinkActive(basePath, 'requests')} data-tour="tab-requests">
             <ClipboardList />
             Per Diem Requests
+          </SidebarMenuButton>
+        </Link>
+      </SidebarMenuItem>
+      <SidebarMenuItem>
+        <Link href={`${basePath}?tab=payments`} onClick={() => setActiveTab('payments')}>
+          <SidebarMenuButton isActive={isLinkActive(basePath, 'payments')}>
+            <Wallet />
+            Per Diem Payments
           </SidebarMenuButton>
         </Link>
       </SidebarMenuItem>

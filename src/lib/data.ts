@@ -11,6 +11,14 @@
  */
 export type AccessTier = 'master_admin' | 'super_admin' | 'client_admin' | 'client_user';
 
+/** User-facing names for each access tier - client_admin is shown as "Organization Admin". */
+export const ACCESS_TIER_LABELS: Record<AccessTier, string> = {
+  master_admin: 'Master Admin',
+  super_admin: 'Super Admin',
+  client_admin: 'Organization Admin',
+  client_user: 'Participant',
+};
+
 /**
  * Represents a client organization the firm serves. Master/Super Admins are
  * firm-wide (clientId is null); Client Admins/Users belong to exactly one client.

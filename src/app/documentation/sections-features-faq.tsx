@@ -37,7 +37,7 @@ export function FeaturesSections() {
       <DocSection id="data-security" title="Keeping Your Data Secure" icon={Lock}>
         <DocP>
           Every organization's information is kept completely separate from
-          every other organization's. A Client Administrator only ever sees
+          every other organization's. An Organization Administrator only ever sees
           their own organization's participants and payments - never
           another organization's data. Only Super and Master Administrators,
           whose role is to support every organization on the platform, can

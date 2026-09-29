@@ -106,7 +106,7 @@ export function AdminSubmissionsTab({
       <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <CardTitle>Submissions</CardTitle>
-          <CardDescription>Documents Client Admins have uploaded to their OneDrive folders, across every client.</CardDescription>
+          <CardDescription>Documents Organization Admins have uploaded to their OneDrive folders, across every client.</CardDescription>
         </div>
         <div className="flex gap-2">
           <Select value={syncClientId} onValueChange={setSyncClientId}>

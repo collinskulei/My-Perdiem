@@ -69,7 +69,7 @@ export function buildAdminTourSteps({
           ? "Invite Super Admins and manage every admin-tier account."
           : accessTier === "super_admin"
           ? "See admin accounts across the platform."
-          : "Invite and manage your organization's Client Admins.",
+          : "Invite and manage your organization's admins.",
         setActiveTab
       )
     );

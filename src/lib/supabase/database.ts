@@ -590,6 +590,10 @@ export type PerdiemOverviewStats = {
   totalRequests: number;
   pendingRequests: number;
   totalPaidOut: number;
+  // Historical payment records (imported_at set) - see
+  // 0028_overview_stats_split_payments.sql. Null until that migration is
+  // applied, in which case totalRequests still includes these rows too.
+  totalPayments: number | null;
 };
 
 /**
@@ -606,7 +610,7 @@ export type PerdiemOverviewStats = {
 export const getPerdiemOverviewStats = async (clientId: string | null = null, client: SupabaseClient = supabase): Promise<PerdiemOverviewStats> => {
   const { data, error } = await client
     .rpc('get_perdiem_overview_stats', { target_client_id: clientId })
-    .single<{ total_requests: number; pending_requests: number; total_paid_out: number }>();
+    .single<{ total_requests: number; pending_requests: number; total_paid_out: number; total_payments?: number }>();
   if (error || !data) {
     console.error("Error fetching perdiem overview stats: ", error);
     throw error ?? new Error('get_perdiem_overview_stats did not return a result');
@@ -615,6 +619,7 @@ export const getPerdiemOverviewStats = async (clientId: string | null = null, cl
     totalRequests: Number(data.total_requests),
     pendingRequests: Number(data.pending_requests),
     totalPaidOut: Number(data.total_paid_out),
+    totalPayments: data.total_payments == null ? null : Number(data.total_payments),
   };
 };
 

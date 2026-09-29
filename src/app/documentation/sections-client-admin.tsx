@@ -8,7 +8,7 @@ export function ClientAdminSections() {
   return (
     <>
       <DocSection id="admin-dashboard-overview" title="The Admin Dashboard" icon={LayoutDashboard}>
-        <RoleTag>Client Administrators</RoleTag>
+        <RoleTag>Organization Administrators</RoleTag>
         <DocP>
           As an administrator, your dashboard is organized into sections
           listed in the sidebar on the left: Per Diem Requests, Events,
@@ -23,7 +23,7 @@ export function ClientAdminSections() {
       </DocSection>
 
       <DocSection id="managing-participants" title="Managing Participants" icon={Users}>
-        <RoleTag>Client Administrators</RoleTag>
+        <RoleTag>Organization Administrators</RoleTag>
         <DocP>From the Participants section you can:</DocP>
         <DocList>
           <li><strong>Add a participant</strong> - they'll receive an email invitation to set their own password.</li>
@@ -34,7 +34,7 @@ export function ClientAdminSections() {
       </DocSection>
 
       <DocSection id="managing-venues" title="Managing Venues" icon={MapPin}>
-        <RoleTag>Client Administrators</RoleTag>
+        <RoleTag>Organization Administrators</RoleTag>
         <DocP>
           Venues are the locations events are held at. Add a venue once
           (name, city, and county) and it's ready to attach to any event
@@ -44,7 +44,7 @@ export function ClientAdminSections() {
       </DocSection>
 
       <DocSection id="managing-events" title="Creating and Managing Events" icon={CalendarDays}>
-        <RoleTag>Client Administrators</RoleTag>
+        <RoleTag>Organization Administrators</RoleTag>
         <DocP>An event represents a training, workshop, or meeting your participants attend. When creating one, you'll set:</DocP>
         <DocList>
           <li>Its name, venue, and dates.</li>
@@ -60,7 +60,7 @@ export function ClientAdminSections() {
       </DocSection>
 
       <DocSection id="approving-requests" title="Reviewing and Approving Requests" icon={CheckCircle2}>
-        <RoleTag>Client Administrators</RoleTag>
+        <RoleTag>Organization Administrators</RoleTag>
         <DocP>
           Every submitted request lands in the Per Diem Requests section.
           Open one to see its full breakdown, then either:
@@ -72,7 +72,7 @@ export function ClientAdminSections() {
       </DocSection>
 
       <DocSection id="paying-requests" title="Paying Approved Requests" icon={Wallet}>
-        <RoleTag>Client Administrators</RoleTag>
+        <RoleTag>Organization Administrators</RoleTag>
         <DocP>
           Once a request is approved, mark it as Paid and record the
           transaction reference (for example, an M-Pesa code or bank
@@ -84,7 +84,7 @@ export function ClientAdminSections() {
       </DocSection>
 
       <DocSection id="amending-requests" title="Correcting a Payment" icon={PenLine}>
-        <RoleTag>Client Administrators</RoleTag>
+        <RoleTag>Organization Administrators</RoleTag>
         <DocP>
           Made a mistake after approving a request? You can amend it -
           change the amount and give a reason for the correction. The
@@ -94,7 +94,7 @@ export function ClientAdminSections() {
       </DocSection>
 
       <DocSection id="checkin-reports" title="Event Check-In Reports" icon={ClipboardCheck}>
-        <RoleTag>Client Administrators</RoleTag>
+        <RoleTag>Organization Administrators</RoleTag>
         <DocP>
           For events tracking daily attendance, the Event Check-ins section
           shows who has checked in, and on which days, for every event
@@ -104,7 +104,7 @@ export function ClientAdminSections() {
       </DocSection>
 
       <DocSection id="reports-filtering" title="Reports & Filtering" icon={FileBarChart}>
-        <RoleTag>Client Administrators</RoleTag>
+        <RoleTag>Organization Administrators</RoleTag>
         <DocP>
           The Reports section lets you narrow down per diem data to exactly
           what you need, then view it split by status (Approved, Paid,
@@ -126,7 +126,7 @@ export function ClientAdminSections() {
       </DocSection>
 
       <DocSection id="analytics-charts" title="Analytics Charts" icon={LineChart}>
-        <RoleTag>Client Administrators</RoleTag>
+        <RoleTag>Organization Administrators</RoleTag>
         <DocP>
           The Analytics section gives you a visual summary of your
           organization's per diem activity - total requests, total paid
@@ -137,7 +137,7 @@ export function ClientAdminSections() {
       </DocSection>
 
       <DocSection id="historical-import" title="Bringing In Historical Payment Records" icon={UploadCloud}>
-        <RoleTag>Client Administrators</RoleTag>
+        <RoleTag>Organization Administrators</RoleTag>
         <DocP>
           If your organization made per diem payments before starting to use
           My Perdiem, you can bring that history into the app so everything
@@ -159,7 +159,7 @@ export function ClientAdminSections() {
       </DocSection>
 
       <DocSection id="documents-onedrive" title="Sending Documents to Head Office" icon={FolderSync}>
-        <RoleTag>Client Administrators</RoleTag>
+        <RoleTag>Organization Administrators</RoleTag>
         <DocP>
           If your organization shares payment-list documents with a central
           office, you can upload them directly into your organization's
@@ -170,10 +170,10 @@ export function ClientAdminSections() {
       </DocSection>
 
       <DocSection id="inviting-admins" title="Inviting Other Administrators" icon={UserPlus2}>
-        <RoleTag>Client Administrators</RoleTag>
+        <RoleTag>Organization Administrators</RoleTag>
         <DocP>
           Need a colleague to help manage your organization's account? Invite
-          them as another Client Administrator from the Manage section - they'll
+          them as another Organization Administrator from the Manage section - they'll
           receive an email invitation just like a new participant does.
         </DocP>
       </DocSection>

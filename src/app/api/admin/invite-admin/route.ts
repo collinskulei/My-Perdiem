@@ -26,7 +26,7 @@ type InviteBody = {
 
 const DESIGNATIONS: Record<string, string> = {
   super_admin: 'Super Admin',
-  client_admin: 'Client Admin',
+  client_admin: 'Organization Admin',
   client_user: 'Participant',
 };
 

@@ -65,7 +65,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (caller.access_tier === 'client_admin') {
     if (target.access_tier !== 'client_user' || target.client_id !== caller.client_id) {
       return NextResponse.json(
-        { error: 'Client Admins may only deactivate Client Users at their own client' },
+        { error: 'Organization Admins may only deactivate participants at their own organization' },
         { status: 403 }
       );
     }
