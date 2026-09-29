@@ -153,7 +153,7 @@ export function AdminOverviewTab({
         href={link("checkins")} onNavigate={go("checkins")} delay={next()}
       />
       <OverviewCard
-        icon={Users} label="Participants" value={stats.nonAdminParticipants}
+        icon={Users} label="Per Diem Recipients" value={stats.nonAdminParticipants}
         href={link("participants")} onNavigate={go("participants")} delay={next()}
       />
       <OverviewCard

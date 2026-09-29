@@ -160,7 +160,7 @@ const TAB_LABELS: Record<string, string> = {
   payments: "Perdiem Payments",
   events: "Events",
   checkins: "Event Check-ins",
-  participants: "Participants",
+  participants: "Per Diem Recipients",
   venues: "Venues",
   reports: "Reports",
   analytics: "Analytics",
@@ -1288,7 +1288,9 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
   const isMultiClientAdmin = currentAdmin?.accessTier === 'super_admin' || currentAdmin?.accessTier === 'master_admin';
 
   const filteredParticipants = useMemo(() => {
-    let data = participants;
+    // Per Diem Recipients tab: client_user accounts only - admin accounts
+    // are managed from the Manage tab, not listed as recipients.
+    let data = nonAdminParticipants;
     if (isMultiClientAdmin && participantClientFilter !== 'all') {
       data = data.filter(p => p.clientId === participantClientFilter);
     }
@@ -1301,7 +1303,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
       p.idNumber.includes(searchTerm) ||
       p.phoneNumber.includes(searchTerm)
     );
-  }, [participants, participantSearch, participantClientFilter, isMultiClientAdmin]);
+  }, [nonAdminParticipants, participantSearch, participantClientFilter, isMultiClientAdmin]);
   const participantsPagination = usePagination(filteredParticipants);
 
   const handleSelectParticipant = useCallback((participantId: string) => {
@@ -1975,16 +1977,16 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
           <Card>
             <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div>
-                  <CardTitle>Participants</CardTitle>
-                  <CardDescription>A list of all registered participants.</CardDescription>
+                  <CardTitle>Per Diem Recipients</CardTitle>
+                  <CardDescription>People registered to receive per diem. Admin accounts are managed under Manage.</CardDescription>
                 </div>
                 <Dialog open={isAddParticipantOpen} onOpenChange={setIsAddParticipantOpen}>
                   <DialogTrigger asChild>
-                    <Button size="sm" className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4" />Add Participant</Button>
+                    <Button size="sm" className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4" />Add Recipient</Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Add a Participant</DialogTitle>
+                      <DialogTitle>Add a Per Diem Recipient</DialogTitle>
                       <DialogDescription>They&apos;ll receive an email invite to set their password.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-2">

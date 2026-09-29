@@ -43,7 +43,7 @@ export function buildAdminTourSteps({
     tabStep("requests", "Per Diem Requests", "Review, approve, reject, or mark per diem requests as paid.", setActiveTab),
     tabStep("events", "Events", "Create and manage events, including participant allocation.", setActiveTab),
     tabStep("checkins", "Event Check-ins", "See who has checked in to each event.", setActiveTab),
-    tabStep("participants", "Participants", "Manage participant accounts - add, deactivate, or reactivate.", setActiveTab),
+    tabStep("participants", "Per Diem Recipients", "Manage per diem recipients - add, deactivate, or reactivate.", setActiveTab),
     tabStep("venues", "Venues", "Manage the venue list events can be held at.", setActiveTab),
     tabStep("reports", "Reports", "Filter and export per diem data.", setActiveTab),
     tabStep("analytics", "Analytics", "Platform-wide per diem trends and summaries.", setActiveTab),

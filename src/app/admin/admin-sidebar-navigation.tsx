@@ -158,7 +158,7 @@ export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: str
         <Link href={`${basePath}?tab=participants`} onClick={() => setActiveTab('participants')}>
           <SidebarMenuButton isActive={isLinkActive(basePath, 'participants')} data-tour="tab-participants">
             <Users />
-            Participants
+            Per Diem Recipients
           </SidebarMenuButton>
         </Link>
       </SidebarMenuItem>
