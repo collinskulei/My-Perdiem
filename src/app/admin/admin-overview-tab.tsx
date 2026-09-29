@@ -179,6 +179,13 @@ export function AdminOverviewTab({
           href={link("insights")} onNavigate={go("insights")} delay={next()}
         />
       )}
+      {isClientAdmin && (
+        <OverviewCard
+          icon={Sparkles} label="Insights" value={events.length}
+          subtitle="events to analyse"
+          href={link("insights")} onNavigate={go("insights")} delay={next()}
+        />
+      )}
       {canManage && (
         <OverviewCard
           icon={ShieldCheck} label="Manage" value={stats.totalAdmins}

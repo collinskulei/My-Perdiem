@@ -1,9 +1,14 @@
 /**
- * @file Super/Master Admin "Insights" tab (see docs/MILESTONE_HANDOFF.md) -
- * a comprehensive analytics view across every client, distinct from the
- * simpler per-client "Analytics" tab every admin tier already sees. Gated
- * to isMultiClientAdmin by the caller (admin-dashboard.tsx), same as the
- * "Clients"/"Submissions" tabs.
+ * @file "Insights" tab (see docs/MILESTONE_HANDOFF.md) - a comprehensive
+ * analytics view, distinct from the simpler "Analytics" tab. Super/Master
+ * Admins see it across every client; a Client Admin sees the same view
+ * with `clientScoped` set, limited to their own organization. The data
+ * scoping itself isn't done here - get_insights_stats/search_insights_requests
+ * (0026_insights_stats_rpc.sql) are security invoker, so RLS already
+ * restricts a Client Admin to their own client's rows. `clientScoped` only
+ * drops the widgets that compare clients against each other (Cross-Client
+ * tab, Top Clients, Client Share, Client columns), which would be
+ * meaningless with a single client.
  */
 "use client";
 
@@ -38,12 +43,13 @@ const MONTH_OPTIONS = [
   { value: "10", label: "October" }, { value: "11", label: "November" }, { value: "12", label: "December" },
 ];
 
-export function AdminInsightsTab({ events, participants, venues, clients, loading }: {
+export function AdminInsightsTab({ events, participants, venues, clients, loading, clientScoped = false }: {
   events: AppEvent[];
   participants: Participant[];
   venues: Venue[];
   clients: Client[];
   loading: boolean;
+  clientScoped?: boolean;
 }) {
   // Event Type is the controlled category set on the event itself (see
   // EVENT_TYPE_CATEGORIES in lib/data.ts), not the raw eventName - applied
@@ -213,7 +219,9 @@ export function AdminInsightsTab({ events, participants, venues, clients, loadin
           Insights
         </h2>
         <p className="text-muted-foreground">
-          A full analytics view across every client - financials, staff/employer breakdowns, training trends, and cross-client comparisons.
+          {clientScoped
+            ? "A full analytics view of your organization - financials, staff/employer breakdowns, training trends, and amendments."
+            : "A full analytics view across every client - financials, staff/employer breakdowns, training trends, and cross-client comparisons."}
         </p>
       </div>
 
@@ -307,7 +315,7 @@ export function AdminInsightsTab({ events, participants, venues, clients, loadin
         </div>
       </InsightCard>
 
-      <ParticipantLookup clients={clients} filters={filters} />
+      <ParticipantLookup clients={clients} filters={filters} clientScoped={clientScoped} />
 
       <Tabs defaultValue="overview" className={cn("transition-opacity", statsLoading && "opacity-60")}>
         <div className="overflow-x-auto pb-2">
@@ -316,13 +324,13 @@ export function AdminInsightsTab({ events, participants, venues, clients, loadin
             <TabsTrigger value="financial">Financial</TabsTrigger>
             <TabsTrigger value="staff-employer">Staff & Employer</TabsTrigger>
             <TabsTrigger value="training">Training</TabsTrigger>
-            <TabsTrigger value="cross-client">Cross-Client</TabsTrigger>
+            {!clientScoped && <TabsTrigger value="cross-client">Cross-Client</TabsTrigger>}
             <TabsTrigger value="amendments">Amendments</TabsTrigger>
           </TabsList>
         </div>
 
         <TabsContent value="overview">
-          <OverviewSection stats={stats} events={filteredEvents} participants={participants} clients={clients} />
+          <OverviewSection stats={stats} events={filteredEvents} participants={participants} clients={clients} clientScoped={clientScoped} />
         </TabsContent>
         <TabsContent value="financial">
           <FinancialSection stats={stats} />
@@ -331,13 +339,15 @@ export function AdminInsightsTab({ events, participants, venues, clients, loadin
           <StaffEmployerSection stats={stats} participants={participants} />
         </TabsContent>
         <TabsContent value="training">
-          <TrainingSection stats={stats} events={filteredEvents} venues={venues} />
+          <TrainingSection stats={stats} events={filteredEvents} venues={venues} clientScoped={clientScoped} />
         </TabsContent>
-        <TabsContent value="cross-client">
-          <CrossClientSection stats={stats} events={filteredEvents} participants={participants} clients={clients} />
-        </TabsContent>
+        {!clientScoped && (
+          <TabsContent value="cross-client">
+            <CrossClientSection stats={stats} events={filteredEvents} participants={participants} clients={clients} />
+          </TabsContent>
+        )}
         <TabsContent value="amendments">
-          <AmendmentsSection stats={stats} clients={clients} />
+          <AmendmentsSection stats={stats} clients={clients} clientScoped={clientScoped} />
         </TabsContent>
       </Tabs>
     </div>

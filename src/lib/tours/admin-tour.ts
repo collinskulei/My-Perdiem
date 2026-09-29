@@ -58,6 +58,15 @@ export function buildAdminTourSteps({
         setActiveTab
       )
     );
+  } else if (accessTier === "client_admin") {
+    steps.push(
+      tabStep(
+        "insights",
+        "Insights",
+        "A full analytics view of your organization - financials, staff/employer breakdowns, training trends, and amendments, all exportable as PDF.",
+        setActiveTab
+      )
+    );
   }
 
   if (canManage) {

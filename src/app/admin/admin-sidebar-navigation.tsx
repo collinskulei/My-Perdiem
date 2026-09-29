@@ -72,6 +72,7 @@ export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: str
 
   const canManage = accessTier !== null && accessTier !== 'client_user';
   const isMultiClientAdmin = accessTier === 'super_admin' || accessTier === 'master_admin';
+  const canSeeInsights = isMultiClientAdmin || accessTier === 'client_admin';
 
   const isLinkActive = (path: string, tab: string | null) => {
     if (path !== basePath) {
@@ -199,7 +200,7 @@ export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: str
                     </Link>
                   </SidebarMenuSubButton>
                 </SidebarMenuSubItem>
-                {isMultiClientAdmin && (
+                {canSeeInsights && (
                   <SidebarMenuSubItem>
                     <SidebarMenuSubButton asChild isActive={isLinkActive(basePath, 'insights')}>
                       <Link href={`${basePath}?tab=insights`} data-tour="tab-insights" onClick={() => setActiveTab('insights')}>

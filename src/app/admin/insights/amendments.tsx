@@ -19,7 +19,7 @@ import { StatCard, SectionHeader, EmptyState, InsightCard, downloadSectionAsPdf 
  * across every client, matching every other Insights section's read-only
  * pattern.
  */
-export function AmendmentsSection({ stats, clients }: { stats: InsightsStats; clients: Client[] }) {
+export function AmendmentsSection({ stats, clients, clientScoped = false }: { stats: InsightsStats; clients: Client[]; clientScoped?: boolean }) {
   const tableRef = useRef<HTMLDivElement>(null);
   const clientsById = useMemo(() => new Map(clients.map(c => [c.id, c])), [clients]);
 
@@ -57,7 +57,7 @@ export function AmendmentsSection({ stats, clients }: { stats: InsightsStats; cl
       <SectionHeader
         icon={FileEdit}
         title="Amendments"
-        description="Every corrected or overpaid request across all clients, and how much of each overpayment is still outstanding."
+        description={`Every corrected or overpaid request${clientScoped ? "" : " across all clients"}, and how much of each overpayment is still outstanding.`}
         onDownloadSection={() => downloadSectionAsPdf([{ ref: tableRef, title: "Amendments" }], "amendments-insights")}
       />
 
@@ -75,7 +75,7 @@ export function AmendmentsSection({ stats, clients }: { stats: InsightsStats; cl
               <TableHeader>
                 <TableRow>
                   <TableHead>Participant</TableHead>
-                  <TableHead>Client</TableHead>
+                  {!clientScoped && <TableHead>Client</TableHead>}
                   <TableHead>Event</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead className="max-w-xs">Reason</TableHead>
@@ -88,7 +88,7 @@ export function AmendmentsSection({ stats, clients }: { stats: InsightsStats; cl
                 {data.rows.map(({ request, overpaid, recovered, pending }) => (
                   <TableRow key={request.id}>
                     <TableCell className="font-medium whitespace-nowrap">{request.participantName}</TableCell>
-                    <TableCell>{clientsById.get(request.clientId)?.name ?? "—"}</TableCell>
+                    {!clientScoped && <TableCell>{clientsById.get(request.clientId)?.name ?? "—"}</TableCell>}
                     <TableCell>{request.eventName}</TableCell>
                     <TableCell className="whitespace-nowrap">{formatDateSafe(request.date)}</TableCell>
                     <TableCell className="max-w-xs truncate" title={request.amendmentReason}>{request.amendmentReason}</TableCell>

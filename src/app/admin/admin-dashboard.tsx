@@ -1286,6 +1286,9 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
   const eventTypeOptions = EVENT_TYPE_CATEGORIES;
 
   const isMultiClientAdmin = currentAdmin?.accessTier === 'super_admin' || currentAdmin?.accessTier === 'master_admin';
+  // Client Admins get their own Insights (RLS scopes the data to their
+  // client - see admin-insights.tsx), not the cross-client one.
+  const canSeeInsights = isMultiClientAdmin || currentAdmin?.accessTier === 'client_admin';
 
   const filteredParticipants = useMemo(() => {
     // Per Diem Recipients tab: client_user accounts only - admin accounts
@@ -2417,7 +2420,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
         <TabsContent value="analytics">
             <AnalyticsTabContent requests={perdiemRequests} clients={clients} loading={loadingRequests} />
         </TabsContent>
-        {isMultiClientAdmin && (
+        {canSeeInsights && (
           <TabsContent value="insights">
             {/* Waits only on the fast (events/participants/venues/clients)
             fetch, not the full requests download - Insights gets its
@@ -2428,6 +2431,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
               venues={venues}
               clients={clients}
               loading={loading}
+              clientScoped={!isMultiClientAdmin}
             />
           </TabsContent>
         )}

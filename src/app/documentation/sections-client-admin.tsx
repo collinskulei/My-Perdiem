@@ -1,6 +1,7 @@
 import {
   LayoutDashboard, Users, MapPin, CalendarDays, CheckCircle2, Wallet,
   PenLine, ClipboardCheck, FileBarChart, LineChart, UploadCloud, FolderSync, UserPlus2,
+  Sparkles,
 } from "lucide-react";
 import { DocSection, DocP, DocSteps, DocList, DocNote, RoleTag } from "./documentation-ui";
 
@@ -12,8 +13,8 @@ export function ClientAdminSections() {
         <DocP>
           As an administrator, your dashboard is organized into sections
           listed in the sidebar on the left: Per Diem Requests, Events,
-          Event Check-ins, Participants, Venues, Reports, Analytics, and
-          Manage. Related sections are grouped together and can be expanded
+          Event Check-ins, Participants, Venues, Reports, Analytics,
+          Insights, and Manage. Related sections are grouped together and can be expanded
           or collapsed - click a group's name to open or close it.
         </DocP>
         <DocNote>
@@ -134,6 +135,22 @@ export function ClientAdminSections() {
           You can also search for a specific participant here to see their
           total paid and full payment history.
         </DocP>
+      </DocSection>
+
+      <DocSection id="client-insights" title="Insights" icon={Sparkles}>
+        <RoleTag>Organization Administrators</RoleTag>
+        <DocP>
+          Insights is a deeper analytics view of your own organization,
+          grouped into Overview, Financial, Staff &amp; Employer, Training,
+          and Amendments. Filter everything by event type, event name,
+          county, year, month, or payment date range, look up any
+          participant's full payment history, and download any section's
+          charts as a PDF report.
+        </DocP>
+        <DocNote>
+          Like the rest of your dashboard, Insights only ever shows your
+          organization's data.
+        </DocNote>
       </DocSection>
 
       <DocSection id="historical-import" title="Bringing In Historical Payment Records" icon={UploadCloud}>
