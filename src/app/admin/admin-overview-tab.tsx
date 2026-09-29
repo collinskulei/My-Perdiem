@@ -108,12 +108,11 @@ export function AdminOverviewTab({
   const stats = useMemo(() => {
     const upcomingEvents = events.filter(isEventUpcoming).length;
     const totalCheckedIn = events.reduce((sum, e) => sum + Object.keys(e.checkedInParticipants ?? {}).length, 0);
-    const nonAdminParticipants = participants.filter(p => p.accessTier === "client_user").length;
     const totalAdmins = participants.filter(p => p.accessTier !== "client_user").length;
     const clientDocuments = currentAdmin?.clientId
       ? documents.filter(d => d.clientId === currentAdmin.clientId).length
       : documents.length;
-    return { upcomingEvents, totalCheckedIn, nonAdminParticipants, totalAdmins, clientDocuments };
+    return { upcomingEvents, totalCheckedIn, totalAdmins, clientDocuments };
   }, [events, participants, documents, currentAdmin]);
 
   const canManage = currentAdmin != null && currentAdmin.accessTier !== "client_user";
@@ -144,8 +143,13 @@ export function AdminOverviewTab({
         subtitle="participants checked in"
         href={link("checkins")} onNavigate={go("checkins")} delay={next()}
       />
+      {/* People actually paid (distinct by phone, else name), not participant
+      accounts - most payees arrive via the historical importer and never
+      register one. See getPerdiemRecipientCount(). */}
       <OverviewCard
-        icon={Users} label="Participants" value={stats.nonAdminParticipants}
+        icon={Users} label="Per Diem Recipients" value={requestStats?.totalRecipients ?? 0}
+        subtitle="people paid"
+        loading={requestsLoading}
         href={link("participants")} onNavigate={go("participants")} delay={next()}
       />
       <OverviewCard

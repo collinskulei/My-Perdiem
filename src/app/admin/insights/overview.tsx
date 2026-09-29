@@ -10,7 +10,7 @@ import {
   Treemap,
 } from "recharts";
 import { ClipboardList, Wallet, Users, CalendarDays, Building2 } from "lucide-react";
-import type { AppEvent, Participant, Client } from "@/lib/data";
+import type { AppEvent, Client } from "@/lib/data";
 import type { InsightsStats } from "@/lib/supabase/database";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -18,10 +18,9 @@ import {
   STATUS_COLORS, paletteColor, glassTooltipStyle, downloadSectionAsPdf,
 } from "./shared";
 
-export function OverviewSection({ stats, events, participants, clients }: {
+export function OverviewSection({ stats, events, clients }: {
   stats: InsightsStats;
   events: AppEvent[];
-  participants: Participant[];
   clients: Client[];
 }) {
   const trendRef = useRef<HTMLDivElement>(null);
@@ -33,7 +32,6 @@ export function OverviewSection({ stats, events, participants, clients }: {
   // Request-derived numbers arrive pre-aggregated from get_insights_stats
   // (0026_insights_stats_rpc.sql) - this only reshapes them for the charts.
   const data = useMemo(() => {
-    const nonAdminParticipants = participants.filter(p => p.accessTier === "client_user");
     const clientName = (clientId: string | null) => clients.find(c => c.id === clientId)?.name ?? "Unknown";
 
     const statusData = stats.byStatus.map(s => ({ name: s.status, value: s.count }));
@@ -72,7 +70,9 @@ export function OverviewSection({ stats, events, participants, clients }: {
     return {
       totalRequests: stats.totals.requestCount,
       totalPaidOut: stats.totals.totalPaidOut,
-      totalParticipants: nonAdminParticipants.length,
+      // People paid under the current filters, not participant accounts -
+      // see getPerdiemRecipientCount().
+      totalRecipients: stats.totals.recipientCount,
       totalEvents: events.length,
       activeClients: clients.length,
       statusData,
@@ -81,7 +81,7 @@ export function OverviewSection({ stats, events, participants, clients }: {
       composedData,
       treemapData,
     };
-  }, [stats, events, participants, clients]);
+  }, [stats, events, clients]);
 
   if (stats.totals.requestCount === 0) {
     return <EmptyState message="No per diem data yet - once requests exist, this section fills in automatically." />;
@@ -111,7 +111,7 @@ export function OverviewSection({ stats, events, participants, clients }: {
         <StatCard icon={Wallet} label="Total Paid Out" value={data.totalPaidOut} formatter={formatCurrency} delay={50} />
       </div>
       <div className="grid gap-6 grid-cols-1 sm:grid-cols-3">
-        <StatCard icon={Users} label="Total Participants" value={data.totalParticipants} delay={100} />
+        <StatCard icon={Users} label="Per Diem Recipients" value={data.totalRecipients} delay={100} />
         <StatCard icon={CalendarDays} label="Total Events" value={data.totalEvents} delay={150} />
         <StatCard icon={Building2} label="Active Clients" value={data.activeClients} delay={200} />
       </div>

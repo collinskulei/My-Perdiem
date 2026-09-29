@@ -590,6 +590,8 @@ export type PerdiemOverviewStats = {
   totalRequests: number;
   pendingRequests: number;
   totalPaidOut: number;
+  /** Distinct people paid - see getPerdiemRecipientCount(). */
+  totalRecipients: number;
 };
 
 /**
@@ -604,9 +606,12 @@ export type PerdiemOverviewStats = {
  * automatically either way - no separate access check needed here.
  */
 export const getPerdiemOverviewStats = async (clientId: string | null = null, client: SupabaseClient = supabase): Promise<PerdiemOverviewStats> => {
-  const { data, error } = await client
-    .rpc('get_perdiem_overview_stats', { target_client_id: clientId })
-    .single<{ total_requests: number; pending_requests: number; total_paid_out: number }>();
+  const [{ data, error }, totalRecipients] = await Promise.all([
+    client
+      .rpc('get_perdiem_overview_stats', { target_client_id: clientId })
+      .single<{ total_requests: number; pending_requests: number; total_paid_out: number }>(),
+    getPerdiemRecipientCount(clientId, { eventIds: null, dateFrom: null, dateTo: null }, client),
+  ]);
   if (error || !data) {
     console.error("Error fetching perdiem overview stats: ", error);
     throw error ?? new Error('get_perdiem_overview_stats did not return a result');
@@ -615,7 +620,30 @@ export const getPerdiemOverviewStats = async (clientId: string | null = null, cl
     totalRequests: Number(data.total_requests),
     pendingRequests: Number(data.pending_requests),
     totalPaidOut: Number(data.total_paid_out),
+    totalRecipients,
   };
+};
+
+/**
+ * How many distinct people were actually paid (Paid/Confirmed, or Amended
+ * with an overpayment - the Total Paid Out rule), counted inside Postgres
+ * (see migration 0028_recipient_count_rpc.sql). A person is the last 9
+ * digits of their phone, or their name when there's no phone - the same
+ * identity the historical importer uses - so this counts people paid, not
+ * participant accounts (most payees never had one).
+ */
+export const getPerdiemRecipientCount = async (clientId: string | null, filters: InsightsFilters, client: SupabaseClient = supabase): Promise<number> => {
+  const { data, error } = await client.rpc('get_perdiem_recipient_count', {
+    target_client_id: clientId,
+    p_event_ids: filters.eventIds,
+    p_date_from: filters.dateFrom,
+    p_date_to: filters.dateTo,
+  });
+  if (error) {
+    console.error("Error fetching perdiem recipient count: ", error);
+    throw error;
+  }
+  return Number(data ?? 0);
 };
 
 /**
@@ -643,7 +671,7 @@ export type InsightsAmendedRow = {
 };
 
 export type InsightsStats = {
-  totals: { requestCount: number; totalPerdiem: number; totalPaidOut: number; amendmentDelta: number };
+  totals: { requestCount: number; totalPerdiem: number; totalPaidOut: number; amendmentDelta: number; recipientCount: number };
   byStatus: { status: string; count: number; amount: number }[];
   byClient: { clientId: string | null; requestCount: number; totalPaid: number }[];
   monthlyByClient: { clientId: string | null; month: string; count: number; amount: number }[];
@@ -666,12 +694,15 @@ export type InsightsStats = {
  * invoker`, so RLS scoping applies exactly as it does to getPerDiemRequests().
  */
 export const getInsightsStats = async (filters: InsightsFilters, trendFrom: string, client: SupabaseClient = supabase): Promise<InsightsStats> => {
-  const { data, error } = await client.rpc('get_insights_stats', {
-    p_event_ids: filters.eventIds,
-    p_date_from: filters.dateFrom,
-    p_date_to: filters.dateTo,
-    p_trend_from: trendFrom,
-  });
+  const [{ data, error }, recipientCount] = await Promise.all([
+    client.rpc('get_insights_stats', {
+      p_event_ids: filters.eventIds,
+      p_date_from: filters.dateFrom,
+      p_date_to: filters.dateTo,
+      p_trend_from: trendFrom,
+    }),
+    getPerdiemRecipientCount(null, filters, client),
+  ]);
   if (error || !data) {
     console.error("Error fetching insights stats: ", error);
     throw error ?? new Error('get_insights_stats did not return a result');
@@ -683,6 +714,7 @@ export const getInsightsStats = async (filters: InsightsFilters, trendFrom: stri
       totalPerdiem: Number(d.totals.total_perdiem),
       totalPaidOut: Number(d.totals.total_paid_out),
       amendmentDelta: Number(d.totals.amendment_delta),
+      recipientCount,
     },
     byStatus: d.by_status.map((s: any) => ({ status: s.status, count: Number(s.count), amount: Number(s.amount) })),
     byClient: d.by_client.map((c: any) => ({ clientId: c.client_id, requestCount: Number(c.request_count), totalPaid: Number(c.total_paid) })),

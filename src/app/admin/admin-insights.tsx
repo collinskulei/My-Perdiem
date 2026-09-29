@@ -322,7 +322,7 @@ export function AdminInsightsTab({ events, participants, venues, clients, loadin
         </div>
 
         <TabsContent value="overview">
-          <OverviewSection stats={stats} events={filteredEvents} participants={participants} clients={clients} />
+          <OverviewSection stats={stats} events={filteredEvents} clients={clients} />
         </TabsContent>
         <TabsContent value="financial">
           <FinancialSection stats={stats} />
