@@ -143,12 +143,6 @@ export function AdminOverviewTab({
           href={link("insights")} onNavigate={go("insights")} delay={next()}
         />
       )}
-      <OverviewCard
-        icon={ClipboardList} label="Per Diem Requests" value={requestStats?.pendingRequests ?? 0}
-        subtitle={requestStats ? `${requestStats.totalRequests.toLocaleString()} total` : undefined}
-        loading={requestsLoading}
-        href={link("requests")} onNavigate={go("requests")} delay={next()}
-      />
       {/* Hidden until 0028_overview_stats_split_payments.sql is applied (totalPayments null before that). */}
       {requestStats?.totalPayments != null && (
         <OverviewCard
@@ -157,6 +151,24 @@ export function AdminOverviewTab({
           href={link("payments")} onNavigate={go("payments")} delay={next()}
         />
       )}
+      {/* People actually paid (distinct by phone, else name), not participant
+      accounts - most payees arrive via the historical importer and never
+      register one. See getPerdiemRecipientCount(). Hidden once loaded if
+      0029_recipient_count_rpc.sql isn't applied yet (totalRecipients null). */}
+      {(requestsLoading || requestStats?.totalRecipients != null) && (
+        <OverviewCard
+          icon={Users} label="Per Diem Recipients" value={requestStats?.totalRecipients ?? 0}
+          subtitle="people paid"
+          loading={requestsLoading}
+          href={link("participants")} onNavigate={go("participants")} delay={next()}
+        />
+      )}
+      <OverviewCard
+        icon={ClipboardList} label="Per Diem Requests" value={requestStats?.pendingRequests ?? 0}
+        subtitle={requestStats ? `${requestStats.totalRequests.toLocaleString()} total` : undefined}
+        loading={requestsLoading}
+        href={link("requests")} onNavigate={go("requests")} delay={next()}
+      />
       {/* Organization (Client) Admins see the total number of events;
       everyone else sees upcoming events with the total underneath. */}
       {isClientAdmin ? (
@@ -177,18 +189,6 @@ export function AdminOverviewTab({
         subtitle="participants checked in"
         href={link("checkins")} onNavigate={go("checkins")} delay={next()}
       />
-      {/* People actually paid (distinct by phone, else name), not participant
-      accounts - most payees arrive via the historical importer and never
-      register one. See getPerdiemRecipientCount(). Hidden once loaded if
-      0029_recipient_count_rpc.sql isn't applied yet (totalRecipients null). */}
-      {(requestsLoading || requestStats?.totalRecipients != null) && (
-        <OverviewCard
-          icon={Users} label="Per Diem Recipients" value={requestStats?.totalRecipients ?? 0}
-          subtitle="people paid"
-          loading={requestsLoading}
-          href={link("participants")} onNavigate={go("participants")} delay={next()}
-        />
-      )}
       <OverviewCard
         icon={MapPin} label="Venues" value={venues.length}
         href={link("venues")} onNavigate={go("venues")} delay={next()}
