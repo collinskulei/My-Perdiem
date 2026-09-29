@@ -4,8 +4,8 @@
  * quick stat and linking into that tab. Replaces the old default of landing
  * directly on the raw Per Diem Requests table with no orientation at all.
  *
- * The three requests-table-derived cards (Per Diem Requests, Reports,
- * Analytics) fetch their own numbers independently via
+ * The requests-table-derived cards (Per Diem Requests, Reports, Analytics,
+ * and a Client Admin's Insights) fetch their own numbers independently via
  * getPerdiemOverviewStats() - a small server-side aggregate (see migration
  * 0025_overview_stats_rpc.sql) - rather than waiting on the parent
  * dashboard's fetchAllData(), which pulls the *entire* perdiem_requests
@@ -141,11 +141,21 @@ export function AdminOverviewTab({
           href={link("payments")} onNavigate={go("payments")} delay={next()}
         />
       )}
-      <OverviewCard
-        icon={CalendarDays} label="Events" value={stats.upcomingEvents}
-        subtitle={`${events.length.toLocaleString()} total`}
-        href={link("events")} onNavigate={go("events")} delay={next()}
-      />
+      {/* Organization (Client) Admins see the total number of events;
+      everyone else sees upcoming events with the total underneath. */}
+      {isClientAdmin ? (
+        <OverviewCard
+          icon={CalendarDays} label="Events" value={events.length}
+          subtitle={`${stats.upcomingEvents.toLocaleString()} upcoming`}
+          href={link("events")} onNavigate={go("events")} delay={next()}
+        />
+      ) : (
+        <OverviewCard
+          icon={CalendarDays} label="Events" value={stats.upcomingEvents}
+          subtitle={`${events.length.toLocaleString()} total`}
+          href={link("events")} onNavigate={go("events")} delay={next()}
+        />
+      )}
       <OverviewCard
         icon={ClipboardCheck} label="Event Check-ins" value={stats.totalCheckedIn}
         subtitle="participants checked in"
@@ -167,18 +177,24 @@ export function AdminOverviewTab({
         icon={MapPin} label="Venues" value={venues.length}
         href={link("venues")} onNavigate={go("venues")} delay={next()}
       />
-      <OverviewCard
-        icon={FileText} label="Reports" value={(requestStats?.totalRequests ?? 0) + (requestStats?.totalPayments ?? 0)}
-        subtitle="total records"
-        loading={requestsLoading}
-        href={link("reports")} onNavigate={go("reports")} delay={next()}
-      />
-      <OverviewCard
-        icon={BarChart} label="Analytics" value={requestStats?.totalPaidOut ?? 0} formatter={formatCurrency}
-        subtitle="total paid out"
-        loading={requestsLoading}
-        href={link("analytics")} onNavigate={go("analytics")} delay={next()}
-      />
+      {/* Organization (Client) Admins don't get the Reports/Analytics cards -
+      their Insights card shows the total paid out instead. */}
+      {!isClientAdmin && (
+        <>
+        <OverviewCard
+          icon={FileText} label="Reports" value={(requestStats?.totalRequests ?? 0) + (requestStats?.totalPayments ?? 0)}
+          subtitle="total records"
+          loading={requestsLoading}
+          href={link("reports")} onNavigate={go("reports")} delay={next()}
+        />
+        <OverviewCard
+          icon={BarChart} label="Analytics" value={requestStats?.totalPaidOut ?? 0} formatter={formatCurrency}
+          subtitle="total paid out"
+          loading={requestsLoading}
+          href={link("analytics")} onNavigate={go("analytics")} delay={next()}
+        />
+        </>
+      )}
       {isMultiClientAdmin && (
         <OverviewCard
           icon={Sparkles} label="Insights" value={clients.length}
@@ -188,8 +204,9 @@ export function AdminOverviewTab({
       )}
       {isClientAdmin && (
         <OverviewCard
-          icon={Sparkles} label="Insights" value={events.length}
-          subtitle="events to analyse"
+          icon={Sparkles} label="Insights" value={requestStats?.totalPaidOut ?? 0} formatter={formatCurrency}
+          subtitle="total paid out"
+          loading={requestsLoading}
           href={link("insights")} onNavigate={go("insights")} delay={next()}
         />
       )}
