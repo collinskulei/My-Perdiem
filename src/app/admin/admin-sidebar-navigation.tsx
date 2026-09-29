@@ -8,6 +8,7 @@ import {
   Home,
   User,
   ClipboardList,
+  Wallet,
   CalendarDays,
   ClipboardCheck,
   Users,
@@ -71,6 +72,7 @@ export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: str
 
   const canManage = accessTier !== null && accessTier !== 'client_user';
   const isMultiClientAdmin = accessTier === 'super_admin' || accessTier === 'master_admin';
+  const canSeeInsights = isMultiClientAdmin || accessTier === 'client_admin';
 
   const isLinkActive = (path: string, tab: string | null) => {
     if (path !== basePath) {
@@ -107,6 +109,14 @@ export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: str
           <SidebarMenuButton isActive={isLinkActive(basePath, 'requests')} data-tour="tab-requests">
             <ClipboardList />
             Per Diem Requests
+          </SidebarMenuButton>
+        </Link>
+      </SidebarMenuItem>
+      <SidebarMenuItem>
+        <Link href={`${basePath}?tab=payments`} onClick={() => setActiveTab('payments')}>
+          <SidebarMenuButton isActive={isLinkActive(basePath, 'payments')}>
+            <Wallet />
+            Per Diem Payments
           </SidebarMenuButton>
         </Link>
       </SidebarMenuItem>
@@ -149,7 +159,7 @@ export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: str
         <Link href={`${basePath}?tab=participants`} onClick={() => setActiveTab('participants')}>
           <SidebarMenuButton isActive={isLinkActive(basePath, 'participants')} data-tour="tab-participants">
             <Users />
-            Participants
+            Per Diem Recipients
           </SidebarMenuButton>
         </Link>
       </SidebarMenuItem>
@@ -190,7 +200,7 @@ export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: str
                     </Link>
                   </SidebarMenuSubButton>
                 </SidebarMenuSubItem>
-                {isMultiClientAdmin && (
+                {canSeeInsights && (
                   <SidebarMenuSubItem>
                     <SidebarMenuSubButton asChild isActive={isLinkActive(basePath, 'insights')}>
                       <Link href={`${basePath}?tab=insights`} data-tour="tab-insights" onClick={() => setActiveTab('insights')}>

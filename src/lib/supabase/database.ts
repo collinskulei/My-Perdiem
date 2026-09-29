@@ -590,8 +590,12 @@ export type PerdiemOverviewStats = {
   totalRequests: number;
   pendingRequests: number;
   totalPaidOut: number;
-  /** Distinct people paid - see getPerdiemRecipientCount(). */
-  totalRecipients: number;
+  // Historical payment records (imported_at set) - see
+  // 0028_overview_stats_split_payments.sql. Null until that migration is
+  // applied, in which case totalRequests still includes these rows too.
+  totalPayments: number | null;
+  /** Distinct people paid - see getPerdiemRecipientCount(). Null until 0029 is applied. */
+  totalRecipients: number | null;
 };
 
 /**
@@ -609,7 +613,7 @@ export const getPerdiemOverviewStats = async (clientId: string | null = null, cl
   const [{ data, error }, totalRecipients] = await Promise.all([
     client
       .rpc('get_perdiem_overview_stats', { target_client_id: clientId })
-      .single<{ total_requests: number; pending_requests: number; total_paid_out: number }>(),
+      .single<{ total_requests: number; pending_requests: number; total_paid_out: number; total_payments?: number }>(),
     getPerdiemRecipientCount(clientId, { eventIds: null, dateFrom: null, dateTo: null }, client),
   ]);
   if (error || !data) {
@@ -620,6 +624,7 @@ export const getPerdiemOverviewStats = async (clientId: string | null = null, cl
     totalRequests: Number(data.total_requests),
     pendingRequests: Number(data.pending_requests),
     totalPaidOut: Number(data.total_paid_out),
+    totalPayments: data.total_payments == null ? null : Number(data.total_payments),
     totalRecipients,
   };
 };
@@ -627,12 +632,14 @@ export const getPerdiemOverviewStats = async (clientId: string | null = null, cl
 /**
  * How many distinct people were actually paid (Paid/Confirmed, or Amended
  * with an overpayment - the Total Paid Out rule), counted inside Postgres
- * (see migration 0028_recipient_count_rpc.sql). A person is the last 9
+ * (see migration 0029_recipient_count_rpc.sql). A person is the last 9
  * digits of their phone, or their name when there's no phone - the same
  * identity the historical importer uses - so this counts people paid, not
- * participant accounts (most payees never had one).
+ * participant accounts (most payees never had one). Null (not a throw) when
+ * the RPC is missing, i.e. 0029 isn't applied yet, so the other stats still
+ * load - same approach as totalPayments and 0028.
  */
-export const getPerdiemRecipientCount = async (clientId: string | null, filters: InsightsFilters, client: SupabaseClient = supabase): Promise<number> => {
+export const getPerdiemRecipientCount = async (clientId: string | null, filters: InsightsFilters, client: SupabaseClient = supabase): Promise<number | null> => {
   const { data, error } = await client.rpc('get_perdiem_recipient_count', {
     target_client_id: clientId,
     p_event_ids: filters.eventIds,
@@ -641,9 +648,9 @@ export const getPerdiemRecipientCount = async (clientId: string | null, filters:
   });
   if (error) {
     console.error("Error fetching perdiem recipient count: ", error);
-    throw error;
+    return null;
   }
-  return Number(data ?? 0);
+  return data == null ? null : Number(data);
 };
 
 /**
@@ -671,7 +678,7 @@ export type InsightsAmendedRow = {
 };
 
 export type InsightsStats = {
-  totals: { requestCount: number; totalPerdiem: number; totalPaidOut: number; amendmentDelta: number; recipientCount: number };
+  totals: { requestCount: number; totalPerdiem: number; totalPaidOut: number; amendmentDelta: number; recipientCount: number | null };
   byStatus: { status: string; count: number; amount: number }[];
   byClient: { clientId: string | null; requestCount: number; totalPaid: number }[];
   monthlyByClient: { clientId: string | null; month: string; count: number; amount: number }[];

@@ -48,13 +48,13 @@ export function GettingStartedSections() {
         </DocP>
         <DocList>
           <li><strong>Participant</strong> - a staff member who attends events and requests per diem payments. Most people using the app are Participants.</li>
-          <li><strong>Client Administrator</strong> - manages one organization: its participants, events, and payments.</li>
+          <li><strong>Organization Administrator</strong> - manages one organization: its participants, events, and payments.</li>
           <li><strong>Super Administrator</strong> - oversees multiple organizations on the platform.</li>
           <li><strong>Master Administrator</strong> - the platform's own top-level oversight account.</li>
         </DocList>
         <DocP>
-          Everything a Participant can do, a Client Administrator can also
-          do (plus more). Everything a Client Administrator can do, a Super
+          Everything a Participant can do, an Organization Administrator can also
+          do (plus more). Everything an Organization Administrator can do, a Super
           Administrator can also do (plus more, across every organization).
           Use the sidebar on the left to jump straight to the section that
           matches your account.

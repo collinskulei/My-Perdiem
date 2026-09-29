@@ -64,6 +64,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: "checkin-reports", label: "Event Check-In Reports" },
       { id: "reports-filtering", label: "Reports & Filtering" },
       { id: "analytics-charts", label: "Analytics Charts" },
+      { id: "client-insights", label: "Insights" },
       { id: "historical-import", label: "Importing Past Records" },
       { id: "documents-onedrive", label: "Sending Documents" },
       { id: "inviting-admins", label: "Inviting Administrators" },

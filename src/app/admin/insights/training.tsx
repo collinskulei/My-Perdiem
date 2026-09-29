@@ -31,7 +31,7 @@ function eventTimestamp(event: AppEvent): Date | null {
   return isValid(parsed) ? parsed : null;
 }
 
-export function TrainingSection({ stats, events, venues }: { stats: InsightsStats; events: AppEvent[]; venues: Venue[] }) {
+export function TrainingSection({ stats, events, venues, clientScoped = false }: { stats: InsightsStats; events: AppEvent[]; venues: Venue[]; clientScoped?: boolean }) {
   const durationRef = useRef<HTMLDivElement>(null);
   const venuesRef = useRef<HTMLDivElement>(null);
   const countiesRef = useRef<HTMLDivElement>(null);
@@ -96,7 +96,7 @@ export function TrainingSection({ stats, events, venues }: { stats: InsightsStat
       <SectionHeader
         icon={GraduationCap}
         title="Training"
-        description="Training duration, venues, and timing across every client."
+        description={clientScoped ? "Training duration, venues, and timing for your organization." : "Training duration, venues, and timing across every client."}
         onDownloadSection={() => downloadSectionAsPdf([
           { ref: durationRef, title: "Training Duration Distribution" },
           { ref: venuesRef, title: "Top Venues" },

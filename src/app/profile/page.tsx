@@ -27,15 +27,11 @@ import * as supabaseDb from '@/lib/supabase/database';
 import type { Participant } from "@/lib/data";
 import { supabase } from "@/lib/supabase/client";
 import { Loader2 } from "lucide-react";
+import { ACCESS_TIER_LABELS } from "@/lib/data";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 
-const TIER_LABELS: Record<string, string> = {
-  master_admin: "Master Admin",
-  super_admin: "Super Admin",
-  client_admin: "Client Admin",
-  client_user: "Participant",
-};
+const TIER_LABELS: Record<string, string> = ACCESS_TIER_LABELS;
 
 const dataProvider = supabaseDb;
 

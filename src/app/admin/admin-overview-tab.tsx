@@ -22,7 +22,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { isPast, endOfDay, parseISO } from "date-fns";
 import {
-  ClipboardList, CalendarDays, ClipboardCheck, Users, MapPin,
+  ClipboardList, Wallet, CalendarDays, ClipboardCheck, Users, MapPin,
   FileText, BarChart, Sparkles, ShieldCheck, Building2, FileStack,
 } from "lucide-react";
 import type { ComponentType } from "react";
@@ -133,6 +133,14 @@ export function AdminOverviewTab({
         loading={requestsLoading}
         href={link("requests")} onNavigate={go("requests")} delay={next()}
       />
+      {/* Hidden until 0028_overview_stats_split_payments.sql is applied (totalPayments null before that). */}
+      {requestStats?.totalPayments != null && (
+        <OverviewCard
+          icon={Wallet} label="Per Diem Payments" value={requestStats.totalPayments}
+          subtitle="historical payments"
+          href={link("payments")} onNavigate={go("payments")} delay={next()}
+        />
+      )}
       <OverviewCard
         icon={CalendarDays} label="Events" value={stats.upcomingEvents}
         subtitle={`${events.length.toLocaleString()} total`}
@@ -145,19 +153,22 @@ export function AdminOverviewTab({
       />
       {/* People actually paid (distinct by phone, else name), not participant
       accounts - most payees arrive via the historical importer and never
-      register one. See getPerdiemRecipientCount(). */}
-      <OverviewCard
-        icon={Users} label="Per Diem Recipients" value={requestStats?.totalRecipients ?? 0}
-        subtitle="people paid"
-        loading={requestsLoading}
-        href={link("participants")} onNavigate={go("participants")} delay={next()}
-      />
+      register one. See getPerdiemRecipientCount(). Hidden once loaded if
+      0029_recipient_count_rpc.sql isn't applied yet (totalRecipients null). */}
+      {(requestsLoading || requestStats?.totalRecipients != null) && (
+        <OverviewCard
+          icon={Users} label="Per Diem Recipients" value={requestStats?.totalRecipients ?? 0}
+          subtitle="people paid"
+          loading={requestsLoading}
+          href={link("participants")} onNavigate={go("participants")} delay={next()}
+        />
+      )}
       <OverviewCard
         icon={MapPin} label="Venues" value={venues.length}
         href={link("venues")} onNavigate={go("venues")} delay={next()}
       />
       <OverviewCard
-        icon={FileText} label="Reports" value={requestStats?.totalRequests ?? 0}
+        icon={FileText} label="Reports" value={(requestStats?.totalRequests ?? 0) + (requestStats?.totalPayments ?? 0)}
         subtitle="total records"
         loading={requestsLoading}
         href={link("reports")} onNavigate={go("reports")} delay={next()}
@@ -172,6 +183,13 @@ export function AdminOverviewTab({
         <OverviewCard
           icon={Sparkles} label="Insights" value={clients.length}
           subtitle="clients on the platform"
+          href={link("insights")} onNavigate={go("insights")} delay={next()}
+        />
+      )}
+      {isClientAdmin && (
+        <OverviewCard
+          icon={Sparkles} label="Insights" value={events.length}
+          subtitle="events to analyse"
           href={link("insights")} onNavigate={go("insights")} delay={next()}
         />
       )}

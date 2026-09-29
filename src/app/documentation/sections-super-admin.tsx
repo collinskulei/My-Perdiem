@@ -13,7 +13,7 @@ export function SuperAdminSections() {
           participants. From a client's card you can:
         </DocP>
         <DocList>
-          <li>Invite that organization's first Client Administrator.</li>
+          <li>Invite that organization's first Organization Administrator.</li>
           <li>Jump straight to their list of participants.</li>
           <li>Import historical payment records on their behalf.</li>
           <li>Set up their shared OneDrive submission folder.</li>

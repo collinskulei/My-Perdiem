@@ -12,16 +12,19 @@ import {
 import { ClipboardList, Wallet, Users, CalendarDays, Building2 } from "lucide-react";
 import type { AppEvent, Client } from "@/lib/data";
 import type { InsightsStats } from "@/lib/supabase/database";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import {
   StatCard, ChartCard, SectionHeader, EmptyState,
   STATUS_COLORS, paletteColor, glassTooltipStyle, downloadSectionAsPdf,
 } from "./shared";
 
-export function OverviewSection({ stats, events, clients }: {
+export function OverviewSection({ stats, events, clients, clientScoped = false }: {
   stats: InsightsStats;
   events: AppEvent[];
   clients: Client[];
+  // Client Admin view - hides the client-vs-client widgets (Active Clients,
+  // Top Clients, Client Share), which say nothing with a single client.
+  clientScoped?: boolean;
 }) {
   const trendRef = useRef<HTMLDivElement>(null);
   const statusRef = useRef<HTMLDivElement>(null);
@@ -83,6 +86,8 @@ export function OverviewSection({ stats, events, clients }: {
     };
   }, [stats, events, clients]);
 
+  const smallCardCols = 1 + (data.totalRecipients != null ? 1 : 0) + (clientScoped ? 0 : 1);
+
   if (stats.totals.requestCount === 0) {
     return <EmptyState message="No per diem data yet - once requests exist, this section fills in automatically." />;
   }
@@ -92,13 +97,13 @@ export function OverviewSection({ stats, events, clients }: {
       <SectionHeader
         icon={ClipboardList}
         title="Overview"
-        description="Platform-wide activity at a glance, across every client."
+        description={clientScoped ? "Your organization's activity at a glance." : "Platform-wide activity at a glance, across every client."}
         onDownloadSection={() => downloadSectionAsPdf([
           { ref: statusRef, title: "Requests by Status" },
           { ref: trendRef, title: "Requests Trend (90 Days)" },
-          { ref: topClientsRef, title: "Top Clients by Amount Paid" },
+          ...(clientScoped ? [] : [{ ref: topClientsRef, title: "Top Clients by Amount Paid" }]),
           { ref: composedRef, title: "Requests Volume vs Amount Paid" },
-          { ref: treemapRef, title: "Client Share of Total Spend" },
+          ...(clientScoped ? [] : [{ ref: treemapRef, title: "Client Share of Total Spend" }]),
         ], "overview-insights")}
       />
 
@@ -110,10 +115,12 @@ export function OverviewSection({ stats, events, clients }: {
         <StatCard icon={ClipboardList} label="Total Requests" value={data.totalRequests} delay={0} />
         <StatCard icon={Wallet} label="Total Paid Out" value={data.totalPaidOut} formatter={formatCurrency} delay={50} />
       </div>
-      <div className="grid gap-6 grid-cols-1 sm:grid-cols-3">
-        <StatCard icon={Users} label="Per Diem Recipients" value={data.totalRecipients} delay={100} />
+      {/* Recipients is hidden (null) until 0029_recipient_count_rpc.sql is
+      applied; the column count follows whichever cards are shown. */}
+      <div className={cn("grid gap-6 grid-cols-1", smallCardCols === 3 ? "sm:grid-cols-3" : smallCardCols === 2 ? "sm:grid-cols-2" : "")}>
+        {data.totalRecipients != null && <StatCard icon={Users} label="Per Diem Recipients" value={data.totalRecipients} delay={100} />}
         <StatCard icon={CalendarDays} label="Total Events" value={data.totalEvents} delay={150} />
-        <StatCard icon={Building2} label="Active Clients" value={data.activeClients} delay={200} />
+        {!clientScoped && <StatCard icon={Building2} label="Active Clients" value={data.activeClients} delay={200} />}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -150,7 +157,8 @@ export function OverviewSection({ stats, events, clients }: {
         </ChartCard>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className={cn("grid gap-6", !clientScoped && "lg:grid-cols-2")}>
+        {!clientScoped && (
         <ChartCard title="Top Clients by Amount Paid" chartRef={topClientsRef} filename="top-clients-by-amount-paid">
           {data.topClients.length === 0 ? <EmptyState message="No paid requests yet." /> : (
             <ResponsiveContainer width="100%" height={300}>
@@ -166,6 +174,7 @@ export function OverviewSection({ stats, events, clients }: {
             </ResponsiveContainer>
           )}
         </ChartCard>
+        )}
 
         <ChartCard title="Requests Volume vs Amount Paid" chartRef={composedRef} filename="requests-volume-vs-amount">
           <ResponsiveContainer width="100%" height={300}>
@@ -183,6 +192,7 @@ export function OverviewSection({ stats, events, clients }: {
         </ChartCard>
       </div>
 
+      {!clientScoped && (
       <ChartCard title="Client Share of Total Spend" chartRef={treemapRef} filename="client-share-of-spend">
         {data.treemapData.length === 0 ? <EmptyState message="No paid requests yet." /> : (
           <ResponsiveContainer width="100%" height={320}>
@@ -193,6 +203,7 @@ export function OverviewSection({ stats, events, clients }: {
           </ResponsiveContainer>
         )}
       </ChartCard>
+      )}
     </div>
   );
 }

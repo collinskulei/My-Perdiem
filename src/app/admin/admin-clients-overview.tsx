@@ -105,7 +105,7 @@ function ClientWidget({
     const result = await inviteAdmin({ email, name, tier: "client_admin", clientId: client.id });
     setIsSubmitting(false);
     if (result.success) {
-      toast({ title: "Invite sent", description: `${name} has been invited as ${client.name}'s Client Admin.` });
+      toast({ title: "Invite sent", description: `${name} has been invited as ${client.name}'s Organization Admin.` });
       setIsInviteOpen(false);
       setEmail("");
       setName("");
@@ -182,12 +182,12 @@ function ClientWidget({
             <DialogTrigger asChild>
               <Button size="sm" variant="outline">
                 <UserPlus className="mr-2 h-4 w-4" />
-                Invite Client Admin
+                Invite Organization Admin
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Invite a Client Admin for {client.name}</DialogTitle>
+                <DialogTitle>Invite an Organization Admin for {client.name}</DialogTitle>
                 <DialogDescription>They&apos;ll receive an email invite to set their password.</DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-2">
@@ -278,7 +278,7 @@ function ClientWidget({
                 <Input id={`onedrive-folder-${client.id}`} value={folderId} onChange={(e) => setFolderId(e.target.value)} />
               </div>
               <div className="space-y-1">
-                <Label htmlFor={`onedrive-link-${client.id}`}>Folder Link (optional, shown to the Client Admin)</Label>
+                <Label htmlFor={`onedrive-link-${client.id}`}>Folder Link (optional, shown to the Organization Admin)</Label>
                 <Input id={`onedrive-link-${client.id}`} value={folderLink} onChange={(e) => setFolderLink(e.target.value)} placeholder="https://..." />
               </div>
             </div>

@@ -113,7 +113,7 @@ import { AdminOverviewTab } from "./admin-overview-tab";
 import { ParticipantLookup } from "./insights/participant-lookup";
 import { useAdminTab } from "./admin-tab-context";
 import { inviteAdmin, setParticipantDisabled } from "@/lib/admin-api-client";
-import { sortRequestsByDateDesc, sortEventsByDateDesc, isTransacted } from "@/lib/data";
+import { sortRequestsByDateDesc, sortEventsByDateDesc, isTransacted, ACCESS_TIER_LABELS } from "@/lib/data";
 import { useInitialAdminDashboardData } from "./admin-dashboard-data-context";
 
 const dataProvider = supabaseDb;
@@ -157,9 +157,10 @@ const defaultFilters = {
 const TAB_LABELS: Record<string, string> = {
   overview: "Dashboard",
   requests: "Perdiem Requests",
+  payments: "Perdiem Payments",
   events: "Events",
   checkins: "Event Check-ins",
-  participants: "Participants",
+  participants: "Per Diem Recipients",
   venues: "Venues",
   reports: "Reports",
   analytics: "Analytics",
@@ -396,7 +397,14 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
   // Feeds PerdiemDetailColumnCells' event lookup (training start/end date,
   // number of training days) across every per-diem table below.
   const eventsById = useMemo(() => new Map(events.map((e) => [e.id, e])), [events]);
-  const requestsPagination = usePagination(perdiemRequests);
+  // Requests are submitted through the app; historical imports (importedAt
+  // set) are payments that already happened, so they're kept out of the
+  // approval queue and listed on their own Payments tab instead. Reports and
+  // Analytics charts still read the full perdiemRequests set.
+  const liveRequests = useMemo(() => perdiemRequests.filter((r) => !r.importedAt), [perdiemRequests]);
+  const historicalPayments = useMemo(() => perdiemRequests.filter((r) => r.importedAt), [perdiemRequests]);
+  const requestsPagination = usePagination(liveRequests);
+  const paymentsPagination = usePagination(historicalPayments);
   // O(1) lookup instead of perdiemRequests.some() per row in the Events
   // table below (unmemoized there, so it re-ran on every render, not just
   // data load) - with 9,000+ requests and hundreds of events, that scan was
@@ -795,7 +803,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
     }
 
     if (!editingEvent && !currentAdmin?.clientId) {
-        toast({ title: "Cannot Create Event", description: "Only Client Admins can create events from this dashboard. Super/Master Admins should use the multi-client console.", variant: "destructive" });
+        toast({ title: "Cannot Create Event", description: "Only Organization Admins can create events from this dashboard. Super/Master Admins should use the multi-client console.", variant: "destructive" });
         setIsSaving(false);
         return;
     }
@@ -917,7 +925,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
       return;
     }
     if (!currentAdmin?.clientId) {
-      toast({ title: "Cannot Add Participant", description: "Only Client Admins can add participants from this dashboard.", variant: "destructive" });
+      toast({ title: "Cannot Add Participant", description: "Only Organization Admins can add participants from this dashboard.", variant: "destructive" });
       return;
     }
     setIsAddingParticipant(true);
@@ -1278,9 +1286,14 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
   const eventTypeOptions = EVENT_TYPE_CATEGORIES;
 
   const isMultiClientAdmin = currentAdmin?.accessTier === 'super_admin' || currentAdmin?.accessTier === 'master_admin';
+  // Client Admins get their own Insights (RLS scopes the data to their
+  // client - see admin-insights.tsx), not the cross-client one.
+  const canSeeInsights = isMultiClientAdmin || currentAdmin?.accessTier === 'client_admin';
 
   const filteredParticipants = useMemo(() => {
-    let data = participants;
+    // Per Diem Recipients tab: client_user accounts only - admin accounts
+    // are managed from the Manage tab, not listed as recipients.
+    let data = nonAdminParticipants;
     if (isMultiClientAdmin && participantClientFilter !== 'all') {
       data = data.filter(p => p.clientId === participantClientFilter);
     }
@@ -1293,7 +1306,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
       p.idNumber.includes(searchTerm) ||
       p.phoneNumber.includes(searchTerm)
     );
-  }, [participants, participantSearch, participantClientFilter, isMultiClientAdmin]);
+  }, [nonAdminParticipants, participantSearch, participantClientFilter, isMultiClientAdmin]);
   const participantsPagination = usePagination(filteredParticipants);
 
   const handleSelectParticipant = useCallback((participantId: string) => {
@@ -1455,7 +1468,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
     <div className="grid flex-1 items-start gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{TAB_LABELS[activeTab] ?? "Dashboard"}</h1>
-        <p className="text-sm text-muted-foreground">Signed in as Admin</p>
+        <p className="text-sm text-muted-foreground">Signed in as {currentAdmin ? ACCESS_TIER_LABELS[currentAdmin.accessTier] : "Admin"}</p>
       </div>
       <ClientOnly>
       <Tabs value={activeTab}>
@@ -1479,7 +1492,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                 <Table>
                     <TableHeader><TableRow><TableHead>Participant</TableHead><TableHead>Event</TableHead><PerdiemDetailColumnHeaders /><TableHead className="text-right whitespace-nowrap">Total Amount</TableHead><TableHead>Status</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
                     <TableBody>
-                    {loadingRequests ? <TableSkeletonRows columns={2 + PERDIEM_DETAIL_COLUMN_COUNT + 3} /> : requestsPagination.paged.map(request => (
+                    {loadingRequests ? <TableSkeletonRows columns={2 + PERDIEM_DETAIL_COLUMN_COUNT + 3} /> : liveRequests.length === 0 ? <TableRow><TableCell colSpan={2 + PERDIEM_DETAIL_COLUMN_COUNT + 3} className="h-24 text-center text-muted-foreground">No per diem requests yet. Historical payment records are under Per Diem Payments.</TableCell></TableRow> : requestsPagination.paged.map(request => (
                         <TableRow key={request.id}>
                         <TableCell><div className="font-medium">{request.participantName}</div><div className="hidden text-sm text-muted-foreground md:inline">{request.participantId ? participantsById.get(request.participantId)?.idNumber : undefined}</div></TableCell>
                         <TableCell>{request.eventName}</TableCell>
@@ -1513,7 +1526,37 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                     ))}
                     </TableBody>
                 </Table>
-              <TablePagination page={requestsPagination.page} pageCount={requestsPagination.pageCount} totalItems={perdiemRequests.length} pageSize={TABLE_PAGE_SIZE} onPageChange={requestsPagination.setPage} />
+              <TablePagination page={requestsPagination.page} pageCount={requestsPagination.pageCount} totalItems={liveRequests.length} pageSize={TABLE_PAGE_SIZE} onPageChange={requestsPagination.setPage} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="payments">
+          <Card>
+            <CardHeader>
+              <CardTitle>Perdiem Payments</CardTitle>
+              <CardDescription>
+                {loadingRequests
+                  ? "Historical per diem payment records."
+                  : `${historicalPayments.length.toLocaleString()} historical payments totalling ${formatCurrency(historicalPayments.reduce((sum, p) => sum + p.totalPerdiem, 0))}.`}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader><TableRow><TableHead>Participant</TableHead><TableHead>Event</TableHead><PerdiemDetailColumnHeaders /><TableHead className="text-right whitespace-nowrap">Total Amount</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                    {loadingRequests ? <TableSkeletonRows columns={2 + PERDIEM_DETAIL_COLUMN_COUNT + 2} /> : historicalPayments.length === 0 ? <TableRow><TableCell colSpan={2 + PERDIEM_DETAIL_COLUMN_COUNT + 2} className="h-24 text-center text-muted-foreground">No historical payment records yet.</TableCell></TableRow> : paymentsPagination.paged.map(payment => (
+                        <TableRow key={payment.id}>
+                        <TableCell><div className="font-medium">{payment.participantName}</div><div className="hidden text-sm text-muted-foreground md:inline">{payment.participantIdNumber}</div></TableCell>
+                        <TableCell>{payment.eventName}</TableCell>
+                        <PerdiemDetailColumnCells request={payment} event={eventsById.get(payment.eventId)} />
+                        <TableCell className="text-right whitespace-nowrap">{formatCurrency(payment.totalPerdiem)}</TableCell>
+                        <TableCell><Badge variant={getBadgeVariant(payment.status)}>{payment.status}</Badge></TableCell>
+                        </TableRow>
+                    ))}
+                    </TableBody>
+                </Table>
+              <TablePagination page={paymentsPagination.page} pageCount={paymentsPagination.pageCount} totalItems={historicalPayments.length} pageSize={TABLE_PAGE_SIZE} onPageChange={paymentsPagination.setPage} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -1937,16 +1980,16 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
           <Card>
             <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div>
-                  <CardTitle>Participants</CardTitle>
-                  <CardDescription>A list of all registered participants.</CardDescription>
+                  <CardTitle>Per Diem Recipients</CardTitle>
+                  <CardDescription>People registered to receive per diem. Admin accounts are managed under Manage.</CardDescription>
                 </div>
                 <Dialog open={isAddParticipantOpen} onOpenChange={setIsAddParticipantOpen}>
                   <DialogTrigger asChild>
-                    <Button size="sm" className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4" />Add Participant</Button>
+                    <Button size="sm" className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4" />Add Recipient</Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Add a Participant</DialogTitle>
+                      <DialogTitle>Add a Per Diem Recipient</DialogTitle>
                       <DialogDescription>They&apos;ll receive an email invite to set their password.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-2">
@@ -2377,7 +2420,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
         <TabsContent value="analytics">
             <AnalyticsTabContent requests={perdiemRequests} clients={clients} loading={loadingRequests} />
         </TabsContent>
-        {isMultiClientAdmin && (
+        {canSeeInsights && (
           <TabsContent value="insights">
             {/* Waits only on the fast (events/participants/venues/clients)
             fetch, not the full requests download - Insights gets its
@@ -2388,6 +2431,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
               venues={venues}
               clients={clients}
               loading={loading}
+              clientScoped={!isMultiClientAdmin}
             />
           </TabsContent>
         )}
@@ -2937,7 +2981,11 @@ function AnalyticsTabContent({ requests, clients, loading }: { requests: Perdiem
       Confirmed: '#22c55e',
     };
 
-    return { pieChartData, last30Days, totalPaid, requestsCount: requests.length, COLORS };
+    // Requests = submitted through the app; payments = historical records
+    // (importedAt set). See liveRequests/historicalPayments in AdminDashboard.
+    const paymentsCount = requests.filter((r) => r.importedAt).length;
+
+    return { pieChartData, last30Days, totalPaid, requestsCount: requests.length - paymentsCount, paymentsCount, COLORS };
   }, [requests]);
 
   const { toast } = useToast();
@@ -2972,10 +3020,19 @@ function AnalyticsTabContent({ requests, clients, loading }: { requests: Perdiem
         <Card>
           <CardHeader>
             <CardTitle>Total Requests</CardTitle>
-            <CardDescription>All per diem requests submitted.</CardDescription>
+            <CardDescription>Per diem requests submitted through the app.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl sm:text-3xl md:text-4xl font-bold break-words">{chartData.requestsCount}</p>
+            <p className="text-2xl sm:text-3xl md:text-4xl font-bold break-words">{chartData.requestsCount.toLocaleString()}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Total Payments</CardTitle>
+            <CardDescription>Historical per diem payment records.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl sm:text-3xl md:text-4xl font-bold break-words">{chartData.paymentsCount.toLocaleString()}</p>
           </CardContent>
         </Card>
         <Card>

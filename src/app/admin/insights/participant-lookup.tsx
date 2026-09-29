@@ -33,7 +33,7 @@ const SEARCH_DEBOUNCE_MS = 300;
  * the browser. `filters` narrows it the same way as the rest of the
  * Insights tab; omitted (e.g. the Analytics tab) means no filter beyond RLS.
  */
-export function ParticipantLookup({ clients, filters = null }: { clients: Client[]; filters?: InsightsFilters | null }) {
+export function ParticipantLookup({ clients, filters = null, clientScoped = false }: { clients: Client[]; filters?: InsightsFilters | null; clientScoped?: boolean }) {
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<InsightsSearchResult | null>(null);
   const [searching, setSearching] = useState(false);
@@ -75,14 +75,14 @@ export function ParticipantLookup({ clients, filters = null }: { clients: Client
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search any participant by name or phone, across every client..."
+            placeholder={clientScoped ? "Search any participant by name or phone..." : "Search any participant by name or phone, across every client..."}
             className="pl-10"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
         {query.trim() === "" ? (
-          <p className="text-sm text-muted-foreground">Search a participant to see their total paid and every payment record, across all clients.</p>
+          <p className="text-sm text-muted-foreground">Search a participant to see their total paid and every payment record{clientScoped ? "" : ", across all clients"}.</p>
         ) : failed ? (
           <p className="text-sm text-destructive">Search failed - please try again.</p>
         ) : !result || (searching && matchCount === 0) ? (
@@ -110,7 +110,7 @@ export function ParticipantLookup({ clients, filters = null }: { clients: Client
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Phone</TableHead>
-                    <TableHead>Client</TableHead>
+                    {!clientScoped && <TableHead>Client</TableHead>}
                     <TableHead>Event</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Status</TableHead>
@@ -122,7 +122,7 @@ export function ParticipantLookup({ clients, filters = null }: { clients: Client
                     <TableRow key={r.id}>
                       <TableCell className="font-medium whitespace-nowrap">{r.participantName}</TableCell>
                       <TableCell>{r.participantPhone ?? "—"}</TableCell>
-                      <TableCell>{clientsById.get(r.clientId)?.name ?? "—"}</TableCell>
+                      {!clientScoped && <TableCell>{clientsById.get(r.clientId)?.name ?? "—"}</TableCell>}
                       <TableCell>{r.eventName}</TableCell>
                       <TableCell>{formatDateSafe(r.date)}</TableCell>
                       <TableCell><Badge variant="secondary">{r.status}</Badge></TableCell>
