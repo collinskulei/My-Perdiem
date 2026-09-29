@@ -127,6 +127,22 @@ export function AdminOverviewTab({
 
   return (
     <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Insights first - it's the headline card on the dashboard. */}
+      {isMultiClientAdmin && (
+        <OverviewCard
+          icon={Sparkles} label="Insights" value={clients.length}
+          subtitle="clients on the platform"
+          href={link("insights")} onNavigate={go("insights")} delay={next()}
+        />
+      )}
+      {isClientAdmin && (
+        <OverviewCard
+          icon={Sparkles} label="Insights" value={requestStats?.totalPaidOut ?? 0} formatter={formatCurrency}
+          subtitle="total paid out"
+          loading={requestsLoading}
+          href={link("insights")} onNavigate={go("insights")} delay={next()}
+        />
+      )}
       <OverviewCard
         icon={ClipboardList} label="Per Diem Requests" value={requestStats?.pendingRequests ?? 0}
         subtitle={requestStats ? `${requestStats.totalRequests.toLocaleString()} total` : undefined}
@@ -194,21 +210,6 @@ export function AdminOverviewTab({
           href={link("analytics")} onNavigate={go("analytics")} delay={next()}
         />
         </>
-      )}
-      {isMultiClientAdmin && (
-        <OverviewCard
-          icon={Sparkles} label="Insights" value={clients.length}
-          subtitle="clients on the platform"
-          href={link("insights")} onNavigate={go("insights")} delay={next()}
-        />
-      )}
-      {isClientAdmin && (
-        <OverviewCard
-          icon={Sparkles} label="Insights" value={requestStats?.totalPaidOut ?? 0} formatter={formatCurrency}
-          subtitle="total paid out"
-          loading={requestsLoading}
-          href={link("insights")} onNavigate={go("insights")} delay={next()}
-        />
       )}
       {canManage && (
         <OverviewCard
