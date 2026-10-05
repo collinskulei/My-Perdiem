@@ -12,7 +12,7 @@ export default function SuperAdminLoginPage() {
         title="Super Admin"
         description="Sign in to manage clients across the platform."
         expectedTier="super_admin"
-        redirectTo="/super-admin/dashboard"
+        redirectTo="/super-admin/home"
       />
     </div>
   );

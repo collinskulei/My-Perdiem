@@ -11,7 +11,7 @@ export default function MasterAdminLoginPage() {
         title="Master Admin"
         description="Sign in to manage Super Admins and everyone below."
         expectedTier="master_admin"
-        redirectTo="/master-admin/dashboard"
+        redirectTo="/master-admin/home"
       />
     </div>
   );

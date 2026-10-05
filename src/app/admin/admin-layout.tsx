@@ -9,6 +9,7 @@ import {
   SidebarHeader,
   SidebarContent,
   SidebarFooter,
+  SidebarGroup,
   SidebarInset,
   SidebarMenu,
   SidebarMenuItem,
@@ -19,6 +20,10 @@ import { LogOut } from "lucide-react";
 import { AdminHeader } from './admin-header';
 import { AdminSidebarNavigation } from './admin-sidebar-navigation';
 import { AdminTabProvider } from './admin-tab-context';
+import { ModuleSwitcher, type ActiveModule } from './module-switcher';
+import { PortalProvider } from './portal-context';
+import type { PortalInfo } from './portal-access';
+import { SalarySidebarNavigation } from './salary/salary-sidebar-navigation';
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signOutEverywhere } from "@/lib/supabase/auth";
@@ -27,6 +32,11 @@ import { signOutEverywhere } from "@/lib/supabase/auth";
  * The client-side wrapper for the admin layout, containing all interactive UI.
  * @param {object} props - The properties for the component.
  * @param {React.ReactNode} props.children - The server-rendered page content.
+ * @param {PortalInfo | null} props.portal - Portal/client/modules resolved
+ * server-side (portal-access.ts); when set, the sidebar starts with the
+ * module switcher. Omitted by the legacy generic /admin portal.
+ * @param {ActiveModule} props.activeModule - Which module's tabs the
+ * sidebar shows under the switcher ('home' shows none).
  * @returns {JSX.Element} The rendered client-side layout.
  */
 export function AdminLayoutClient({
@@ -34,11 +44,15 @@ export function AdminLayoutClient({
   basePath = "/admin",
   loginPath = "/",
   portalLabel,
+  portal = null,
+  activeModule = "perdiem",
 }: {
   children: React.ReactNode;
   basePath?: string;
   loginPath?: string;
   portalLabel?: string;
+  portal?: PortalInfo | null;
+  activeModule?: ActiveModule;
 }) {
   const router = useRouter();
   const handleLogout = async () => {
@@ -47,6 +61,7 @@ export function AdminLayoutClient({
   };
 
   return (
+    <PortalProvider portal={portal}>
     <AdminTabProvider>
       <SidebarProvider>
         <Sidebar>
@@ -56,7 +71,23 @@ export function AdminLayoutClient({
             </div>
           </SidebarHeader>
           <SidebarContent>
-            <AdminSidebarNavigation basePath={basePath} />
+            {portal ? (
+              <>
+                <ModuleSwitcher portal={portal} active={activeModule} />
+                {activeModule === "perdiem" && (
+                  <SidebarGroup>
+                    <AdminSidebarNavigation basePath={basePath} />
+                  </SidebarGroup>
+                )}
+                {activeModule === "salary" && (
+                  <SidebarGroup>
+                    <SalarySidebarNavigation basePath={basePath} />
+                  </SidebarGroup>
+                )}
+              </>
+            ) : (
+              <AdminSidebarNavigation basePath={basePath} />
+            )}
           </SidebarContent>
           <SidebarFooter>
             <SidebarMenu>
@@ -78,5 +109,6 @@ export function AdminLayoutClient({
         </SidebarInset>
       </SidebarProvider>
     </AdminTabProvider>
+    </PortalProvider>
   );
 }

@@ -8,7 +8,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { Loader2, PlusCircle, Trash2, UserPlus, Users, ShieldCheck, ChevronDown, ChevronUp, FolderCog, LayoutDashboard } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, UserPlus, Users, ShieldCheck, ChevronDown, ChevronUp, FolderCog, LayoutDashboard, Blocks, Settings2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -45,14 +46,16 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { TopLoadingBar } from "@/components/ui/top-loading-bar";
 import * as supabaseDb from "@/lib/supabase/database";
+import { getClientModules, setClientModule } from "@/lib/supabase/modules";
+import { MODULES, MODULE_KEYS, type ModuleKey } from "@/lib/modules";
 import { inviteAdmin } from "@/lib/admin-api-client";
 import { HistoricalImportDialog } from "./admin-historical-import";
 import type { Client, Participant, WorkType } from "@/lib/data";
 
 /**
- * One client's widget: stats, invite-a-Client-Admin, and an expandable panel
- * for work types - the same actions ClientRow used to offer inline in a
- * table row, now as a self-contained card.
+ * One client's widget: stats, invite-a-Client-Admin, its modules, and an
+ * expandable panel for work types - the same actions ClientRow used to
+ * offer inline in a table row, now as a self-contained card.
  */
 function ClientWidget({
   client,
@@ -60,12 +63,17 @@ function ClientWidget({
   participantCount,
   basePath,
   onChanged,
+  enabledModules,
+  onToggleModule,
 }: {
   client: Client;
   adminCount: number;
   participantCount: number;
   basePath: string;
   onChanged: () => void;
+  /** null = modules not readable yet (0030 not applied) - section hidden. */
+  enabledModules: Set<ModuleKey> | null;
+  onToggleModule: (key: ModuleKey, enabled: boolean) => Promise<void>;
 }) {
   const { toast } = useToast();
   const [expanded, setExpanded] = useState(false);
@@ -82,6 +90,8 @@ function ClientWidget({
   const [folderId, setFolderId] = useState(client.onedriveFolderId ?? "");
   const [folderLink, setFolderLink] = useState(client.onedriveFolderLink ?? "");
   const [isSavingFolder, setIsSavingFolder] = useState(false);
+
+  const [togglingModule, setTogglingModule] = useState<ModuleKey | null>(null);
 
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
@@ -132,6 +142,23 @@ function ClientWidget({
       await loadWorkTypes();
     } catch (error: any) {
       toast({ title: "Could not remove work type", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleToggleModule = async (key: ModuleKey, enabled: boolean) => {
+    setTogglingModule(key);
+    try {
+      await onToggleModule(key, enabled);
+      toast({
+        title: `${MODULES[key].label} ${enabled ? "enabled" : "disabled"}`,
+        description: enabled
+          ? `${client.name} now has the ${MODULES[key].label} dashboard.`
+          : `Hidden for ${client.name}. Its data is kept - switch it back on to restore it.`,
+      });
+    } catch (error: any) {
+      toast({ title: "Could not change module", description: error.message, variant: "destructive" });
+    } finally {
+      setTogglingModule(null);
     }
   };
 
@@ -216,13 +243,45 @@ function ClientWidget({
             </Link>
           </Button>
           <Button size="sm" variant="outline" asChild>
-            <Link href={`/${client.slug}-admin/dashboard`}>
+            <Link href={`/${client.slug}-admin/home`}>
               <LayoutDashboard className="mr-2 h-4 w-4" />
               Dashboard
             </Link>
           </Button>
-          <HistoricalImportDialog clientId={client.id} clientName={client.name} onImported={onChanged} />
+          {(enabledModules === null || enabledModules.has("perdiem")) && (
+            <HistoricalImportDialog clientId={client.id} clientName={client.name} onImported={onChanged} />
+          )}
+          {enabledModules?.has("salary") && (
+            <Button size="sm" variant="outline" asChild>
+              <Link href={`/${client.slug}-admin/salary?tab=setup`}>
+                <Settings2 className="mr-2 h-4 w-4" />
+                Salary Setup
+              </Link>
+            </Button>
+          )}
         </div>
+        {enabledModules !== null && (
+          <div className="rounded-md border p-3 space-y-2">
+            <p className="flex items-center gap-2 text-sm font-medium"><Blocks className="h-4 w-4" />Modules</p>
+            {MODULE_KEYS.map((key) => (
+              <div key={key} className="flex items-center justify-between gap-2">
+                <Label htmlFor={`module-${key}-${client.id}`} className="text-sm font-normal">
+                  {MODULES[key].label}
+                  <span className="block text-xs text-muted-foreground">{MODULES[key].description}</span>
+                </Label>
+                {togglingModule === key ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Switch
+                    id={`module-${key}-${client.id}`}
+                    checked={enabledModules.has(key)}
+                    onCheckedChange={(checked) => handleToggleModule(key, checked)}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
         <Button size="sm" variant="ghost" className="w-full justify-between" onClick={() => setExpanded((v) => !v)}>
           Work Types
           {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -357,6 +416,29 @@ export function AdminClientsOverview({
   const { toast } = useToast();
   const [newClientName, setNewClientName] = useState("");
   const [isAdding, setIsAdding] = useState(false);
+  // client id -> enabled module keys; null until loaded or if client_modules
+  // isn't there yet (0030 not applied), which hides the Modules section.
+  const [modulesByClient, setModulesByClient] = useState<Map<string, Set<ModuleKey>> | null>(null);
+
+  const loadModules = useCallback(async () => {
+    const rows = await getClientModules();
+    if (!rows) return;
+    const map = new Map<string, Set<ModuleKey>>();
+    for (const r of rows) {
+      if (!r.enabled) continue;
+      map.set(r.clientId, new Set([...(map.get(r.clientId) ?? []), r.moduleKey]));
+    }
+    setModulesByClient(map);
+  }, []);
+
+  useEffect(() => {
+    loadModules();
+  }, [loadModules, clients]);
+
+  const handleToggleModule = async (clientId: string, key: ModuleKey, enabled: boolean) => {
+    await setClientModule(clientId, key, enabled);
+    await loadModules();
+  };
 
   const countsByClient = useMemo(() => {
     const counts = new Map<string, { admins: number; participants: number }>();
@@ -429,6 +511,8 @@ export function AdminClientsOverview({
                 participantCount={counts.participants}
                 basePath={basePath}
                 onChanged={onChanged}
+                enabledModules={modulesByClient ? (modulesByClient.get(client.id) ?? new Set()) : null}
+                onToggleModule={(key, enabled) => handleToggleModule(client.id, key, enabled)}
               />
             );
           })}

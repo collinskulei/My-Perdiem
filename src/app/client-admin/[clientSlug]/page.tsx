@@ -31,7 +31,7 @@ export default function ClientAdminLoginPage({ params }: { params: { clientSlug:
           description={`Sign in to manage ${client.name}'s dashboard.`}
           expectedTier="client_admin"
           expectedClientId={client.id}
-          redirectTo={`/${params.clientSlug}-admin/dashboard`}
+          redirectTo={`/${params.clientSlug}-admin/home`}
         />
       )}
     </div>
