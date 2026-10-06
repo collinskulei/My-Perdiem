@@ -7,17 +7,19 @@
  */
 "use client";
 
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { AdminLoginForm } from "@/components/admin-login-form";
 import * as supabaseDb from "@/lib/supabase/database";
 
-export default function ClientAdminLoginPage({ params }: { params: { clientSlug: string } }) {
+export default function ClientAdminLoginPage({ params }: { params: Promise<{ clientSlug: string }> }) {
+  // Next.js 15 passes route params as a Promise; React.use() unwraps it.
+  const { clientSlug } = use(params);
   const [client, setClient] = useState<{ id: string; name: string } | null | undefined>(undefined);
 
   useEffect(() => {
-    supabaseDb.getClientBySlug(params.clientSlug).then(setClient);
-  }, [params.clientSlug]);
+    supabaseDb.getClientBySlug(clientSlug).then(setClient);
+  }, [clientSlug]);
 
   return (
     <div className="flex flex-col min-h-screen items-center justify-center bg-background p-4">
@@ -31,7 +33,7 @@ export default function ClientAdminLoginPage({ params }: { params: { clientSlug:
           description={`Sign in to manage ${client.name}'s dashboard.`}
           expectedTier="client_admin"
           expectedClientId={client.id}
-          redirectTo={`/${params.clientSlug}-admin/home`}
+          redirectTo={`/${clientSlug}-admin/home`}
         />
       )}
     </div>
