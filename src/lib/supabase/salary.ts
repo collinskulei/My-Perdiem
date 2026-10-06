@@ -13,7 +13,6 @@ export type SalaryEmployer = {
   id: string;
   clientId: string;
   name: string;
-  companyPin: string | null;
   createdAt: string;
 };
 
@@ -21,7 +20,6 @@ const mapEmployer = (r: any): SalaryEmployer => ({
   id: r.id,
   clientId: r.client_id,
   name: r.name,
-  companyPin: r.company_pin ?? null,
   createdAt: r.created_at,
 });
 
@@ -37,10 +35,10 @@ export const getSalaryEmployers = async (clientId: string | null): Promise<Salar
   return (data ?? []).map(mapEmployer);
 };
 
-export const addSalaryEmployer = async (clientId: string, name: string, companyPin: string | null): Promise<SalaryEmployer> => {
+export const addSalaryEmployer = async (clientId: string, name: string): Promise<SalaryEmployer> => {
   const { data, error } = await supabase
     .from('salary_employers')
-    .insert({ client_id: clientId, name, company_pin: companyPin })
+    .insert({ client_id: clientId, name })
     .select('*')
     .single();
   if (error || !data) {
@@ -50,10 +48,10 @@ export const addSalaryEmployer = async (clientId: string, name: string, companyP
   return mapEmployer(data);
 };
 
-export const updateSalaryEmployer = async (id: string, fields: { name: string; companyPin: string | null }): Promise<void> => {
+export const updateSalaryEmployer = async (id: string, fields: { name: string }): Promise<void> => {
   const { error } = await supabase
     .from('salary_employers')
-    .update({ name: fields.name, company_pin: fields.companyPin })
+    .update({ name: fields.name })
     .eq('id', id);
   if (error) throw error;
 };

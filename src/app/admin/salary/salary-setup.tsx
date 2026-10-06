@@ -125,7 +125,6 @@ function EmployerCard({ employer, onChanged }: { employer: SalaryEmployer; onCha
   const [draft, setDraft] = useState<Draft | null>(null);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(employer.name);
-  const [pin, setPin] = useState(employer.companyPin ?? "");
   const [reading, setReading] = useState(false);
 
   const load = useCallback(() => {
@@ -164,7 +163,7 @@ function EmployerCard({ employer, onChanged }: { employer: SalaryEmployer; onCha
 
   const handleSaveEmployer = async () => {
     try {
-      await updateSalaryEmployer(employer.id, { name: name.trim(), companyPin: pin.trim() || null });
+      await updateSalaryEmployer(employer.id, { name: name.trim() });
       setEditing(false);
       onChanged();
     } catch (error: any) {
@@ -186,19 +185,15 @@ function EmployerCard({ employer, onChanged }: { employer: SalaryEmployer; onCha
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
         {editing ? (
-          <div className="grid gap-2 sm:grid-cols-2 flex-1">
-            <Input value={name} onChange={(e) => setName(e.target.value)} aria-label="Employer name" />
-            <Input value={pin} onChange={(e) => setPin(e.target.value)} placeholder="Company PIN" aria-label="Company PIN" />
+          <div className="flex flex-wrap gap-2 flex-1">
+            <Input className="max-w-xs" value={name} onChange={(e) => setName(e.target.value)} aria-label="Employer name" />
             <div className="flex gap-2">
               <Button size="sm" onClick={handleSaveEmployer} disabled={!name.trim()}>Save</Button>
               <Button size="sm" variant="outline" onClick={() => setEditing(false)}>Cancel</Button>
             </div>
           </div>
         ) : (
-          <div className="space-y-1">
-            <CardTitle className="flex items-center gap-2"><Building className="h-5 w-5" />{employer.name}</CardTitle>
-            <CardDescription>{employer.companyPin ? `PIN ${employer.companyPin}` : "No company PIN"}</CardDescription>
-          </div>
+          <CardTitle className="flex items-center gap-2"><Building className="h-5 w-5" />{employer.name}</CardTitle>
         )}
         {!editing && (
           <div className="flex gap-2">
@@ -287,16 +282,14 @@ export function SalarySetup({ clientId, clientName, employers, onChanged }: {
 }) {
   const { toast } = useToast();
   const [name, setName] = useState("");
-  const [pin, setPin] = useState("");
   const [adding, setAdding] = useState(false);
 
   const handleAdd = async () => {
     if (!name.trim()) return;
     setAdding(true);
     try {
-      await addSalaryEmployer(clientId, name.trim(), pin.trim() || null);
+      await addSalaryEmployer(clientId, name.trim());
       setName("");
-      setPin("");
       onChanged();
     } catch (error: any) {
       toast({ title: "Could not add employer", description: error.message, variant: "destructive" });
@@ -314,7 +307,6 @@ export function SalarySetup({ clientId, clientName, employers, onChanged }: {
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
           <Input className="max-w-xs" placeholder="Employer name, e.g. Digital Health Agency" value={name} onChange={(e) => setName(e.target.value)} />
-          <Input className="max-w-[12rem]" placeholder="Company PIN (optional)" value={pin} onChange={(e) => setPin(e.target.value)} />
           <Button variant="outline" onClick={handleAdd} disabled={adding || !name.trim()}>
             {adding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
             Add employer
