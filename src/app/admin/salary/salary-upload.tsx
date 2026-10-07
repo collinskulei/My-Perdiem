@@ -33,7 +33,7 @@ import {
   type SalaryEmployer, type SalaryRunSummary,
 } from "@/lib/supabase/salary";
 import {
-  guessColumn, normalizeHeader, SALARY_FIELD_LABEL,
+  guessColumn, normalizeHeader, SALARY_FIELD_LABEL, storedName,
   type SalaryCoreField, type SalaryTemplate, type SalaryTemplateColumn,
 } from "@/lib/salary/fields";
 import {
@@ -180,7 +180,7 @@ export function SalaryUpload({ employer, existingRuns, canSetup, onImported, onO
       const saved = await saveSalaryTemplate(employer.id, [...template.columns, ...classified], {
         totalsMarker: template.totalsMarker,
         sampleFileName: analysed.find((a) => a.match.unknown.length > 0)?.item.fileName ?? null,
-        notes: `Added ${classified.map((c) => c.header).join(", ")}`,
+        notes: `Added ${classified.map((c) => (c.kind !== "core" && c.kind !== "ignore" && storedName(c) !== c.header ? `${c.header} (as ${storedName(c)})` : c.header)).join(", ")}`,
       });
       setTemplate(saved);
       toast({ title: `Template v${saved.version} saved`, description: `${classified.length} new column${classified.length === 1 ? "" : "s"} classified.` });
@@ -315,7 +315,12 @@ export function SalaryUpload({ employer, existingRuns, canSetup, onImported, onO
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <SalaryColumnMapper columns={classified} onChange={setClassified} samples={unknownColumns.map((u) => u.sample)} />
+            <SalaryColumnMapper
+              columns={classified}
+              onChange={setClassified}
+              samples={unknownColumns.map((u) => u.sample)}
+              knownNames={template.columns.filter((c) => c.kind === "other_deduction" || c.kind === "other_earning").map(storedName)}
+            />
             {classifiedProblems.length > 0 && (
               <Alert variant="destructive">
                 <AlertDescription>

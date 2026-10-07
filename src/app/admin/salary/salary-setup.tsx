@@ -22,7 +22,7 @@ import {
   addSalaryEmployer, archiveSalaryEmployer, getSalaryTemplates, saveSalaryTemplate, updateSalaryEmployer,
   type SalaryEmployer,
 } from "@/lib/supabase/salary";
-import { guessColumn, type SalaryCoreField, type SalaryTemplate, type SalaryTemplateColumn } from "@/lib/salary/fields";
+import { guessColumn, storedName, type SalaryCoreField, type SalaryTemplate, type SalaryTemplateColumn } from "@/lib/salary/fields";
 import { readSalarySheet, templateProblems } from "@/lib/salary/parse";
 import { SalaryColumnMapper } from "./salary-column-mapper";
 import { downloadBlankTemplate, readWorkbookRows } from "./salary-shared";
@@ -256,7 +256,7 @@ function EmployerCard({ employer, onChanged }: { employer: SalaryEmployer; onCha
                   <span className="text-muted-foreground">
                     {t.columns.filter((c) => c.kind !== "ignore").length} columns
                     {" · "}
-                    {t.columns.filter((c) => c.kind === "other_deduction" || c.kind === "other_earning").map((c) => c.header).join(", ") || "no extra columns"}
+                    {t.columns.filter((c) => c.kind === "other_deduction" || c.kind === "other_earning").map(storedName).filter((n, j, all) => all.indexOf(n) === j).join(", ") || "no extra columns"}
                   </span>
                 </div>
                 <span className="text-xs text-muted-foreground">

@@ -16,6 +16,7 @@ import {
   SALARY_FIELD_LABEL,
   guessCoreField,
   normalizeHeader,
+  storedName,
 } from "./fields";
 
 export type SheetRows = unknown[][];
@@ -181,6 +182,9 @@ export function templateProblems(columns: SalaryTemplateColumn[]): string[] {
   for (const f of REQUIRED_SALARY_FIELDS) {
     if (!counts.has(f)) problems.push(`${SALARY_FIELD_LABEL[f]} must be mapped to a column.`);
   }
+  const dedNames = new Set(columns.filter((c) => c.kind === "other_deduction").map((c) => normalizeHeader(storedName(c))));
+  const clashes = new Set(columns.filter((c) => c.kind === "other_earning" && dedNames.has(normalizeHeader(storedName(c)))).map(storedName));
+  for (const name of clashes) problems.push(`"${name}" is used for both a deduction and an earning - give one a different name.`);
   return problems;
 }
 
@@ -260,6 +264,9 @@ export function buildSalaryRun(
   const marker = normalizeHeader(totalsMarker || "Grand Totals");
   const lines: SalaryLineInput[] = [];
   let totalsRow: unknown[] | null = null;
+  // Per file column, for the totals-row check - by column rather than by
+  // stored name, since several columns can share a name.
+  const columnSums: number[] = [];
   const fieldIndex = new Map<SalaryCoreField, number>();
   columns.forEach((c, i) => {
     if (c.kind === "core" && c.field && !fieldIndex.has(c.field)) fieldIndex.set(c.field, i);
@@ -296,10 +303,13 @@ export function buildSalaryRun(
       if (col.kind === "core" && col.field) {
         (line as any)[FIELD_PROP[col.field as keyof typeof FIELD_PROP]] = round2(v);
       } else if (col.kind === "other_deduction" && v !== 0) {
-        line.otherDeductions[col.header] = round2((line.otherDeductions[col.header] ?? 0) + v);
+        const name = storedName(col);
+        line.otherDeductions[name] = round2((line.otherDeductions[name] ?? 0) + v);
       } else if (col.kind === "other_earning" && v !== 0) {
-        line.otherEarnings[col.header] = round2((line.otherEarnings[col.header] ?? 0) + v);
+        const name = storedName(col);
+        line.otherEarnings[name] = round2((line.otherEarnings[name] ?? 0) + v);
       }
+      columnSums[i] = (columnSums[i] ?? 0) + round2(v);
     });
 
     if (!line.staffNo) errors.push("Missing Staff No.");
@@ -353,11 +363,7 @@ export function buildSalaryRun(
       const stated = parseAmount(totalsRow![i]);
       if (Number.isNaN(stated) || cellText(totalsRow![i]) === "") return;
       statedTotals[col.header] = round2(stated);
-      const computed = round2(lines.reduce((acc, l) => {
-        if (col.kind === "core" && col.field) return acc + ((l as any)[FIELD_PROP[col.field as keyof typeof FIELD_PROP]] as number);
-        const bag = col.kind === "other_earning" ? l.otherEarnings : l.otherDeductions;
-        return acc + (bag[col.header] ?? 0);
-      }, 0));
+      const computed = round2(columnSums[i] ?? 0);
       if (Math.abs(stated - computed) > SALARY_TOLERANCE) {
         totalsMismatches.push({ header: col.header, stated: round2(stated), computed });
       }

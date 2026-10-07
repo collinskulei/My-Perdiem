@@ -312,6 +312,8 @@ export type SalaryEmployeeSummary = {
   lastPeriod: string | null;
   monthsPaid: number;
   totalGross: number;
+  /** Statutory + other deductions (0032); 0 until that migration is applied. */
+  totalDeductions: number;
   totalNet: number;
   latestGross: number | null;
   latestNet: number | null;
@@ -331,6 +333,7 @@ export const getSalaryEmployeeSummaries = async (employerId: string): Promise<Sa
     lastPeriod: r.last_period ? String(r.last_period).slice(0, 10) : null,
     monthsPaid: num(r.months_paid),
     totalGross: num(r.total_gross),
+    totalDeductions: num(r.total_deductions),
     totalNet: num(r.total_net),
     latestGross: r.latest_gross == null ? null : num(r.latest_gross),
     latestNet: r.latest_net == null ? null : num(r.latest_net),

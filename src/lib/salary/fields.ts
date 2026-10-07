@@ -32,7 +32,17 @@ export type SalaryTemplateColumn = {
   header: string;
   kind: SalaryColumnKind;
   field?: SalaryCoreField;
+  /** other_deduction / other_earning only: the name the amount is stored
+   * and shown under (e.g. "SACCO" for "Sacco Deductions"). Defaults to the
+   * header. Columns sharing a name are added together, so a deduction
+   * whose header changes between months stays one line. */
+  name?: string;
 };
+
+/** The name an other deduction/earning column's amount is stored under. */
+export function storedName(c: SalaryTemplateColumn): string {
+  return c.name?.trim() || c.header;
+}
 
 export type SalaryTemplate = {
   id: string;

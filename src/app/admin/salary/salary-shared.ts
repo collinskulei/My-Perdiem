@@ -45,7 +45,9 @@ export function columnChoice(c: SalaryTemplateColumn): string {
 
 export function applyChoice(c: SalaryTemplateColumn, choice: string): SalaryTemplateColumn {
   if (choice.startsWith("core:")) return { header: c.header, kind: "core", field: choice.slice(5) as any };
-  return { header: c.header, kind: choice as SalaryTemplateColumn["kind"] };
+  const kind = choice as SalaryTemplateColumn["kind"];
+  // A typed name survives switching between deduction and earning.
+  return kind === "ignore" || !c.name ? { header: c.header, kind } : { header: c.header, kind, name: c.name };
 }
 
 export const COLUMN_CHOICES: { value: string; label: string; group: string }[] = [
@@ -115,4 +117,57 @@ export async function readWorkbookRows(file: File): Promise<unknown[][]> {
     if (rows.some((r) => (r ?? []).filter((c) => c !== null && String(c).trim() !== "").length >= 2)) return rows;
   }
   return [];
+}
+
+// --- Employee statement ---
+
+/** One employee's months laid out like a payroll: gross, each deduction
+ * (statutory, then every other deduction they had, by name), total
+ * deductions, net - oldest month first, with a totals row. */
+export function employeeStatement(lines: SalaryLine[]) {
+  const sorted = [...lines].sort((a, b) => (a.period ?? "").localeCompare(b.period ?? ""));
+  const otherDed = Array.from(new Set(sorted.flatMap((l) => Object.keys(l.otherDeductions)))).sort();
+  const header = ["Month", "Gross Pay", "PAYE", "NSSF", "SHIF", "Housing Levy", ...otherDed, "Total Deductions", "Net Pay"];
+  const rows = sorted.map((l) => [
+    l.period ? formatPeriod(l.period) : "-",
+    l.grossPay, l.paye, l.nssf, l.shif, l.housingLevy,
+    ...otherDed.map((k) => l.otherDeductions[k] ?? 0),
+    l.totalStatutory + l.totalOtherDeductions,
+    l.netPay,
+  ] as [string, ...number[]]);
+  const totals = ["Total", ...header.slice(1).map((_, i) => Math.round(rows.reduce((acc, r) => acc + (r[i + 1] as number), 0) * 100) / 100)] as [string, ...number[]];
+  return { header, rows, totals, otherDed };
+}
+
+function statementTitle(employerName: string, staffNo: string, name: string) {
+  return `${employerName} - Salary statement - ${name} (Staff No ${staffNo})`;
+}
+
+export function exportEmployeeStatementExcel(lines: SalaryLine[], employerName: string, staffNo: string, name: string) {
+  const { header, rows, totals } = employeeStatement(lines);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([[statementTitle(employerName, staffNo, name)], header, ...rows, totals]), "Statement");
+  XLSX.writeFile(wb, `${sanitize(name)}_${sanitize(staffNo)}_salary-statement.xlsx`);
+}
+
+export async function exportEmployeeStatementPdf(lines: SalaryLine[], employerName: string, staffNo: string, name: string) {
+  const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
+  const { header, rows, totals } = employeeStatement(lines);
+  const money = (v: string | number) => (typeof v === "number" ? v.toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : v);
+  const doc = new jsPDF({ orientation: header.length > 9 ? "landscape" : "portrait" });
+  doc.setFontSize(14);
+  doc.text(name, 14, 16);
+  doc.setFontSize(10);
+  doc.text(`Staff No ${staffNo} · ${employerName} · ${rows.length} month${rows.length === 1 ? "" : "s"} · amounts in KES`, 14, 23);
+  autoTable(doc, {
+    startY: 28,
+    head: [header],
+    body: rows.map((r) => r.map(money)),
+    foot: [totals.map(money)],
+    styles: { fontSize: 8 },
+    headStyles: { fillColor: [16, 185, 129] },
+    footStyles: { fillColor: [240, 240, 240], textColor: 20, fontStyle: "bold" },
+    columnStyles: Object.fromEntries(header.slice(1).map((_, i) => [i + 1, { halign: "right" }])),
+  });
+  doc.save(`${sanitize(name)}_${sanitize(staffNo)}_salary-statement.pdf`);
 }
