@@ -260,8 +260,9 @@ export function isTransacted(r: Pick<PerdiemRequest, 'status' | 'isOverpayment'>
 // the dominant cost of a naive sort.
 export function sortRequestsByDateDesc(requests: PerdiemRequest[]): PerdiemRequest[] {
   return requests
-    .map((r) => ({ r, t: new Date(r.date).getTime() }))
-    .sort((a, b) => b.t - a.t)
+    // A blank/unparseable date (e.g. an imported Pending payment, 0034) sorts last.
+    .map((r) => ({ r, t: new Date(r.date).getTime() || -Infinity }))
+    .sort((a, b) => (a.t === b.t ? 0 : b.t - a.t))
     .map(({ r }) => r);
 }
 

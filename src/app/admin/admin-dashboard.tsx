@@ -2431,7 +2431,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                              data={filteredReportData.filter(r => r.importedAt && r.status === 'Pending')}
                              loading={loadingRequests}
                              onDownload={() => handleDownloadPerDiemReport(filteredReportData.filter(r => r.importedAt && r.status === 'Pending'), 'pending_payments')}
-                             onMarkPaid={isMultiClientAdmin ? (requests) => setMarkPendingPaidState({ ...defaultMarkPendingPaidState, requests, isOpen: true }) : undefined}
+                             onMarkPaid={isMultiClientAdmin ? (requests) => setMarkPendingPaidState({ ...defaultMarkPendingPaidState, requests, isOpen: true, paidDate: format(new Date(), 'yyyy-MM-dd') }) : undefined}
                              eventsById={eventsById}
                            />
                         </TabsContent>
@@ -3630,7 +3630,7 @@ const MarkPendingPaidDialog = ({ state, setState, onConfirm }: { state: MarkPend
         <DialogHeader>
           <DialogTitle>Mark as Paid ({requests.length.toLocaleString()} selected)</DialogTitle>
           <DialogDescription>
-            Every selected payment moves to the Paid tab with this payment date and starts counting towards Total Paid Out.
+            Every selected payment moves to the Paid tab with this payment date (today unless changed) and starts counting towards Total Paid Out.
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-4">

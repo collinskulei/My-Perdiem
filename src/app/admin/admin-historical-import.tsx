@@ -797,6 +797,8 @@ export function HistoricalImportDialog({ clientId, clientName, onImported }: { c
               <div className="space-y-1">
                 <Label className="text-xs">Event Date</Label>
                 <Input type="date" value={defaults.eventDate} onChange={(e) => setDefaults((d) => ({ ...d, eventDate: e.target.value }))} />
+                {/* Blank Pending rows keep a blank payment date until marked as paid (migration 0034). */}
+                <p className="text-xs text-muted-foreground">Leave blank for pending payments - the date is set when they're marked as paid.</p>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Venue Name</Label>
