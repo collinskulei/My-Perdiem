@@ -279,6 +279,18 @@ type BulkFlagOverpaymentState = {
 };
 const defaultBulkFlagOverpaymentState: BulkFlagOverpaymentState = { requests: [], isOpen: false, payableAmount: '', reason: '' };
 
+// Reports Pending tab - imported Pending payments being marked as Paid once
+// the money actually goes out (see supabase/migrations/0033). One payment
+// date + optional transaction code applied to every selected record.
+type MarkPendingPaidState = {
+  requests: PerdiemRequest[];
+  isOpen: boolean;
+  paidDate: string;
+  transactionCode: string;
+  saving: boolean;
+};
+const defaultMarkPendingPaidState: MarkPendingPaidState = { requests: [], isOpen: false, paidDate: '', transactionCode: '', saving: false };
+
 type RecordRecoveryState = {
   request: PerdiemRequest | null;
   isOpen: boolean;
@@ -371,6 +383,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
   const [amendRequestState, setAmendRequestState] = useState<AmendRequestState>(defaultAmendState);
   const [flagOverpaymentState, setFlagOverpaymentState] = useState<FlagOverpaymentState>(defaultFlagOverpaymentState);
   const [bulkFlagOverpaymentState, setBulkFlagOverpaymentState] = useState<BulkFlagOverpaymentState>(defaultBulkFlagOverpaymentState);
+  const [markPendingPaidState, setMarkPendingPaidState] = useState<MarkPendingPaidState>(defaultMarkPendingPaidState);
   const [recordRecoveryState, setRecordRecoveryState] = useState<RecordRecoveryState>(defaultRecordRecoveryState);
 
   // State for delete confirmation
@@ -1090,6 +1103,30 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
     setBulkFlagOverpaymentState(defaultBulkFlagOverpaymentState);
   };
 
+  const handleConfirmMarkPendingPaid = async () => {
+    const { requests, paidDate, transactionCode } = markPendingPaidState;
+    if (!paidDate) {
+      toast({ title: "Payment Date Required", description: "Enter the date the money was actually paid.", variant: "destructive" });
+      return;
+    }
+    setMarkPendingPaidState(prev => ({ ...prev, saving: true }));
+    try {
+      const updated = await dataProvider.markImportedPendingPaid(requests.map(r => r.id), paidDate, transactionCode.trim() || null);
+      await fetchAllData();
+      const skipped = requests.length - updated;
+      toast({
+        title: "Marked as Paid",
+        description: `${updated.toLocaleString()} payment${updated === 1 ? '' : 's'} moved to Paid.`
+          + (skipped > 0 ? ` ${skipped} skipped (no longer pending).` : ''),
+      });
+      setMarkPendingPaidState(defaultMarkPendingPaidState);
+    } catch (error: any) {
+      console.error("Error marking pending payments as paid:", error);
+      toast({ title: "Error", description: error?.message ?? "Failed to mark payments as paid.", variant: "destructive" });
+      setMarkPendingPaidState(prev => ({ ...prev, saving: false }));
+    }
+  };
+
   const handleConfirmRecordRecovery = async () => {
     const { request, amount } = recordRecoveryState;
     if (!request) return;
@@ -1171,7 +1208,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
         "eventName", "eventLocation", "eventStartDate", "eventEndDate", "numberOfTrainingDays", "eventFacilitator",
         "eventAttendance", "mileageTotal", "accommodationTotal", "outOfOfficeAllowance",
         "transportAllowance", "dsaAllowance",
-        "totalPerdiem", "status", "transactionCode", "flagReason"
+        "totalPerdiem", "status", "transactionCode", "flagReason", "participantIdNumber", "notes"
     ];
     const columnHeaders = [
         "Payment Date", "Participant Name", "Phone Number", "Employer", "Staff Category",
@@ -1179,7 +1216,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
         "Event", "Event Location", "Training Start", "Training End", "Number of Training Days", "Facilitator",
         "Attendance (Days)", "Mileage (Ksh)", "Accommodation (Ksh)", "Allowance (Ksh)",
         "Transport Allowance (Ksh)", "DSA Allowance (Ksh)",
-        "Total Amount (Ksh)", "Status", "Transaction Code", "Flag Reason"
+        "Total Amount (Ksh)", "Status", "Transaction Code", "Flag Reason", "ID Number", "Notes"
     ];
     const csvData = toCSV(detailedData, columns, columnHeaders);
     downloadCSV(csvData, `${reportName}_report.csv`);
@@ -2367,6 +2404,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                         <div className="overflow-x-auto pb-2">
                             <TabsList>
                                 <TabsTrigger value="paid">Paid</TabsTrigger>
+                                <TabsTrigger value="pending">Pending</TabsTrigger>
                                 <TabsTrigger value="approved">Approved</TabsTrigger>
                                 <TabsTrigger value="rejected">Rejected</TabsTrigger>
                                 <TabsTrigger value="amended">Amended</TabsTrigger>
@@ -2382,6 +2420,18 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                              isPaidReport={true}
                              onFlagOverpayment={isMultiClientAdmin ? (request) => setFlagOverpaymentState({ request, isOpen: true, payableAmount: '', reason: '' }) : undefined}
                              onBulkFlagOverpayment={isMultiClientAdmin ? (requests) => setBulkFlagOverpaymentState({ requests, isOpen: true, payableAmount: '', reason: '' }) : undefined}
+                             eventsById={eventsById}
+                           />
+                        </TabsContent>
+
+                        {/* Imported payments still owed only - live requests awaiting
+                        approval stay on the Per Diem Requests tab. */}
+                        <TabsContent value="pending">
+                           <PendingReportTabContent
+                             data={filteredReportData.filter(r => r.importedAt && r.status === 'Pending')}
+                             loading={loadingRequests}
+                             onDownload={() => handleDownloadPerDiemReport(filteredReportData.filter(r => r.importedAt && r.status === 'Pending'), 'pending_payments')}
+                             onMarkPaid={isMultiClientAdmin ? (requests) => setMarkPendingPaidState({ ...defaultMarkPendingPaidState, requests, isOpen: true }) : undefined}
                              eventsById={eventsById}
                            />
                         </TabsContent>
@@ -2614,6 +2664,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
     <AmendRejectDialog state={amendRequestState} setState={setAmendRequestState} onConfirm={handleConfirmAmendment} />
     <FlagOverpaymentDialog state={flagOverpaymentState} setState={setFlagOverpaymentState} onConfirm={handleConfirmFlagOverpayment} />
     <BulkFlagOverpaymentDialog state={bulkFlagOverpaymentState} setState={setBulkFlagOverpaymentState} onConfirm={handleConfirmBulkFlagOverpayment} />
+    <MarkPendingPaidDialog state={markPendingPaidState} setState={setMarkPendingPaidState} onConfirm={handleConfirmMarkPendingPaid} />
     <RecordRecoveryDialog state={recordRecoveryState} setState={setRecordRecoveryState} onConfirm={handleConfirmRecordRecovery} />
     <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
@@ -2825,6 +2876,194 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
                 <TablePagination page={page} pageCount={pageCount} totalItems={data.length} pageSize={TABLE_PAGE_SIZE} onPageChange={setPage} />
             </CardContent>
         </Card>
+    )
+}
+
+// A pending payment needs a second look before it's paid when the importer
+// flagged it (repeat payment) or the source register carried a warning into
+// its notes ("Check: ..." - see the TaifaCare pending-register cleaning).
+// Highlighted only; Mark as Paid isn't blocked.
+const pendingNeedsReview = (r: PerdiemRequest) => !!r.flagReason || /\bcheck:/i.test(r.notes ?? '');
+
+function PendingReportTabContent({ data, loading, onDownload, onMarkPaid, eventsById }: { data: PerdiemRequest[], loading: boolean, onDownload: () => void, onMarkPaid?: (requests: PerdiemRequest[]) => void, eventsById: Map<string, AppEvent> }) {
+    const { page, pageCount, setPage, paged } = usePagination(data);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const canMarkPaid = !!onMarkPaid;
+    // Only rows still on screen count - a selection that's since been
+    // filtered out or paid drops away instead of lingering.
+    const selectedRequests = canMarkPaid ? data.filter(r => selectedIds.has(r.id)) : [];
+    const allPagedSelected = paged.length > 0 && paged.every(r => selectedIds.has(r.id));
+    const allSelected = data.length > 0 && selectedRequests.length === data.length;
+    const reviewCount = useMemo(() => data.filter(pendingNeedsReview).length, [data]);
+
+    // Per event + venue, from the rows on screen - so it follows the
+    // Reports filters (quarter, county, venue, ...) exactly.
+    const byEvent = useMemo(() => {
+        const groups = new Map<string, { eventName: string; venue: string; count: number; amount: number }>();
+        for (const r of data) {
+            const event = eventsById.get(r.eventId);
+            const g = groups.get(r.eventId) ?? { eventName: r.eventName, venue: event?.venueName || r.location || '-', count: 0, amount: 0 };
+            g.count += 1;
+            g.amount += r.totalPerdiem;
+            groups.set(r.eventId, g);
+        }
+        return Array.from(groups.values()).sort((a, b) => b.amount - a.amount);
+    }, [data, eventsById]);
+    const totalAmount = byEvent.reduce((sum, g) => sum + g.amount, 0);
+
+    const toggleRow = (id: string) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
+    };
+    const toggleSelectAllOnPage = () => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (allPagedSelected) paged.forEach(r => next.delete(r.id)); else paged.forEach(r => next.add(r.id));
+            return next;
+        });
+    };
+
+    // Participant + ID Number + Event + the 9 shared columns + Notes + Total + optional Checkbox.
+    const columnCount = (canMarkPaid ? 1 : 0) + 3 + PERDIEM_DETAIL_COLUMN_COUNT + 2;
+
+    return (
+        <div className="space-y-4">
+            <Card>
+                <CardHeader className="pb-2">
+                    <CardTitle>Pending Payments</CardTitle>
+                    <CardDescription>
+                        Imported payments not yet made - excluded from Total Paid Out until marked as paid.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-3">
+                        <div>
+                            <p className="text-sm text-muted-foreground">Awaiting Payment</p>
+                            <p className="text-2xl font-bold">{data.length.toLocaleString()}</p>
+                        </div>
+                        <div>
+                            <p className="text-sm text-muted-foreground">Total Pending</p>
+                            <p className="text-2xl font-bold">{formatCurrency(totalAmount)}</p>
+                        </div>
+                        <div>
+                            <p className="text-sm text-muted-foreground">Need Review</p>
+                            <p className={cn("text-2xl font-bold", reviewCount > 0 && "text-amber-600 dark:text-amber-500")}>{reviewCount.toLocaleString()}</p>
+                        </div>
+                    </div>
+                    {byEvent.length > 0 && (
+                        <div className="max-h-64 overflow-y-auto border rounded-md">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Event</TableHead>
+                                        <TableHead>Venue</TableHead>
+                                        <TableHead className="text-right">People</TableHead>
+                                        <TableHead className="text-right">Amount</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {byEvent.map((g, i) => (
+                                        <TableRow key={i}>
+                                            <TableCell>{g.eventName}</TableCell>
+                                            <TableCell>{g.venue}</TableCell>
+                                            <TableCell className="text-right">{g.count.toLocaleString()}</TableCell>
+                                            <TableCell className="text-right whitespace-nowrap">{formatCurrency(g.amount)}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader className="flex-row items-center justify-between flex-wrap gap-2">
+                    <CardTitle>Pending Perdiems</CardTitle>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {canMarkPaid && data.length > 0 && (
+                            <Button variant="outline" size="sm" onClick={() => setSelectedIds(allSelected ? new Set() : new Set(data.map(r => r.id)))}>
+                                {allSelected ? 'Clear Selection' : `Select All ${data.length.toLocaleString()}`}
+                            </Button>
+                        )}
+                        {canMarkPaid && selectedRequests.length > 0 && (
+                            <Button variant="secondary" size="sm" onClick={() => onMarkPaid!(selectedRequests)}>
+                                Mark {selectedRequests.length.toLocaleString()} as Paid
+                            </Button>
+                        )}
+                        <Button onClick={onDownload} size="sm">
+                            <Download className="mr-2 h-4 w-4" />
+                            Download CSV
+                        </Button>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                {canMarkPaid && (
+                                    <TableHead className="w-10">
+                                        <Checkbox checked={allPagedSelected} onCheckedChange={toggleSelectAllOnPage} disabled={paged.length === 0} aria-label="Select all on this page" />
+                                    </TableHead>
+                                )}
+                                <TableHead>Participant</TableHead>
+                                <TableHead>ID Number</TableHead>
+                                <TableHead>Event</TableHead>
+                                <PerdiemDetailColumnHeaders />
+                                <TableHead>Notes</TableHead>
+                                <TableHead className="text-right whitespace-nowrap">Total Amount</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {loading ? (
+                            <TableSkeletonRows columns={columnCount} />
+                        ) : data.length === 0 ? (
+                            <TableRow><TableCell colSpan={columnCount} className="h-24 text-center">No pending payments match the current filters.</TableCell></TableRow>
+                        ) : paged.map(request => {
+                            const event = eventsById.get(request.eventId);
+                            const needsReview = pendingNeedsReview(request);
+                            return (
+                            <TableRow key={request.id} className={cn(needsReview && "bg-amber-50 hover:bg-amber-100/70 dark:bg-amber-950/30 dark:hover:bg-amber-950/50")}>
+                            {canMarkPaid && (
+                                <TableCell>
+                                    <Checkbox
+                                        checked={selectedIds.has(request.id)}
+                                        onCheckedChange={() => toggleRow(request.id)}
+                                        aria-label={`Select ${request.participantName}`}
+                                    />
+                                </TableCell>
+                            )}
+                            <TableCell>
+                                <div className="flex items-center gap-1.5">
+                                    {request.participantName}
+                                    {needsReview && (
+                                        <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-500" aria-label="Needs review" />
+                                    )}
+                                </div>
+                                {request.flagReason && (
+                                    <div className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">{request.flagReason}</div>
+                                )}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap">{request.participantIdNumber || '-'}</TableCell>
+                            <TableCell>
+                                {request.eventName}
+                                {event?.venueName && <div className="text-xs text-muted-foreground">{event.venueName}</div>}
+                            </TableCell>
+                            <PerdiemDetailColumnCells request={request} event={event} />
+                            <TableCell className="min-w-[16rem] text-xs">{request.notes || '-'}</TableCell>
+                            <TableCell className="text-right whitespace-nowrap">{formatCurrency(request.totalPerdiem)}</TableCell>
+                            </TableRow>
+                            );
+                        })}
+                        </TableBody>
+                    </Table>
+                    <TablePagination page={page} pageCount={pageCount} totalItems={data.length} pageSize={TABLE_PAGE_SIZE} onPageChange={setPage} />
+                </CardContent>
+            </Card>
+        </div>
     )
 }
 
@@ -3373,6 +3612,62 @@ const BulkFlagOverpaymentDialog = ({ state, setState, onConfirm }: { state: Bulk
         <DialogFooter>
           <Button variant="outline" onClick={() => setState(defaultBulkFlagOverpaymentState)}>Cancel</Button>
           <Button onClick={onConfirm} disabled={!reason.trim() || !payableAmount || toFlag.length === 0}>Flag {toFlag.length} Overpayment{toFlag.length === 1 ? '' : 's'}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const MarkPendingPaidDialog = ({ state, setState, onConfirm }: { state: MarkPendingPaidState, setState: React.Dispatch<React.SetStateAction<MarkPendingPaidState>>, onConfirm: () => void }) => {
+  if (!state.isOpen || state.requests.length === 0) return null;
+  const { requests, paidDate, transactionCode, saving } = state;
+  const total = requests.reduce((sum, r) => sum + r.totalPerdiem, 0);
+  const reviewCount = requests.filter(pendingNeedsReview).length;
+
+  return (
+    <Dialog open={state.isOpen} onOpenChange={(isOpen) => { if (!saving) setState(prev => ({ ...prev, isOpen })); }}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Mark as Paid ({requests.length.toLocaleString()} selected)</DialogTitle>
+          <DialogDescription>
+            Every selected payment moves to the Paid tab with this payment date and starts counting towards Total Paid Out.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-4 space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="pendingPaidDate">Payment Date</Label>
+            <Input
+              id="pendingPaidDate"
+              type="date"
+              value={paidDate}
+              onChange={(e) => setState(prev => ({ ...prev, paidDate: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="pendingTransactionCode">Transaction Code (optional)</Label>
+            <Input
+              id="pendingTransactionCode"
+              placeholder="e.g. M-Pesa bulk payment reference"
+              value={transactionCode}
+              onChange={(e) => setState(prev => ({ ...prev, transactionCode: e.target.value }))}
+            />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Total: <span className="font-medium text-foreground">{formatCurrency(total)}</span>
+          </p>
+          {reviewCount > 0 && (
+            <p className="text-sm text-amber-600 dark:text-amber-500 flex items-center gap-1.5">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              {reviewCount.toLocaleString()} of the selected payments are highlighted for review.
+            </p>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" disabled={saving} onClick={() => setState(defaultMarkPendingPaidState)}>Cancel</Button>
+          <Button onClick={onConfirm} disabled={!paidDate || saving}>
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Mark {requests.length.toLocaleString()} as Paid
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

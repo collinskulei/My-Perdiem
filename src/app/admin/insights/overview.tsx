@@ -9,7 +9,7 @@ import {
   ComposedChart, Line,
   Treemap,
 } from "recharts";
-import { ClipboardList, Wallet, Users, CalendarDays, Building2 } from "lucide-react";
+import { ClipboardList, Wallet, Users, CalendarDays, Building2, Hourglass } from "lucide-react";
 import type { AppEvent, Client } from "@/lib/data";
 import type { InsightsStats } from "@/lib/supabase/database";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -111,9 +111,17 @@ export function OverviewSection({ stats, events, clients, clientScoped = false }
       long (request counts and KES amounts in the millions), so they're
       given half a row each instead of competing for space with the three
       short-integer cards below. */}
-      <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
+      <div className={cn("grid gap-6 grid-cols-1 sm:grid-cols-2", stats.pending && "lg:grid-cols-3")}>
         <StatCard icon={ClipboardList} label="Total Requests" value={data.totalRequests} delay={0} />
         <StatCard icon={Wallet} label="Total Paid Out" value={data.totalPaidOut} formatter={formatCurrency} delay={50} />
+        {/* Imported payments still owed - not part of Total Paid Out. Hidden
+        (null) until 0033_imported_pending_payments.sql is applied. */}
+        {stats.pending && (
+          <StatCard
+            icon={Hourglass} label={`Pending Payments (${stats.pending.count.toLocaleString()})`}
+            value={stats.pending.amount} formatter={formatCurrency} delay={75}
+          />
+        )}
       </div>
       {/* Recipients is hidden (null) until 0029_recipient_count_rpc.sql is
       applied; the column count follows whichever cards are shown. */}

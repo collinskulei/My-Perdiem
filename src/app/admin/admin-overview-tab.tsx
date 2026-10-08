@@ -23,7 +23,7 @@ import Link from "next/link";
 import { isPast, endOfDay, parseISO } from "date-fns";
 import {
   ClipboardList, Wallet, CalendarDays, ClipboardCheck, Users, MapPin,
-  FileText, BarChart, Sparkles, ShieldCheck, Building2, FileStack,
+  FileText, BarChart, Sparkles, ShieldCheck, Building2, FileStack, Hourglass,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import type { AppEvent, Participant, Venue, Client, Document, AccessTier } from "@/lib/data";
@@ -149,6 +149,15 @@ export function AdminOverviewTab({
           icon={Wallet} label="Per Diem Payments" value={requestStats.totalPayments}
           subtitle="historical payments"
           href={link("payments")} onNavigate={go("payments")} delay={next()}
+        />
+      )}
+      {/* Imported payments still owed - listed in Reports' Pending tab.
+      Hidden until 0033_imported_pending_payments.sql is applied (pendingPayments null before that). */}
+      {requestStats?.pendingPayments != null && (
+        <OverviewCard
+          icon={Hourglass} label="Pending Payments" value={requestStats.pendingPayments.amount} formatter={formatCurrency}
+          subtitle={`${requestStats.pendingPayments.count.toLocaleString()} awaiting payment`}
+          href={link("reports")} onNavigate={go("reports")} delay={next()}
         />
       )}
       {/* People actually paid (distinct by phone, else name), not participant

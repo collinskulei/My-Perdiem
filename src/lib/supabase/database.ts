@@ -596,6 +596,82 @@ export type PerdiemOverviewStats = {
   totalPayments: number | null;
   /** Distinct people paid - see getPerdiemRecipientCount(). Null until 0029 is applied. */
   totalRecipients: number | null;
+  /** Imported payments still owed - see getPerdiemPendingStats(). Null until 0033 is applied. */
+  pendingPayments: PerdiemPendingStats | null;
+};
+
+export type PerdiemPendingEvent = {
+  eventId: string;
+  eventName: string;
+  venueName: string | null;
+  county: string | null;
+  count: number;
+  amount: number;
+};
+
+export type PerdiemPendingStats = {
+  count: number;
+  amount: number;
+  /** Largest amount first. */
+  byEvent: PerdiemPendingEvent[];
+};
+
+/**
+ * Imported payments still owed (imported_at set, status 'Pending'), counted
+ * inside Postgres (see migration 0033_imported_pending_payments.sql) with
+ * the same filters as the Insights RPCs. Null (not a throw) when the RPC is
+ * missing, i.e. 0033 isn't applied yet, so the other stats still load -
+ * same approach as getPerdiemRecipientCount().
+ */
+export const getPerdiemPendingStats = async (clientId: string | null, filters: InsightsFilters, client: SupabaseClient = supabase): Promise<PerdiemPendingStats | null> => {
+  const { data, error } = await client.rpc('get_perdiem_pending_stats', {
+    target_client_id: clientId,
+    p_event_ids: filters.eventIds,
+    p_date_from: filters.dateFrom,
+    p_date_to: filters.dateTo,
+  });
+  if (error || !data) {
+    console.error("Error fetching perdiem pending stats: ", error);
+    return null;
+  }
+  const d = data as Record<string, any>;
+  return {
+    count: Number(d.count),
+    amount: Number(d.amount),
+    byEvent: (d.by_event ?? []).map((e: any) => ({
+      eventId: e.event_id,
+      eventName: e.event_name,
+      venueName: e.venue_name ?? null,
+      county: e.county ?? null,
+      count: Number(e.count),
+      amount: Number(e.amount),
+    })),
+  };
+};
+
+/**
+ * Moves imported Pending payments to Paid with the real payment date
+ * ('YYYY-MM-DD') and an optional transaction code (blank keeps any code the
+ * import already recorded). Super/Master Admin only - enforced inside the
+ * RPC (0033), not just by hiding the button. Rows that are no longer an
+ * imported Pending payment are skipped; returns how many were updated.
+ */
+export const markImportedPendingPaid = async (requestIds: string[], paidDate: string, transactionCode: string | null): Promise<number> => {
+  let updated = 0;
+  // Chunked so a whole register (thousands of IDs) doesn't hit request-size
+  // or statement-timeout limits in one call.
+  for (let i = 0; i < requestIds.length; i += 500) {
+    const { data, error } = await supabase.rpc('mark_imported_pending_paid', {
+      p_request_ids: requestIds.slice(i, i + 500),
+      p_paid_date: paidDate,
+      p_transaction_code: transactionCode,
+    });
+    if (error) {
+      throw error;
+    }
+    updated += Number(data ?? 0);
+  }
+  return updated;
 };
 
 /**
@@ -610,11 +686,13 @@ export type PerdiemOverviewStats = {
  * automatically either way - no separate access check needed here.
  */
 export const getPerdiemOverviewStats = async (clientId: string | null = null, client: SupabaseClient = supabase): Promise<PerdiemOverviewStats> => {
-  const [{ data, error }, totalRecipients] = await Promise.all([
+  const noFilters: InsightsFilters = { eventIds: null, dateFrom: null, dateTo: null };
+  const [{ data, error }, totalRecipients, pendingPayments] = await Promise.all([
     client
       .rpc('get_perdiem_overview_stats', { target_client_id: clientId })
       .single<{ total_requests: number; pending_requests: number; total_paid_out: number; total_payments?: number }>(),
-    getPerdiemRecipientCount(clientId, { eventIds: null, dateFrom: null, dateTo: null }, client),
+    getPerdiemRecipientCount(clientId, noFilters, client),
+    getPerdiemPendingStats(clientId, noFilters, client),
   ]);
   if (error || !data) {
     console.error("Error fetching perdiem overview stats: ", error);
@@ -626,6 +704,7 @@ export const getPerdiemOverviewStats = async (clientId: string | null = null, cl
     totalPaidOut: Number(data.total_paid_out),
     totalPayments: data.total_payments == null ? null : Number(data.total_payments),
     totalRecipients,
+    pendingPayments,
   };
 };
 
@@ -692,6 +771,8 @@ export type InsightsStats = {
   trainingPoints: { days: number; amount: number }[];
   eventIdsInRange: string[] | null;
   years: string[];
+  /** Imported payments still owed under the current filters - null until 0033 is applied. */
+  pending: PerdiemPendingStats | null;
 };
 
 /**
@@ -701,7 +782,7 @@ export type InsightsStats = {
  * invoker`, so RLS scoping applies exactly as it does to getPerDiemRequests().
  */
 export const getInsightsStats = async (filters: InsightsFilters, trendFrom: string, client: SupabaseClient = supabase): Promise<InsightsStats> => {
-  const [{ data, error }, recipientCount] = await Promise.all([
+  const [{ data, error }, recipientCount, pending] = await Promise.all([
     client.rpc('get_insights_stats', {
       p_event_ids: filters.eventIds,
       p_date_from: filters.dateFrom,
@@ -709,6 +790,7 @@ export const getInsightsStats = async (filters: InsightsFilters, trendFrom: stri
       p_trend_from: trendFrom,
     }),
     getPerdiemRecipientCount(null, filters, client),
+    getPerdiemPendingStats(null, filters, client),
   ]);
   if (error || !data) {
     console.error("Error fetching insights stats: ", error);
@@ -754,6 +836,7 @@ export const getInsightsStats = async (filters: InsightsFilters, trendFrom: stri
     trainingPoints: d.training_points.map((p: any) => ({ days: Number(p.days), amount: Number(p.amount) })),
     eventIdsInRange: d.event_ids_in_range ?? null,
     years: d.years,
+    pending,
   };
 };
 
