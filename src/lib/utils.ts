@@ -55,6 +55,20 @@ export const formatCurrency = (amount: number) => {
 };
 
 /**
+ * Same as formatCurrency but rounded to whole shillings - for dashboard
+ * stat widgets, where ".00" only costs width (see FIT_TEXT_STYLE in
+ * insights/shared.tsx). Tables, CSVs and chart tooltips keep the cents.
+ */
+export const formatCurrencyWhole = (amount: number) => {
+    return new Intl.NumberFormat('en-KE', {
+        style: 'currency',
+        currency: 'KES',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(amount);
+};
+
+/**
  * Formats a date string for display, tolerating bad data instead of
  * throwing. `date-fns`'s format() throws RangeError: Invalid time value on
  * an unparseable string (e.g. a raw Excel serial number like "45931" that

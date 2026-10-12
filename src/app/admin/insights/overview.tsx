@@ -12,7 +12,7 @@ import {
 import { ClipboardList, Wallet, Users, CalendarDays, Building2, Hourglass } from "lucide-react";
 import type { AppEvent, Client } from "@/lib/data";
 import type { InsightsStats } from "@/lib/supabase/database";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, formatCurrencyWhole } from "@/lib/utils";
 import {
   StatCard, ChartCard, SectionHeader, EmptyState,
   STATUS_COLORS, paletteColor, glassTooltipStyle, downloadSectionAsPdf,
@@ -111,21 +111,21 @@ export function OverviewSection({ stats, events, clients, clientScoped = false }
       long (request counts and KES amounts in the millions), so they're
       given half a row each instead of competing for space with the three
       short-integer cards below. */}
-      <div className={cn("grid gap-6 grid-cols-1 sm:grid-cols-2", stats.pending && "lg:grid-cols-3")}>
+      <div className={cn("grid gap-6 grid-cols-1 sm:grid-cols-2", stats.pending && "xl:grid-cols-3")}>
         <StatCard icon={ClipboardList} label="Total Requests" value={data.totalRequests} delay={0} />
-        <StatCard icon={Wallet} label="Total Paid Out" value={data.totalPaidOut} formatter={formatCurrency} delay={50} />
+        <StatCard icon={Wallet} label="Total Paid Out" value={data.totalPaidOut} formatter={formatCurrencyWhole} delay={50} />
         {/* Imported payments still owed - not part of Total Paid Out. Hidden
         (null) until 0033_imported_pending_payments.sql is applied. */}
         {stats.pending && (
           <StatCard
             icon={Hourglass} label={`Pending Payments (${stats.pending.count.toLocaleString()})`}
-            value={stats.pending.amount} formatter={formatCurrency} delay={75}
+            value={stats.pending.amount} formatter={formatCurrencyWhole} delay={75}
           />
         )}
       </div>
       {/* Recipients is hidden (null) until 0029_recipient_count_rpc.sql is
       applied; the column count follows whichever cards are shown. */}
-      <div className={cn("grid gap-6 grid-cols-1", smallCardCols === 3 ? "sm:grid-cols-3" : smallCardCols === 2 ? "sm:grid-cols-2" : "")}>
+      <div className={cn("grid gap-6 grid-cols-1", smallCardCols === 3 ? "sm:grid-cols-2 xl:grid-cols-3" : smallCardCols === 2 ? "sm:grid-cols-2" : "")}>
         {data.totalRecipients != null && <StatCard icon={Users} label="Per Diem Recipients" value={data.totalRecipients} delay={100} />}
         <StatCard icon={CalendarDays} label="Total Events" value={data.totalEvents} delay={150} />
         {!clientScoped && <StatCard icon={Building2} label="Active Clients" value={data.activeClients} delay={200} />}

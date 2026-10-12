@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import { DollarSign, TrendingUp, ArrowRightLeft } from "lucide-react";
 import type { InsightsStats } from "@/lib/supabase/database";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatCurrencyWhole } from "@/lib/utils";
 import { StatCard, ChartCard, SectionHeader, EmptyState, STATUS_COLORS, paletteColor, glassTooltipStyle, downloadSectionAsPdf } from "./shared";
 
 // Labels for the histogram counts get_insights_stats returns - the bucket
@@ -67,8 +67,8 @@ export function FinancialSection({ stats }: { stats: InsightsStats }) {
       />
 
       <div className="grid gap-6 sm:grid-cols-2">
-        <StatCard icon={TrendingUp} label="Average Per Diem per Request" value={data.avgPerDiem} formatter={formatCurrency} delay={0} />
-        <StatCard icon={ArrowRightLeft} label="Total Amendment Delta" value={data.totalAmendmentDelta} formatter={formatCurrency} delay={50} />
+        <StatCard icon={TrendingUp} label="Average Per Diem per Request" value={data.avgPerDiem} formatter={formatCurrencyWhole} delay={0} />
+        <StatCard icon={ArrowRightLeft} label="Total Amendment Delta" value={data.totalAmendmentDelta} formatter={formatCurrencyWhole} delay={50} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

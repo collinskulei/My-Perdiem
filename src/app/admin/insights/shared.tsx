@@ -91,6 +91,14 @@ export function InsightCard({ className, style, children }: { className?: string
   );
 }
 
+// Stat widget values scale with their card's width (cqi = 1% of the
+// CardContent's width, made a size container below) instead of a fixed
+// text-3xl that got cut off with an ellipsis on laptops/zoomed screens -
+// full 30px when there's room, down to 16px in a narrow card. 10.5cqi fits
+// a ~14-character value like "Ksh 12,345,678" in bold tabular digits.
+export const FIT_TEXT_STYLE: CSSProperties = { fontSize: 'clamp(1rem, 10.5cqi, 1.875rem)', lineHeight: 1.2 };
+export const FIT_CONTAINER_STYLE: CSSProperties = { containerType: 'inline-size' };
+
 export function StatCard({ icon: Icon, label, value, formatter, delay = 0 }: {
   icon: ComponentType<{ className?: string }>;
   label: string;
@@ -105,13 +113,13 @@ export function StatCard({ icon: Icon, label, value, formatter, delay = 0 }: {
         <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
         <Icon className="h-4 w-4 shrink-0 text-primary" />
       </CardHeader>
-      <CardContent>
+      <CardContent style={FIT_CONTAINER_STYLE}>
         {/* whitespace-nowrap+truncate instead of wrapping - a wrapped value
         like "Ksh 44,41" / "5,600.00" splitting mid-number is worse than an
         ellipsis. Callers keep each card to at most 3-per-row so there's
         normally enough width that this doesn't trigger; it's just a safety
         net for extreme values. */}
-        <p className="text-2xl md:text-3xl font-bold truncate tabular-nums bg-gradient-to-r from-primary to-[#3b82f6] bg-clip-text text-transparent" title={formatter ? formatter(animated) : Math.round(animated).toLocaleString()}>
+        <p className="font-bold truncate tabular-nums bg-gradient-to-r from-primary to-[#3b82f6] bg-clip-text text-transparent" style={FIT_TEXT_STYLE} title={formatter ? formatter(animated) : Math.round(animated).toLocaleString()}>
           {formatter ? formatter(animated) : Math.round(animated).toLocaleString()}
         </p>
       </CardContent>
@@ -240,7 +248,7 @@ export function InsightsLoadingSkeleton() {
   return (
     <>
       <TopLoadingBar active />
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
         {Array.from({ length: 6 }).map((_, i) => (
           <div key={i} className="h-40 rounded-xl skeleton-shimmer" />
         ))}

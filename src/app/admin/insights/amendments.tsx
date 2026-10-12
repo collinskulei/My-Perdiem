@@ -4,7 +4,7 @@ import { useMemo, useRef } from "react";
 import { FileEdit, AlertCircle, CheckCircle2, Hourglass } from "lucide-react";
 import type { Client } from "@/lib/data";
 import type { InsightsStats } from "@/lib/supabase/database";
-import { formatCurrency, formatDateSafe } from "@/lib/utils";
+import { formatCurrency, formatCurrencyWhole, formatDateSafe } from "@/lib/utils";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { StatCard, SectionHeader, EmptyState, InsightCard, downloadSectionAsPdf } from "./shared";
 
@@ -61,11 +61,11 @@ export function AmendmentsSection({ stats, clients, clientScoped = false }: { st
         onDownloadSection={() => downloadSectionAsPdf([{ ref: tableRef, title: "Amendments" }], "amendments-insights")}
       />
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard icon={FileEdit} label="Amended Records" value={data.rows.length} delay={0} />
-        <StatCard icon={AlertCircle} label="Total Overpaid" value={data.totalOverpaid} formatter={formatCurrency} delay={50} />
-        <StatCard icon={CheckCircle2} label="Total Recovered" value={data.totalRecovered} formatter={formatCurrency} delay={100} />
-        <StatCard icon={Hourglass} label="Total Pending" value={data.totalPending} formatter={formatCurrency} delay={150} />
+        <StatCard icon={AlertCircle} label="Total Overpaid" value={data.totalOverpaid} formatter={formatCurrencyWhole} delay={50} />
+        <StatCard icon={CheckCircle2} label="Total Recovered" value={data.totalRecovered} formatter={formatCurrencyWhole} delay={100} />
+        <StatCard icon={Hourglass} label="Total Pending" value={data.totalPending} formatter={formatCurrencyWhole} delay={150} />
       </div>
 
       <InsightCard>

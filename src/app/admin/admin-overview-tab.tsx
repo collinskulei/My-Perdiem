@@ -27,10 +27,10 @@ import {
 } from "lucide-react";
 import type { ComponentType } from "react";
 import type { AppEvent, Participant, Venue, Client, Document, AccessTier } from "@/lib/data";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrencyWhole } from "@/lib/utils";
 import * as supabaseDb from "@/lib/supabase/database";
 import type { PerdiemOverviewStats } from "@/lib/supabase/database";
-import { InsightCard, useCountUp } from "./insights/shared";
+import { InsightCard, useCountUp, FIT_TEXT_STYLE, FIT_CONTAINER_STYLE } from "./insights/shared";
 import { CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -62,11 +62,11 @@ function OverviewCard({ icon: Icon, label, value, subtitle, formatter, href, onN
           <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
           <Icon className="h-4 w-4 shrink-0 text-primary" />
         </CardHeader>
-        <CardContent>
+        <CardContent style={FIT_CONTAINER_STYLE}>
           {loading ? (
             <Skeleton className="h-8 w-20" />
           ) : (
-            <p className="text-2xl md:text-3xl font-bold truncate tabular-nums bg-gradient-to-r from-primary to-[#3b82f6] bg-clip-text text-transparent" title={display}>
+            <p className="font-bold truncate tabular-nums bg-gradient-to-r from-primary to-[#3b82f6] bg-clip-text text-transparent" style={FIT_TEXT_STYLE} title={display}>
               {display}
             </p>
           )}
@@ -126,7 +126,7 @@ export function AdminOverviewTab({
   const next = () => (delay += 50);
 
   return (
-    <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
       {/* Insights first - it's the headline card on the dashboard. */}
       {isMultiClientAdmin && (
         <OverviewCard
@@ -137,7 +137,7 @@ export function AdminOverviewTab({
       )}
       {isClientAdmin && (
         <OverviewCard
-          icon={Sparkles} label="Insights" value={requestStats?.totalPaidOut ?? 0} formatter={formatCurrency}
+          icon={Sparkles} label="Insights" value={requestStats?.totalPaidOut ?? 0} formatter={formatCurrencyWhole}
           subtitle="total paid out"
           loading={requestsLoading}
           href={link("insights")} onNavigate={go("insights")} delay={next()}
@@ -155,7 +155,7 @@ export function AdminOverviewTab({
       Hidden until 0033_imported_pending_payments.sql is applied (pendingPayments null before that). */}
       {requestStats?.pendingPayments != null && (
         <OverviewCard
-          icon={Hourglass} label="Pending Payments" value={requestStats.pendingPayments.amount} formatter={formatCurrency}
+          icon={Hourglass} label="Pending Payments" value={requestStats.pendingPayments.amount} formatter={formatCurrencyWhole}
           subtitle={`${requestStats.pendingPayments.count.toLocaleString()} awaiting payment`}
           href={link("reports")} onNavigate={go("reports")} delay={next()}
         />
@@ -213,7 +213,7 @@ export function AdminOverviewTab({
           href={link("reports")} onNavigate={go("reports")} delay={next()}
         />
         <OverviewCard
-          icon={BarChart} label="Analytics" value={requestStats?.totalPaidOut ?? 0} formatter={formatCurrency}
+          icon={BarChart} label="Analytics" value={requestStats?.totalPaidOut ?? 0} formatter={formatCurrencyWhole}
           subtitle="total paid out"
           loading={requestsLoading}
           href={link("analytics")} onNavigate={go("analytics")} delay={next()}

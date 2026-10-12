@@ -25,7 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatCurrencyWhole } from "@/lib/utils";
 import * as supabaseDb from "@/lib/supabase/database";
 import { getPlatformTotals, type PlatformTotalRow } from "@/lib/supabase/modules";
 import { MODULES, MODULE_KEYS, modulePath, type ModuleKey } from "@/lib/modules";
@@ -185,7 +185,7 @@ export function PortalHome() {
         <EmptyState message="Overall totals aren't available yet - the 0030/0031 database migrations need to be applied." />
       ) : (
         <>
-          <StatCard icon={Sigma} label="Overall Total (all modules)" value={data.total} formatter={formatCurrency} />
+          <StatCard icon={Sigma} label="Overall Total (all modules)" value={data.total} formatter={formatCurrencyWhole} />
 
           <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
             {modules.map((key, i) => {

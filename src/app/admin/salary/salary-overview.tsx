@@ -10,7 +10,7 @@ import {
   ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart,
 } from "recharts";
 import { Banknote, CalendarRange, HandCoins, Landmark, Users, Wallet } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatCurrencyWhole } from "@/lib/utils";
 import type { SalaryRunSummary } from "@/lib/supabase/salary";
 import { StatCard, ChartCard, EmptyState, glassTooltipStyle, paletteColor } from "../insights/shared";
 import { rollupByPeriod } from "./salary-shared";
@@ -48,10 +48,10 @@ export function SalaryOverview({ summaries }: { summaries: SalaryRunSummary[] })
     <div className="space-y-6">
       <div>
         <h3 className="text-sm font-medium text-muted-foreground mb-3">Latest month - {latest.label}</h3>
-        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard icon={Banknote} label="Salary Cost" value={latest.salaryCost} formatter={formatCurrency} />
-          <StatCard icon={Wallet} label="Gross Pay" value={latest.grossPay} formatter={formatCurrency} delay={50} />
-          <StatCard icon={HandCoins} label="Net Pay" value={latest.netPay} formatter={formatCurrency} delay={100} />
+        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard icon={Banknote} label="Salary Cost" value={latest.salaryCost} formatter={formatCurrencyWhole} />
+          <StatCard icon={Wallet} label="Gross Pay" value={latest.grossPay} formatter={formatCurrencyWhole} delay={50} />
+          <StatCard icon={HandCoins} label="Net Pay" value={latest.netPay} formatter={formatCurrencyWhole} delay={100} />
           <StatCard icon={Users} label="Employees Paid" value={latest.headcount} delay={150} />
         </div>
       </div>
@@ -59,11 +59,11 @@ export function SalaryOverview({ summaries }: { summaries: SalaryRunSummary[] })
         <h3 className="text-sm font-medium text-muted-foreground mb-3">
           All months on file - {months[0].label} to {latest.label}
         </h3>
-        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard icon={CalendarRange} label="Months on File" value={months.length} />
-          <StatCard icon={Banknote} label="Total Salary Cost" value={all.cost} formatter={formatCurrency} delay={50} />
-          <StatCard icon={HandCoins} label="Total Net Pay" value={all.net} formatter={formatCurrency} delay={100} />
-          <StatCard icon={Landmark} label="Total PAYE" value={all.paye} formatter={formatCurrency} delay={150} />
+          <StatCard icon={Banknote} label="Total Salary Cost" value={all.cost} formatter={formatCurrencyWhole} delay={50} />
+          <StatCard icon={HandCoins} label="Total Net Pay" value={all.net} formatter={formatCurrencyWhole} delay={100} />
+          <StatCard icon={Landmark} label="Total PAYE" value={all.paye} formatter={formatCurrencyWhole} delay={150} />
         </div>
       </div>
 
