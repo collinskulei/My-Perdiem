@@ -35,6 +35,7 @@ import { supabase } from "@/lib/supabase/client";
 import * as supabaseDb from "@/lib/supabase/database";
 import type { AccessTier } from "@/lib/data";
 import { useAdminTab } from "./admin-tab-context";
+import { usePortal } from "./portal-context";
 
 /**
  * The sidebar is the only navigation surface (see docs/MILESTONE_HANDOFF.md
@@ -49,6 +50,11 @@ import { useAdminTab } from "./admin-tab-context";
  * unmounts its children when closed (no forceMount), and the "Guide me"
  * tour (see admin-tour.ts) needs every data-tour target present in the DOM
  * without first expanding anything.
+ *
+ * In the Super/Master Admin portals the Manage group and Profile live on
+ * Home instead (home-sidebar-navigation.tsx), so they're left out here.
+ * Client portals (including a Super Admin viewing one) and the legacy
+ * /admin portal keep them, since their Home has no such items.
  */
 export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: string }) {
   const pathname = usePathname();
@@ -57,6 +63,8 @@ export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: str
   // admin-tab-context.tsx for why this exists instead of just reading
   // searchParams (would otherwise wait on a server round-trip per click).
   const { activeTab, setActiveTab } = useAdminTab();
+  const portal = usePortal();
+  const adminItemsOnHome = !!portal && portal.kind !== "client";
   const [accessTier, setAccessTier] = useState<AccessTier | null>(null);
 
   useEffect(() => {
@@ -228,7 +236,7 @@ export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: str
       )}
 
       {/* Manage group: Manage, Clients, Submissions */}
-      {canManage && (
+      {canManage && !adminItemsOnHome && (
         <SidebarMenuItem>
           <Accordion type="single" collapsible defaultValue="manage">
             <AccordionItem value="manage" className="border-none">
@@ -275,14 +283,16 @@ export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: str
         </SidebarMenuItem>
       )}
 
-      <SidebarMenuItem>
-        <Link href="/profile">
-          <SidebarMenuButton isActive={isLinkActive('/profile', null)}>
-            <User />
-            Profile
-          </SidebarMenuButton>
-        </Link>
-      </SidebarMenuItem>
+      {!adminItemsOnHome && (
+        <SidebarMenuItem>
+          <Link href="/profile">
+            <SidebarMenuButton isActive={isLinkActive('/profile', null)}>
+              <User />
+              Profile
+            </SidebarMenuButton>
+          </Link>
+        </SidebarMenuItem>
+      )}
     </SidebarMenu>
   );
 }

@@ -100,7 +100,7 @@ export function HotelsDashboard({ currentTab }: { currentTab: string }) {
           <p>Switch the module on for a client from the Clients tab (Modules section on the client&apos;s card).</p>
           {portal && (
             <Button size="sm" variant="outline" asChild>
-              <Link href={`${modulePath(portal.base, "perdiem")}?tab=clients`}>Go to Clients</Link>
+              <Link href={`${homePath(portal.base)}?tab=clients`}>Go to Clients</Link>
             </Button>
           )}
         </AlertDescription>

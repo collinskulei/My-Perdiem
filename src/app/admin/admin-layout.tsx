@@ -25,6 +25,7 @@ import { PortalProvider } from './portal-context';
 import type { PortalInfo } from './portal-access';
 import { SalarySidebarNavigation } from './salary/salary-sidebar-navigation';
 import { HotelsSidebarNavigation } from './hotels/hotels-sidebar-navigation';
+import { HomeSidebarNavigation } from './home-sidebar-navigation';
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signOutEverywhere } from "@/lib/supabase/auth";
@@ -75,6 +76,11 @@ export function AdminLayoutClient({
             {portal ? (
               <>
                 <ModuleSwitcher portal={portal} active={activeModule} />
+                {activeModule === "home" && portal.kind !== "client" && (
+                  <SidebarGroup>
+                    <HomeSidebarNavigation basePath={basePath} />
+                  </SidebarGroup>
+                )}
                 {activeModule === "perdiem" && (
                   <SidebarGroup>
                     <AdminSidebarNavigation basePath={basePath} />

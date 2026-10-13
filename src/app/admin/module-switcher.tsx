@@ -2,7 +2,8 @@
  * @file Top-of-sidebar navigation between a portal's Home (overall
  * Insights) and each module the client has switched on. The module's own
  * tabs render below it (AdminSidebarNavigation for Per Diem,
- * SalarySidebarNavigation for Salary Payments).
+ * SalarySidebarNavigation for Salary Payments, ...), and for Super/Master
+ * Admins Home has its own items too (HomeSidebarNavigation).
  */
 "use client";
 
@@ -18,12 +19,14 @@ import {
 } from "@/components/ui/sidebar";
 import { MODULES, homePath, modulePath, type ModuleKey } from "@/lib/modules";
 import { useAdminTab } from "./admin-tab-context";
+import { isHomeAdminTab } from "./home-sidebar-navigation";
 import type { PortalInfo } from "./portal-access";
 
 export type ActiveModule = "home" | ModuleKey;
 
 export function ModuleSwitcher({ portal, active }: { portal: PortalInfo; active: ActiveModule }) {
-  const { setActiveTab } = useAdminTab();
+  const { activeTab, setActiveTab } = useAdminTab();
+  const homeHasItems = portal.kind !== "client";
   return (
     <>
       <SidebarGroup className="pb-0">
@@ -31,7 +34,7 @@ export function ModuleSwitcher({ portal, active }: { portal: PortalInfo; active:
         <SidebarMenu>
           <SidebarMenuItem>
             <Link href={homePath(portal.base)} onClick={() => setActiveTab("overview")}>
-              <SidebarMenuButton isActive={active === "home"}>
+              <SidebarMenuButton isActive={active === "home" && !isHomeAdminTab(activeTab)}>
                 <LayoutGrid />
                 Home
               </SidebarMenuButton>
@@ -53,7 +56,7 @@ export function ModuleSwitcher({ portal, active }: { portal: PortalInfo; active:
           })}
         </SidebarMenu>
       </SidebarGroup>
-      {active !== "home" && <SidebarSeparator />}
+      {(active !== "home" || homeHasItems) && <SidebarSeparator />}
     </>
   );
 }

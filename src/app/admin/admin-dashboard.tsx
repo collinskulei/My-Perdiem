@@ -110,6 +110,9 @@ import { AdminDocumentsTab } from "./admin-documents-tab";
 import { AdminSubmissionsTab } from "./admin-submissions-tab";
 import { AdminInsightsTab } from "./admin-insights";
 import { AdminOverviewTab } from "./admin-overview-tab";
+import { usePortal } from "./portal-context";
+import { isHomeAdminTab } from "./home-sidebar-navigation";
+import { homePath } from "@/lib/modules";
 import { ParticipantLookup } from "./insights/participant-lookup";
 import { useAdminTab } from "./admin-tab-context";
 import { inviteAdmin, setParticipantDisabled } from "@/lib/admin-api-client";
@@ -513,6 +516,16 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
     setActiveTab(currentTab);
   }, [currentTab]);
 
+  // Super/Master portals: Manage/Clients/Submissions moved to Home
+  // (home-manage.tsx) - send old links and bookmarks there.
+  const portal = usePortal();
+  const adminItemsOnHome = !!portal && portal.kind !== "client";
+  useEffect(() => {
+    if (portal && adminItemsOnHome && isHomeAdminTab(currentTab)) {
+      window.location.replace(`${homePath(portal.base)}?tab=${currentTab}`);
+    }
+  }, [portal, adminItemsOnHome, currentTab]);
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
@@ -530,11 +543,11 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
       driver({
         showProgress: true,
         allowClose: true,
-        steps: buildAdminTourSteps({ setActiveTab, accessTier: currentAdmin.accessTier }),
+        steps: buildAdminTourSteps({ setActiveTab, accessTier: currentAdmin.accessTier, adminItemsOnHome }),
       }).drive();
     });
     return () => registerTour(null);
-  }, [registerTour, currentAdmin]);
+  }, [registerTour, currentAdmin, adminItemsOnHome]);
 
   // Split in two so the five small tables (a few hundred rows between them,
   // at most) don't sit blocked behind perdiem_requests - at 29,000+ rows

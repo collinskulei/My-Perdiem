@@ -33,6 +33,7 @@ import type { PerdiemOverviewStats } from "@/lib/supabase/database";
 import { InsightCard, useCountUp, FIT_TEXT_STYLE, FIT_CONTAINER_STYLE } from "./insights/shared";
 import { CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePortal } from "./portal-context";
 
 function isEventUpcoming(event: AppEvent): boolean {
   const lastDate = event.eventDates?.length ? parseISO(event.eventDates[event.eventDates.length - 1]) : new Date(0);
@@ -121,6 +122,10 @@ export function AdminOverviewTab({
 
   const go = (tab: string) => () => setActiveTab(tab);
   const link = (tab: string) => `${basePath}?tab=${tab}`;
+  // Super/Master portals: Manage/Clients/Submissions are on Home, not in
+  // Per Diem (see home-sidebar-navigation.tsx).
+  const portal = usePortal();
+  const adminItemsOnHome = !!portal && portal.kind !== "client";
 
   let delay = 0;
   const next = () => (delay += 50);
@@ -220,14 +225,14 @@ export function AdminOverviewTab({
         />
         </>
       )}
-      {canManage && (
+      {canManage && !adminItemsOnHome && (
         <OverviewCard
           icon={ShieldCheck} label="Manage" value={stats.totalAdmins}
           subtitle="admin accounts"
           href={link("management")} onNavigate={go("management")} delay={next()}
         />
       )}
-      {isMultiClientAdmin && (
+      {isMultiClientAdmin && !adminItemsOnHome && (
         <OverviewCard
           icon={Building2} label="Clients" value={clients.length}
           href={link("clients")} onNavigate={go("clients")} delay={next()}
@@ -239,7 +244,7 @@ export function AdminOverviewTab({
           href={link("documents")} onNavigate={go("documents")} delay={next()}
         />
       )}
-      {isMultiClientAdmin && (
+      {isMultiClientAdmin && !adminItemsOnHome && (
         <OverviewCard
           icon={FileStack} label="Submissions" value={documents.length}
           subtitle="across all clients"

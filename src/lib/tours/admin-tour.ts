@@ -10,7 +10,9 @@
  * every target stays queryable without first expanding anything. The
  * "management"/"clients"/"documents"/"submissions"/"insights" steps are
  * only included for the tiers that can actually see those items, matching
- * the same gates admin-sidebar-navigation.tsx itself uses.
+ * the same gates admin-sidebar-navigation.tsx itself uses - including
+ * leaving out Manage/Clients/Submissions in the Super/Master Admin portals,
+ * where those live on Home rather than in the Per Diem menu.
  */
 import type { DriveStep } from "driver.js";
 import type { AccessTier } from "@/lib/data";
@@ -26,9 +28,12 @@ function tabStep(tab: string, title: string, description: string, setActiveTab: 
 export function buildAdminTourSteps({
   setActiveTab,
   accessTier,
+  adminItemsOnHome = false,
 }: {
   setActiveTab: (tab: string) => void;
   accessTier: AccessTier;
+  /** Super/Master portal: Manage/Clients/Submissions are on Home. */
+  adminItemsOnHome?: boolean;
 }): DriveStep[] {
   const canManage = accessTier !== "client_user";
   const isMultiClientAdmin = accessTier === "super_admin" || accessTier === "master_admin";
@@ -69,7 +74,7 @@ export function buildAdminTourSteps({
     );
   }
 
-  if (canManage) {
+  if (canManage && !adminItemsOnHome) {
     steps.push(
       tabStep(
         "management",
@@ -84,7 +89,7 @@ export function buildAdminTourSteps({
     );
   }
 
-  if (isMultiClientAdmin) {
+  if (isMultiClientAdmin && !adminItemsOnHome) {
     steps.push(
       tabStep(
         "clients",
@@ -106,7 +111,7 @@ export function buildAdminTourSteps({
     );
   }
 
-  if (isMultiClientAdmin) {
+  if (isMultiClientAdmin && !adminItemsOnHome) {
     steps.push(
       tabStep(
         "submissions",
