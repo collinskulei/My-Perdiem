@@ -24,6 +24,7 @@ import { ModuleSwitcher, type ActiveModule } from './module-switcher';
 import { PortalProvider } from './portal-context';
 import type { PortalInfo } from './portal-access';
 import { SalarySidebarNavigation } from './salary/salary-sidebar-navigation';
+import { HotelsSidebarNavigation } from './hotels/hotels-sidebar-navigation';
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signOutEverywhere } from "@/lib/supabase/auth";
@@ -82,6 +83,11 @@ export function AdminLayoutClient({
                 {activeModule === "salary" && (
                   <SidebarGroup>
                     <SalarySidebarNavigation basePath={basePath} />
+                  </SidebarGroup>
+                )}
+                {activeModule === "hotels" && (
+                  <SidebarGroup>
+                    <HotelsSidebarNavigation basePath={basePath} />
                   </SidebarGroup>
                 )}
               </>

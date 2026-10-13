@@ -9,15 +9,16 @@
  *                       its URL is unchanged so bookmarks, tours and links
  *                       keep working)
  *   <portal>/salary     Salary Payments
+ *   <portal>/hotels     Hotel Bookings
  *
  * where <portal> is /super-admin, /master-admin or /<slug>-admin.
  */
 import type { ComponentType } from "react";
-import { Wallet, Banknote } from "lucide-react";
+import { Wallet, Banknote, Hotel } from "lucide-react";
 
-export type ModuleKey = "perdiem" | "salary";
+export type ModuleKey = "perdiem" | "salary" | "hotels";
 
-export const MODULE_KEYS: ModuleKey[] = ["perdiem", "salary"];
+export const MODULE_KEYS: ModuleKey[] = ["perdiem", "salary", "hotels"];
 
 export type ModuleInfo = {
   key: ModuleKey;
@@ -46,6 +47,14 @@ export const MODULES: Record<ModuleKey, ModuleInfo> = {
     icon: Banknote,
     color: "#10b981",
     segment: "salary",
+  },
+  hotels: {
+    key: "hotels",
+    label: "Hotel Bookings",
+    description: "Payments to hotels for events and staff accommodation.",
+    icon: Hotel,
+    color: "#f59e0b",
+    segment: "hotels",
   },
 };
 

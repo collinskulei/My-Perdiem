@@ -6,8 +6,9 @@
  *   Per Diem      = total paid out (same rule and figure as Per Diem's
  *                   own Insights "Total Paid Out")
  *   Salary        = salary cost: gross pay + employer contributions
+ *   Hotels        = total paid to hotels (by payment date)
  *
- * All numbers come from get_platform_totals (0031_salary_payments.sql), one
+ * All numbers come from get_platform_totals (0036_hotel_payments.sql), one
  * row per module x client x month; this only reshapes them. Super/Master
  * Admins see every client (with a client filter and a per-client table);
  * an Organization Admin sees only their own client.
@@ -51,6 +52,7 @@ function rangeDates(key: RangeKey, customFrom: string, customTo: string): [strin
 const MODULE_AMOUNT_LABEL: Record<ModuleKey, string> = {
   perdiem: "Total paid out",
   salary: "Salary cost (gross + employer contributions)",
+  hotels: "Total paid to hotels",
 };
 
 export function PortalHome() {

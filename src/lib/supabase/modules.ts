@@ -1,7 +1,7 @@
 /**
  * @file Client modules (0030_client_modules.sql) and the cross-module
  * platform totals behind each portal's Home Insights
- * (get_platform_totals, 0031_salary_payments.sql).
+ * (get_platform_totals, 0036_hotel_payments.sql).
  */
 import { supabase } from './client';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -66,9 +66,9 @@ export type PlatformTotalRow = {
 
 /**
  * Headline amount per module x client x month: per diem paid out, salary
- * cost. Dates are inclusive 'YYYY-MM-DD'. Returns null if the function
- * isn't there yet (0031 not applied) so the Home page can say so instead
- * of showing zeros.
+ * cost, paid to hotels. Dates are inclusive 'YYYY-MM-DD'. Returns null if
+ * the function isn't there yet (0031 not applied) so the Home page can say
+ * so instead of showing zeros.
  */
 export const getPlatformTotals = async (
   clientId: string | null,
