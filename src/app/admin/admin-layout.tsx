@@ -25,6 +25,7 @@ import { PortalProvider } from './portal-context';
 import type { PortalInfo } from './portal-access';
 import { SalarySidebarNavigation } from './salary/salary-sidebar-navigation';
 import { HotelsSidebarNavigation } from './hotels/hotels-sidebar-navigation';
+import { FundingSidebarNavigation } from './funding/funding-sidebar-navigation';
 import { HomeSidebarNavigation } from './home-sidebar-navigation';
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -94,6 +95,11 @@ export function AdminLayoutClient({
                 {activeModule === "hotels" && (
                   <SidebarGroup>
                     <HotelsSidebarNavigation basePath={basePath} />
+                  </SidebarGroup>
+                )}
+                {activeModule === "funding" && (
+                  <SidebarGroup>
+                    <FundingSidebarNavigation basePath={basePath} />
                   </SidebarGroup>
                 )}
               </>
