@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import * as supabaseDb from "@/lib/supabase/database";
 import { getClientModules } from "@/lib/supabase/modules";
 import { getHotelPayments, type HotelPayment } from "@/lib/supabase/hotels";
-import { homePath, modulePath } from "@/lib/modules";
+import { GROUPS, groupPath, homePath, modulePath } from "@/lib/modules";
 import type { Client } from "@/lib/data";
 import { useAdminTab } from "../admin-tab-context";
 import { usePortal } from "../portal-context";
@@ -114,6 +114,11 @@ export function HotelsDashboard({ currentTab }: { currentTab: string }) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
+          {portal && (
+            <Link href={groupPath(portal.base, "facilitations")} className="text-sm text-muted-foreground hover:underline">
+              {GROUPS.facilitations.label}
+            </Link>
+          )}
           <h2 className="text-2xl font-bold tracking-tight">Hotel Bookings</h2>
           <p className="text-muted-foreground">{clientName ? `${clientName} · ` : ""}{tabLabel}</p>
         </div>

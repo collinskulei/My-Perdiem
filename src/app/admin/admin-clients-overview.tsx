@@ -47,7 +47,7 @@ import { useToast } from "@/hooks/use-toast";
 import { TopLoadingBar } from "@/components/ui/top-loading-bar";
 import * as supabaseDb from "@/lib/supabase/database";
 import { getClientModules, setClientModule } from "@/lib/supabase/modules";
-import { MODULES, MODULE_KEYS, type ModuleKey } from "@/lib/modules";
+import { GROUPS, MODULES, MODULE_KEYS, type ModuleKey } from "@/lib/modules";
 import { inviteAdmin } from "@/lib/admin-api-client";
 import { HistoricalImportDialog } from "./admin-historical-import";
 import type { Client, Participant, WorkType } from "@/lib/data";
@@ -266,6 +266,7 @@ function ClientWidget({
             {MODULE_KEYS.map((key) => (
               <div key={key} className="flex items-center justify-between gap-2">
                 <Label htmlFor={`module-${key}-${client.id}`} className="text-sm font-normal">
+                  {MODULES[key].group && <span className="block text-xs text-muted-foreground">{GROUPS[MODULES[key].group!].label} ·</span>}
                   {MODULES[key].label}
                   <span className="block text-xs text-muted-foreground">{MODULES[key].description}</span>
                 </Label>

@@ -7,9 +7,13 @@
  *                   own Insights "Total Paid Out")
  *   Salary        = salary cost: gross pay + employer contributions
  *   Hotels        = total paid to hotels (by payment date)
+ *   Travel        = total paid for flights and ground transfers
  *   Refunds       = total refunds paid (by payment date)
  *
- * All numbers come from get_platform_totals (0037_funding_receipts.sql), one
+ * Hotels and Travel share one card - their group, Other Project
+ * Facilitations - with a line per submodule.
+ *
+ * All numbers come from get_platform_totals (0038_travel_payments.sql), one
  * row per module x client x month; this only reshapes them. Super/Master
  * Admins see every client (with a client filter and a per-client table);
  * an Organization Admin sees only their own client.
@@ -30,7 +34,7 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { formatCurrency, formatCurrencyWhole } from "@/lib/utils";
 import * as supabaseDb from "@/lib/supabase/database";
 import { getPlatformTotals, type PlatformTotalRow } from "@/lib/supabase/modules";
-import { MODULES, MODULE_KEYS, modulePath, type ModuleKey } from "@/lib/modules";
+import { GROUPS, MODULES, MODULE_KEYS, groupPath, moduleEntries, modulePath, type ModuleKey } from "@/lib/modules";
 import type { Client } from "@/lib/data";
 import { usePortal } from "./portal-context";
 import {
@@ -54,6 +58,7 @@ const MODULE_AMOUNT_LABEL: Record<ModuleKey, string> = {
   perdiem: "Total paid out",
   salary: "Salary cost (gross + employer contributions)",
   hotels: "Total paid to hotels",
+  travel: "Total paid for flights and ground transfers",
   funding: "Total refunds paid",
 };
 
@@ -192,32 +197,45 @@ export function PortalHome() {
           <StatCard icon={Sigma} label="Overall Total (all modules)" value={data.total} formatter={formatCurrencyWhole} />
 
           <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
-            {modules.map((key, i) => {
-              const m = MODULES[key];
-              const Icon = m.icon;
-              const share = data.total > 0 ? Math.round((data.byModule[key] / data.total) * 100) : 0;
+            {moduleEntries(modules).map((entry, i) => {
+              const info = entry.kind === "module" ? MODULES[entry.key] : GROUPS[entry.key];
+              const parts = entry.kind === "group" ? entry.modules : [entry.key];
+              const amount = parts.reduce((acc, k) => acc + data.byModule[k], 0);
+              const Icon = info.icon;
+              const share = data.total > 0 ? Math.round((amount / data.total) * 100) : 0;
+              const href = entry.kind === "module" ? modulePath(basePath, entry.key) : groupPath(basePath, entry.key);
               return (
-                <Card key={key} className="flex flex-col animate-in fade-in-0 slide-in-from-bottom-4" style={{ animationDelay: `${50 * (i + 1)}ms` }}>
+                <Card key={entry.key} className="flex flex-col animate-in fade-in-0 slide-in-from-bottom-4" style={{ animationDelay: `${50 * (i + 1)}ms` }}>
                   <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
                     <div className="space-y-1">
-                      <CardTitle className="text-base">{m.label}</CardTitle>
-                      <CardDescription>{MODULE_AMOUNT_LABEL[key]}</CardDescription>
+                      <CardTitle className="text-base">{info.label}</CardTitle>
+                      <CardDescription>{entry.kind === "module" ? MODULE_AMOUNT_LABEL[entry.key] : "Total paid"}</CardDescription>
                     </div>
                     <Icon className="h-5 w-5 shrink-0" />
                   </CardHeader>
                   <CardContent className="flex-1 space-y-2">
-                    <p className="text-2xl md:text-3xl font-bold tabular-nums truncate" style={{ color: m.color }}>
-                      {formatCurrency(data.byModule[key])}
+                    <p className="text-2xl md:text-3xl font-bold tabular-nums truncate" style={{ color: info.color }}>
+                      {formatCurrency(amount)}
                     </p>
                     <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${share}%`, background: m.color }} />
+                      <div className="h-full rounded-full" style={{ width: `${share}%`, background: info.color }} />
                     </div>
                     <p className="text-xs text-muted-foreground">{share}% of the overall total</p>
+                    {entry.kind === "group" && (
+                      <ul className="space-y-1 pt-1 text-sm">
+                        {entry.modules.map((k) => (
+                          <li key={k} className="flex items-center justify-between gap-2">
+                            <Link href={modulePath(basePath, k)} className="hover:underline">{MODULES[k].label}</Link>
+                            <span className="tabular-nums">{formatCurrency(data.byModule[k])}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </CardContent>
                   <div className="px-6 pb-6">
                     <Button variant="outline" size="sm" asChild>
-                      <Link href={modulePath(basePath, key)}>
-                        Open {m.label}
+                      <Link href={href}>
+                        Open {info.label}
                         <ArrowRight className="ml-2 h-4 w-4" />
                       </Link>
                     </Button>

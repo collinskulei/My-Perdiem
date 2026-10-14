@@ -27,7 +27,7 @@ import { redirect } from 'next/navigation';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { getEnabledModulesForClient } from '@/lib/supabase/modules';
-import { MODULE_KEYS, homePath, type ModuleKey } from '@/lib/modules';
+import { GROUPS, MODULE_KEYS, homePath, type GroupKey, type ModuleKey } from '@/lib/modules';
 import type { AccessTier } from '@/lib/data';
 
 export type PortalKind = 'super' | 'master' | 'client';
@@ -130,6 +130,13 @@ export async function resolvePortal(
  * switched on for the client they're viewing. */
 export function requireModule(portal: PortalInfo, key: ModuleKey): void {
   if (!portal.enabledModules.includes(key)) {
+    redirect(homePath(portal.base));
+  }
+}
+
+/** Same, for a module group: at least one of its submodules must be on. */
+export function requireGroup(portal: PortalInfo, key: GroupKey): void {
+  if (!GROUPS[key].modules.some((m) => portal.enabledModules.includes(m))) {
     redirect(homePath(portal.base));
   }
 }
