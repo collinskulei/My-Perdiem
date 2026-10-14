@@ -1,6 +1,6 @@
 /**
- * @file Funding & Refunds module data access (0037_funding_receipts.sql):
- * money a client received, e.g. a funder reimbursing what it paid out.
+ * @file Refunds module data access (0037_funding_receipts.sql): refund
+ * payments made, one per invoice (receivedDate is the payment date).
  * Reads and edits go through RLS (Super Admin+, or the client's own
  * Organization Admin, and only while the module is on). An invoice number
  * is unique per client, so the same invoice can't be recorded twice.

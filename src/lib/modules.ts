@@ -10,8 +10,7 @@
  *                       keep working)
  *   <portal>/salary     Salary Payments
  *   <portal>/hotels     Hotel Bookings
- *   <portal>/funding    Funding & Refunds (money received - never added
- *                       into a spend total, see `direction`)
+ *   <portal>/funding    Refunds
  *
  * where <portal> is /super-admin, /master-admin or /<slug>-admin.
  */
@@ -31,9 +30,6 @@ export type ModuleInfo = {
   color: string;
   /** Path segment under the portal base. */
   segment: string;
-  /** "out" = money paid out (counts towards spend totals); "in" = money
-   * received (shown on its own, never summed with spend). */
-  direction: "out" | "in";
 };
 
 export const MODULES: Record<ModuleKey, ModuleInfo> = {
@@ -44,7 +40,6 @@ export const MODULES: Record<ModuleKey, ModuleInfo> = {
     icon: Wallet,
     color: "#3b82f6",
     segment: "dashboard",
-    direction: "out",
   },
   salary: {
     key: "salary",
@@ -53,7 +48,6 @@ export const MODULES: Record<ModuleKey, ModuleInfo> = {
     icon: Banknote,
     color: "#10b981",
     segment: "salary",
-    direction: "out",
   },
   hotels: {
     key: "hotels",
@@ -62,21 +56,16 @@ export const MODULES: Record<ModuleKey, ModuleInfo> = {
     icon: Hotel,
     color: "#f59e0b",
     segment: "hotels",
-    direction: "out",
   },
   funding: {
     key: "funding",
-    label: "Funding & Refunds",
-    description: "Money received - reimbursements from funders, reconciled against what was paid out.",
+    label: "Refunds",
+    description: "Refund payments made, recorded per invoice.",
     icon: HandCoins,
     color: "#8b5cf6",
     segment: "funding",
-    direction: "in",
   },
 };
-
-/** Modules whose amounts are money paid out. */
-export const isSpendModule = (key: ModuleKey) => MODULES[key].direction === "out";
 
 export function modulePath(portalBase: string, key: ModuleKey): string {
   return `${portalBase}/${MODULES[key].segment}`;

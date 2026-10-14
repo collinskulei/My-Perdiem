@@ -1,5 +1,5 @@
 /**
- * @file Funding & Refunds module's sidebar tabs - same instant-switch
+ * @file Refunds module's sidebar tabs - same instant-switch
  * pattern as the Hotel Bookings sidebar (hotels-sidebar-navigation.tsx).
  */
 "use client";
@@ -11,8 +11,8 @@ import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui
 import { useAdminTab } from "../admin-tab-context";
 
 export const FUNDING_TABS = [
-  { key: "overview", label: "Reconciliation", icon: LayoutDashboard },
-  { key: "receipts", label: "Receipts", icon: Receipt },
+  { key: "overview", label: "Overview", icon: LayoutDashboard },
+  { key: "payments", label: "Payments", icon: Receipt },
 ] as const;
 
 export function FundingSidebarNavigation({ basePath }: { basePath: string }) {

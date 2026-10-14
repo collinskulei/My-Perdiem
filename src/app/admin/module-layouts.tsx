@@ -1,7 +1,7 @@
 /**
  * @file Server layouts shared by every portal's non-Per-Diem routes:
  * <portal>/home (overall Insights), <portal>/salary (Salary Payments) and
- * <portal>/hotels (Hotel Bookings) and <portal>/funding (Funding & Refunds).
+ * <portal>/hotels (Hotel Bookings) and <portal>/funding (Refunds).
  * Each route's own layout.tsx is a one-liner over these, so the three
  * portals can't drift apart. Same guard as the Per Diem dashboard
  * (resolvePortal, portal-access.ts); no per diem prefetch, since neither

@@ -7,10 +7,7 @@
  *                   own Insights "Total Paid Out")
  *   Salary        = salary cost: gross pay + employer contributions
  *   Hotels        = total paid to hotels (by payment date)
- *
- * Funding & Refunds is money RECEIVED, so it is never part of the Overall
- * Total: it gets its own card (received, and the balance against what
- * the spend modules paid out over the same period).
+ *   Refunds       = total refunds paid (by payment date)
  *
  * All numbers come from get_platform_totals (0037_funding_receipts.sql), one
  * row per module x client x month; this only reshapes them. Super/Master
@@ -33,7 +30,7 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { formatCurrency, formatCurrencyWhole } from "@/lib/utils";
 import * as supabaseDb from "@/lib/supabase/database";
 import { getPlatformTotals, type PlatformTotalRow } from "@/lib/supabase/modules";
-import { MODULES, MODULE_KEYS, isSpendModule, modulePath, type ModuleKey } from "@/lib/modules";
+import { MODULES, MODULE_KEYS, modulePath, type ModuleKey } from "@/lib/modules";
 import type { Client } from "@/lib/data";
 import { usePortal } from "./portal-context";
 import {
@@ -57,7 +54,7 @@ const MODULE_AMOUNT_LABEL: Record<ModuleKey, string> = {
   perdiem: "Total paid out",
   salary: "Salary cost (gross + employer contributions)",
   hotels: "Total paid to hotels",
-  funding: "Money received",
+  funding: "Total refunds paid",
 };
 
 export function PortalHome() {
@@ -73,10 +70,7 @@ export function PortalHome() {
   const clientsRef = useRef<HTMLDivElement>(null);
 
   const crossClient = !!portal && portal.kind !== "client";
-  const enabledModules: ModuleKey[] = portal ? portal.enabledModules : MODULE_KEYS;
-  // Spend modules only - received money is shown separately (see file header).
-  const modules = useMemo(() => enabledModules.filter(isSpendModule), [enabledModules]);
-  const showFunding = enabledModules.includes("funding");
+  const modules: ModuleKey[] = portal ? portal.enabledModules : MODULE_KEYS;
   const [dateFrom, dateTo] = rangeDates(range, customFrom, customTo);
 
   useEffect(() => {
@@ -98,8 +92,6 @@ export function PortalHome() {
 
   const data = useMemo(() => {
     const list = (rows ?? []).filter((r) => modules.includes(r.module));
-    const funded = (rows ?? []).filter((r) => r.module === "funding");
-    const fundedClients = new Set(funded.map((r) => r.clientId));
     const byModule = Object.fromEntries(modules.map((m) => [m, 0])) as Record<ModuleKey, number>;
     const monthly = new Map<string, Record<string, number | string>>();
     const byClient = new Map<string, Record<ModuleKey, number>>();
@@ -127,10 +119,6 @@ export function PortalHome() {
       .sort((a, b) => b.total - a.total);
     return {
       byModule,
-      received: funded.reduce((acc, r) => acc + r.amount, 0),
-      // Balance compares like with like: only spend of clients that have
-      // received money in this period.
-      fundedSpend: list.filter((r) => fundedClients.has(r.clientId)).reduce((acc, r) => acc + r.amount, 0),
       total: modules.reduce((acc, m) => acc + byModule[m], 0),
       trend,
       clientRows,
@@ -238,38 +226,6 @@ export function PortalHome() {
               );
             })}
           </div>
-
-          {showFunding && (() => {
-            const m = MODULES.funding;
-            const Icon = m.icon;
-            const balance = data.received - data.fundedSpend;
-            return (
-              <Card className="animate-in fade-in-0 slide-in-from-bottom-4">
-                <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
-                  <div className="space-y-1">
-                    <CardTitle className="text-base">{m.label}</CardTitle>
-                    <CardDescription>{MODULE_AMOUNT_LABEL.funding} - not part of the overall total</CardDescription>
-                  </div>
-                  <Icon className="h-5 w-5 shrink-0" />
-                </CardHeader>
-                <CardContent className="flex flex-wrap items-end justify-between gap-4">
-                  <div className="space-y-1">
-                    <p className="text-2xl md:text-3xl font-bold tabular-nums" style={{ color: m.color }}>{formatCurrency(data.received)}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {balance >= 0 ? "Received above paid out: " : "Paid out not yet reimbursed: "}
-                      <span className={`font-medium tabular-nums ${balance < 0 ? "text-destructive" : ""}`}>{formatCurrency(Math.abs(balance))}</span>
-                    </p>
-                  </div>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={modulePath(basePath, "funding")}>
-                      Open reconciliation
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            );
-          })()}
 
           <ChartCard title="Monthly Total by Module" chartRef={trendRef} filename="monthly-total-by-module">
             {data.trend.length === 0 ? <EmptyState message="No dated payments in this period." /> : (

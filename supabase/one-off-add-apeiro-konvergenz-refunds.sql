@@ -1,11 +1,10 @@
--- One-off insert: Apeiro's "Konvergenz Refund from T4H" - T4H reimbursing
--- Konvergenz for per diem / hotel / salary spend it paid out (user,
--- 14 Oct 2026). Two invoices, KES 67,489,108 in total:
---   INV00075  KES 40,000,000  received 28 Jul 2025
---   INV00081  KES 27,489,108  received 19 Aug 2025
+-- One-off insert: Apeiro's "Konvergenz Refund from T4H" refund payments
+-- (user, 14 Oct 2026). Two invoices, KES 67,489,108 in total:
+--   INV00075  KES 40,000,000  paid 28 Jul 2025
+--   INV00081  KES 27,489,108  paid 19 Aug 2025
 -- Reference was "N/A" on the source sheet, so it is left blank.
--- Run AFTER 0037_funding_receipts.sql. Switches the Funding & Refunds
--- module on for Apeiro.
+-- Run AFTER 0037_funding_receipts.sql. Switches the Refunds module on
+-- for Apeiro.
 -- NOT a numbered migration - run manually in the Supabase SQL Editor.
 -- The whole thing runs in one transaction; any failed check rolls it all back.
 
@@ -34,7 +33,7 @@ on conflict (client_id, module_key) do update set enabled = true, updated_at = n
 -- Step 3: The two receipts.
 insert into funding_receipts (client_id, invoice_no, description, payer, amount, received_date, reference, notes)
 select c.id, v.invoice_no, 'Konvergenz Refund from T4H', 'T4H', v.amount, v.received_date::date, null,
-       'Reimbursement to Konvergenz for spend paid out (per diem, hotels, salary).'
+       null
 from clients c
 cross join (values
   ('INV00075', 40000000.00, '2025-07-28'),

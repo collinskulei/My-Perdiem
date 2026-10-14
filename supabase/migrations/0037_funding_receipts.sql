@@ -1,14 +1,11 @@
--- Funding & Refunds module (module_key 'funding', see 0030): money a client
--- RECEIVES - reimbursements from a funder for what it has paid out (per
--- diem, hotels, salary). First used for Apeiro: "Konvergenz Refund from
--- T4H", invoices INV00075 / INV00081.
+-- Refunds module (module_key 'funding', see 0030): record-keeping for
+-- refund payments made, one row per invoice. First used for Apeiro:
+-- "Konvergenz Refund from T4H", invoices INV00075 / INV00081. A record
+-- on its own - not reconciled against the other modules. It counts in
+-- the Home page's overall total like Hotel Bookings.
 --
--- Every other module records money going OUT. This one is the other side,
--- so it is never added into a spend total: get_platform_totals returns it
--- as its own 'funding' rows and the Home page shows it as "Received",
--- next to the spend modules rather than inside the Overall Total.
---
---   funding_receipts  one amount received against one invoice
+--   funding_receipts  one refund payment against one invoice
+--                     (received_date = the payment date)
 --
 -- Access: same as Hotel Bookings - anyone who can_access_client() (Super
 -- Admin and above, or that client's own Organization Admin) while the
@@ -33,7 +30,7 @@ create table if not exists public.funding_receipts (
   client_id uuid not null references public.clients (id),
   invoice_no text,
   description text not null check (trim(description) <> ''),
-  -- Who paid it (e.g. T4H).
+  -- Who made the payment (e.g. T4H).
   payer text,
   amount numeric(14,2) not null check (amount > 0),
   received_date date not null,
@@ -91,8 +88,7 @@ create trigger funding_receipts_touch
 
 -- --- Platform-wide totals across modules ---
 
--- Same as 0036 plus a 'funding' branch: amount received, by received
--- month. Callers must keep 'funding' rows out of any spend total.
+-- Same as 0036 plus a 'funding' branch: refunds paid, by payment month.
 create or replace function public.get_platform_totals(
   target_client_id uuid default null,
   p_date_from text default null,

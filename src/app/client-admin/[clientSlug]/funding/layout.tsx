@@ -1,6 +1,6 @@
 import { FundingModuleLayout } from '@/app/admin/module-layouts';
 
-/** A client's Funding & Refunds dashboard - redirects Home if the module is off (see module-layouts.tsx). */
+/** A client's Refunds dashboard - redirects Home if the module is off (see module-layouts.tsx). */
 export default async function ClientAdminFundingLayout({
   children,
   params,

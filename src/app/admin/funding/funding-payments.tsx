@@ -1,8 +1,8 @@
 /**
- * @file Funding & Refunds "Receipts" tab: every amount received, with
- * search, a running total, Excel export, adding and editing a receipt
- * (Organization Admin and above) and deleting receipts (Super Admin and
- * above - RLS enforces the same).
+ * @file Refunds "Payments" tab: every refund payment, with search, a
+ * running total, Excel export, adding and editing a payment (Organization
+ * Admin and above) and deleting payments (Super Admin and above - RLS
+ * enforces the same).
  */
 "use client";
 
@@ -35,14 +35,14 @@ const EMPTY_INPUT: FundingReceiptInput = {
 };
 
 function exportReceipts(receipts: FundingReceipt[], clientName: string) {
-  const header = ["Invoice No", "Description", "Payer", "Amount (KES)", "Reference", "Date Received", "Notes"];
+  const header = ["Invoice No", "Description", "Paid By", "Amount (KES)", "Reference", "Payment Date", "Notes"];
   const rows = receipts.map((r) => [
     r.invoiceNo ?? "", r.description, r.payer ?? "", r.amount, r.reference ?? "N/A", formatDate(r.receivedDate), r.notes ?? "",
   ]);
   const total = ["", "", "TOTAL", receipts.reduce((acc, r) => acc + r.amount, 0), "", "", ""];
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([[`${clientName} - Funding & refunds received`], header, ...rows, total]), "Receipts");
-  XLSX.writeFile(wb, `${(clientName || "client").replace(/[\\/:*?"<>|]+/g, "").replace(/\s+/g, "-")}_funding-receipts.xlsx`);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([[`${clientName} - Refund payments`], header, ...rows, total]), "Refund payments");
+  XLSX.writeFile(wb, `${(clientName || "client").replace(/[\\/:*?"<>|]+/g, "").replace(/\s+/g, "-")}_refund-payments.xlsx`);
 }
 
 function ReceiptFormDialog({ initial, title, suggestions, onClose, onSave }: {
@@ -63,14 +63,14 @@ function ReceiptFormDialog({ initial, title, suggestions, onClose, onSave }: {
   const handleSave = async () => {
     const amount = parseAmount(amountText);
     if (!form.description?.trim()) return setError("Enter a description.");
-    if (!form.receivedDate) return setError("Enter the date received.");
+    if (!form.receivedDate) return setError("Enter the payment date.");
     if (amount === null || amount <= 0) return setError("Enter an amount above zero.");
     setError(null);
     setSaving(true);
     try {
       await onSave({ ...form, amount });
     } catch (e: any) {
-      setError(e?.message ?? "Couldn't save the receipt.");
+      setError(e?.message ?? "Couldn't save the payment.");
     } finally {
       setSaving(false);
     }
@@ -81,7 +81,7 @@ function ReceiptFormDialog({ initial, title, suggestions, onClose, onSave }: {
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>Description, date received and amount are required.</DialogDescription>
+          <DialogDescription>Description, payment date and amount are required.</DialogDescription>
         </DialogHeader>
         <datalist id="funding-descriptions">{suggestions.descriptions.map((v) => <option key={v} value={v} />)}</datalist>
         <datalist id="funding-payers">{suggestions.payers.map((v) => <option key={v} value={v} />)}</datalist>
@@ -91,7 +91,7 @@ function ReceiptFormDialog({ initial, title, suggestions, onClose, onSave }: {
             <Input id="fr-invoice" value={form.invoiceNo ?? ""} onChange={text("invoiceNo")} />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="fr-payer">Received From</Label>
+            <Label htmlFor="fr-payer">Paid By</Label>
             <Input id="fr-payer" list="funding-payers" value={form.payer ?? ""} onChange={text("payer")} />
           </div>
           <div className="space-y-1 sm:col-span-2">
@@ -99,7 +99,7 @@ function ReceiptFormDialog({ initial, title, suggestions, onClose, onSave }: {
             <Input id="fr-desc" list="funding-descriptions" value={form.description} onChange={(e) => set("description", e.target.value)} />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="fr-date">Date Received *</Label>
+            <Label htmlFor="fr-date">Payment Date *</Label>
             <Input id="fr-date" type="date" value={form.receivedDate} onChange={(e) => set("receivedDate", e.target.value)} />
           </div>
           <div className="space-y-1">
@@ -128,7 +128,7 @@ function ReceiptFormDialog({ initial, title, suggestions, onClose, onSave }: {
   );
 }
 
-export function FundingReceipts({ clientId, clientName, receipts, canDelete, onChanged }: {
+export function FundingPayments({ clientId, clientName, receipts, canDelete, onChanged }: {
   clientId: string;
   clientName: string;
   receipts: FundingReceipt[];
@@ -167,10 +167,10 @@ export function FundingReceipts({ clientId, clientName, receipts, canDelete, onC
   const handleSave = async (input: FundingReceiptInput) => {
     if (editing === "new") {
       await addFundingReceipt(clientId, input);
-      toast({ title: "Receipt added", description: `${input.invoiceNo ?? input.description} · KES ${money(input.amount)}` });
+      toast({ title: "Payment added", description: `${input.invoiceNo ?? input.description} · KES ${money(input.amount)}` });
     } else if (editing) {
       await updateFundingReceipt(editing.id, input);
-      toast({ title: "Receipt saved", description: input.invoiceNo ?? input.description });
+      toast({ title: "Payment saved", description: input.invoiceNo ?? input.description });
     }
     setEditing(null);
     onChanged();
@@ -180,11 +180,11 @@ export function FundingReceipts({ clientId, clientName, receipts, canDelete, onC
     setDeleting(true);
     try {
       await deleteFundingReceipts(Array.from(selected));
-      toast({ title: "Receipts deleted", description: `${selected.size} receipt${selected.size === 1 ? "" : "s"} removed.` });
+      toast({ title: "Payments deleted", description: `${selected.size} payment${selected.size === 1 ? "" : "s"} removed.` });
       setSelected(new Set());
       onChanged();
     } catch (e: any) {
-      toast({ title: "Delete failed", description: e?.message ?? "Couldn't delete the receipts.", variant: "destructive" });
+      toast({ title: "Delete failed", description: e?.message ?? "Couldn't delete the payments.", variant: "destructive" });
     } finally {
       setDeleting(false);
       setConfirmDelete(false);
@@ -213,15 +213,15 @@ export function FundingReceipts({ clientId, clientName, receipts, canDelete, onC
           </Button>
           <Button size="sm" onClick={() => setEditing("new")}>
             <Plus className="mr-2 h-4 w-4" />
-            Add receipt
+            Add payment
           </Button>
         </div>
       </div>
 
       {shown.length === 0 ? (
-        <EmptyState message={receipts.length === 0 ? "No money received on file yet." : "No receipts match this search."} />
+        <EmptyState message={receipts.length === 0 ? "No refund payments on file yet." : "No payments match this search."} />
       ) : (
-        <ScrollableTable containerClassName="max-h-[65vh] border rounded-md" stickyHeader aria-label="Funding receipts">
+        <ScrollableTable containerClassName="max-h-[65vh] border rounded-md" stickyHeader aria-label="Refund payments">
           <TableHeader>
             <TableRow>
               {canDelete && (
@@ -231,9 +231,9 @@ export function FundingReceipts({ clientId, clientName, receipts, canDelete, onC
               )}
               <TableHead>Invoice No</TableHead>
               <TableHead>Description</TableHead>
-              <TableHead>Received From</TableHead>
+              <TableHead>Paid By</TableHead>
               <TableHead>Reference</TableHead>
-              <TableHead>Date Received</TableHead>
+              <TableHead>Payment Date</TableHead>
               <TableHead className="text-right">Amount (KES)</TableHead>
               <TableHead className="w-10" />
             </TableRow>
@@ -266,7 +266,7 @@ export function FundingReceipts({ clientId, clientName, receipts, canDelete, onC
           <TableFooter>
             <TableRow>
               <TableCell colSpan={canDelete ? 6 : 5}>
-                {shown.length} receipt{shown.length === 1 ? "" : "s"}
+                {shown.length} payment{shown.length === 1 ? "" : "s"}
                 {shown.length !== receipts.length ? ` of ${receipts.length}` : ""}
               </TableCell>
               <TableCell className="text-right tabular-nums">{money(total)}</TableCell>
@@ -279,7 +279,7 @@ export function FundingReceipts({ clientId, clientName, receipts, canDelete, onC
       {editing !== null && (
         <ReceiptFormDialog
           key={editing === "new" ? "new" : editing.id}
-          title={editing === "new" ? "Add receipt" : "Edit receipt"}
+          title={editing === "new" ? "Add refund payment" : "Edit refund payment"}
           initial={editing === "new" ? EMPTY_INPUT : editing}
           suggestions={suggestions}
           onClose={() => setEditing(null)}
@@ -290,7 +290,7 @@ export function FundingReceipts({ clientId, clientName, receipts, canDelete, onC
       <AlertDialog open={confirmDelete} onOpenChange={(o) => !deleting && setConfirmDelete(o)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete {selected.size} receipt{selected.size === 1 ? "" : "s"}?</AlertDialogTitle>
+            <AlertDialogTitle>Delete {selected.size} payment{selected.size === 1 ? "" : "s"}?</AlertDialogTitle>
             <AlertDialogDescription>
               KES {money(selectedTotal)} will be removed from the records. This can&apos;t be undone.
             </AlertDialogDescription>
