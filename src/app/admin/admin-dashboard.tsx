@@ -7,8 +7,8 @@ import Link from "next/link";
 import { Download, MoreHorizontal, PlusCircle, Calendar as CalendarIcon, Check, ChevronsUpDown, ChevronDown, ChevronLeft, ChevronRight, Loader2, QrCode, Upload, File as FileIcon, X, Wallet, Paperclip, Info, Trash2, Search, AlertTriangle, SlidersHorizontal } from "lucide-react";
 import Image from "next/image";
 import { DateRange } from "react-day-picker";
-import { format, isWithinInterval, parseISO, isPast, endOfDay, subDays, isValid, startOfQuarter, endOfQuarter } from "date-fns";
-import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { format, isWithinInterval, parseISO, isPast, endOfDay, isValid, startOfQuarter, endOfQuarter } from "date-fns";
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { QRCodeCanvas } from 'qrcode.react';
 import * as XLSX from 'xlsx';
 import { captureNodeAsJpeg } from './insights/shared';
@@ -302,22 +302,29 @@ type RecordRecoveryState = {
 const defaultRecordRecoveryState: RecordRecoveryState = { request: null, isOpen: false, amount: '' };
 
 
-const toCSV = (data: any[], columns: string[], columnHeaders: string[]): string => {
-  const header = columnHeaders.join(',') + '\n';
+/**
+ * CSV for the Reports downloads. Columns listed in `textColumns` (phone and
+ * ID numbers) are written as ="..." so Excel keeps them as text - otherwise
+ * it drops a phone's leading 0 and shows 254... numbers as 2.54E+11.
+ * Values with a comma, quote or line break are quoted.
+ */
+const toCSV = (data: any[], columns: string[], columnHeaders: string[], textColumns: string[] = []): string => {
+  const quote = (v: string) => (/[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+  const header = columnHeaders.map(quote).join(',') + '\n';
   const rows = data.map(row =>
     columns.map(colName => {
-      let cellData = row[colName];
-      if (cellData === null || cellData === undefined) return '""';
-      cellData = String(cellData).replace(/"/g, '""');
-      if (String(cellData).includes(',')) cellData = `"${cellData}"`;
-      return cellData;
+      const cellData = row[colName];
+      if (cellData === null || cellData === undefined || cellData === '') return '';
+      const text = String(cellData);
+      if (textColumns.includes(colName)) return `"=""${text.replace(/"/g, '')}"""`;
+      return quote(text);
     }).join(',')
   ).join('\n');
   return header + rows;
 };
 
 const downloadCSV = (csvData: string, filename: string) => {
-    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\uFEFF' + csvData], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
@@ -1231,7 +1238,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
         "Transport Allowance (Ksh)", "DSA Allowance (Ksh)",
         "Total Amount (Ksh)", "Status", "Transaction Code", "Flag Reason", "ID Number", "Notes"
     ];
-    const csvData = toCSV(detailedData, columns, columnHeaders);
+    const csvData = toCSV(detailedData, columns, columnHeaders, ["participantPhone", "participantIdNumber"]);
     downloadCSV(csvData, `${reportName}_report.csv`);
   };
 
@@ -3161,7 +3168,6 @@ function AmendedReportTabContent({ title, data, loading, onRecordRecovery, event
 
 function AnalyticsTabContent({ requests, clients, loading, clientScoped }: { requests: PerdiemRequest[], clients: Client[], loading: boolean, clientScoped: boolean }) {
   const pieChartRef = useRef<HTMLDivElement>(null);
-  const barChartRef = useRef<HTMLDivElement>(null);
   
   const handleDownloadChart = (ref: React.RefObject<HTMLDivElement>, filename: string) => {
     if (ref.current === null) {
@@ -3196,26 +3202,6 @@ function AnalyticsTabContent({ requests, clients, loading, clientScoped }: { req
 
     const pieChartData = Object.entries(requestsByStatus).map(([name, value]) => ({ name, value }));
 
-    const requestsByDate = requests.reduce((acc, req) => {
-      // A malformed date (e.g. a raw Excel serial number that leaked through
-      // an import) must not throw here - it just won't land in any of the
-      // last-30-days buckets below, instead of crashing the whole chart.
-      const parsed = new Date(req.date);
-      if (!isValid(parsed)) return acc;
-      const date = format(parsed, 'yyyy-MM-dd');
-      acc[date] = (acc[date] || 0) + 1;
-      return acc;
-    }, {} as { [key: string]: number });
-
-    const last30Days = Array.from({ length: 30 }, (_, i) => {
-      const date = subDays(new Date(), i);
-      const formattedDate = format(date, 'yyyy-MM-dd');
-      return {
-        date: format(date, 'MMM d'),
-        count: requestsByDate[formattedDate] || 0,
-      };
-    }).reverse();
-
     // Includes overpayment-flagged Amended rows (money already disbursed) -
     // see isTransacted's comment in @/lib/data. The overpayment/recovery
     // breakdown itself lives in the Amended report tab, not subtracted here.
@@ -3236,7 +3222,7 @@ function AnalyticsTabContent({ requests, clients, loading, clientScoped }: { req
     // (importedAt set). See liveRequests/historicalPayments in AdminDashboard.
     const paymentsCount = requests.filter((r) => r.importedAt).length;
 
-    return { pieChartData, last30Days, totalPaid, requestsCount: requests.length - paymentsCount, paymentsCount, COLORS };
+    return { pieChartData, totalPaid, paymentsCount, COLORS };
   }, [requests]);
 
   const { toast } = useToast();
@@ -3262,21 +3248,12 @@ function AnalyticsTabContent({ requests, clients, loading, clientScoped }: { req
     <div className="space-y-6">
       <div className="space-y-1">
         <h2 className="text-2xl font-bold tracking-tight">Analytics Overview</h2>
-        <p className="text-muted-foreground">A high-level view of per diem request trends.</p>
+        <p className="text-muted-foreground">A high-level view of per diem payments.</p>
       </div>
 
       <ParticipantLookup clients={clients} clientScoped={clientScoped} />
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle>Total Requests</CardTitle>
-            <CardDescription>Per diem requests submitted through the app.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl sm:text-3xl md:text-4xl font-bold break-words">{chartData.requestsCount.toLocaleString()}</p>
-          </CardContent>
-        </Card>
+      <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Total Payments</CardTitle>
@@ -3297,14 +3274,14 @@ function AnalyticsTabContent({ requests, clients, loading, clientScoped }: { req
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6">
         <Card ref={pieChartRef}>
           <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-            <CardTitle>Requests by Status</CardTitle>
+            <CardTitle>Payments by Status</CardTitle>
              <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleDownloadChart(pieChartRef, 'requests-by-status')}
+                onClick={() => handleDownloadChart(pieChartRef, 'payments-by-status')}
             >
                 <Download className="mr-2 h-4 w-4" />
                 Download JPEG
@@ -3318,34 +3295,9 @@ function AnalyticsTabContent({ requests, clients, loading, clientScoped }: { req
                     <Cell key={`cell-${index}`} fill={chartData.COLORS[entry.name as keyof typeof chartData.COLORS] || '#ccc'} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value, name) => [`${value} requests`, name]} />
+                <Tooltip formatter={(value, name) => [`${value} payments`, name]} />
                 <Legend />
               </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        <Card ref={barChartRef}>
-          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-            <CardTitle>Requests in Last 30 Days</CardTitle>
-            <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleDownloadChart(barChartRef, 'requests-last-30-days')}
-            >
-                <Download className="mr-2 h-4 w-4" />
-                Download JPEG
-            </Button>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData.last30Days}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="count" fill="hsl(var(--primary))" name="Requests" />
-              </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
