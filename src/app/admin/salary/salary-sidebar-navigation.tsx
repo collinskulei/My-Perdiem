@@ -18,7 +18,8 @@ export const SALARY_TABS = [
   { key: "runs", label: "Monthly Runs", icon: CalendarRange },
   { key: "employees", label: "Employees", icon: Users },
   { key: "statutory", label: "Statutory", icon: Landmark },
-  { key: "upload", label: "Upload", icon: Upload },
+  // Uploads are done by Super Admins for now - hidden from Organization Admins.
+  { key: "upload", label: "Upload", icon: Upload, superAdminOnly: true },
   { key: "setup", label: "Employers & Templates", icon: Settings2, superAdminOnly: true },
 ] as const;
 

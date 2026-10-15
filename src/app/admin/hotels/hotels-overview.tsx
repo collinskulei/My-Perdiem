@@ -19,7 +19,7 @@ import { money, rollupByEvent, rollupByHotel, shortCurrency, totalsBy, totalsByM
 
 const TOP_HOTELS = 10;
 
-export function HotelsOverview({ payments, onUpload }: { payments: HotelPayment[]; onUpload: () => void }) {
+export function HotelsOverview({ payments, onUpload }: { payments: HotelPayment[]; onUpload?: () => void }) {
   const monthRef = useRef<HTMLDivElement>(null);
   const hotelRef = useRef<HTMLDivElement>(null);
   const typeRef = useRef<HTMLDivElement>(null);
@@ -35,10 +35,12 @@ export function HotelsOverview({ payments, onUpload }: { payments: HotelPayment[
     return (
       <div className="text-center p-10 text-muted-foreground space-y-3">
         <p>No hotel payments on file yet.</p>
+        {onUpload && (
         <Button variant="outline" size="sm" onClick={onUpload}>
           <Upload className="mr-2 h-4 w-4" />
           Upload a hotel payments file
         </Button>
+        )}
       </div>
     );
   }

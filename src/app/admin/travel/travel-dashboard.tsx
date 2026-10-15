@@ -83,7 +83,7 @@ export function TravelDashboard({ currentTab }: { currentTab: string }) {
   const client = crossClient ? clients?.find((c) => c.id === clientId) ?? null : null;
   const clientName = portal?.clientName ?? client?.name ?? "";
 
-  const tab = TRAVEL_TABS.some((t) => t.key === activeTab) ? activeTab : "overview";
+  const tab = TRAVEL_TABS.some((t) => t.key === activeTab && (!("superAdminOnly" in t) || canDelete)) ? activeTab : "overview";
   const basePath = portal ? modulePath(portal.base, "travel") : "";
   const goTo = (t: string) => {
     setActiveTab(t);
@@ -166,7 +166,7 @@ export function TravelDashboard({ currentTab }: { currentTab: string }) {
       ) : tab === "payments" ? (
         <TravelPayments clientId={clientId} clientName={clientName} payments={shown} canDelete={canDelete} onChanged={load} />
       ) : (
-        <TravelOverview payments={shown} onUpload={() => goTo("upload")} />
+        <TravelOverview payments={shown} onUpload={canDelete ? () => goTo("upload") : undefined} />
       )}
     </div>
   );

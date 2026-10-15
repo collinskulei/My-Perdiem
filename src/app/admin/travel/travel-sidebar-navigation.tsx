@@ -10,11 +10,14 @@ import { LayoutDashboard, Receipt, Upload, User } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "@/components/ui/sidebar";
 import { useAdminTab } from "../admin-tab-context";
+import { usePortal } from "../portal-context";
+import { isSuperAdminTier } from "../salary/salary-sidebar-navigation";
 
 export const TRAVEL_TABS = [
   { key: "overview", label: "Overview", icon: LayoutDashboard },
   { key: "payments", label: "Payments", icon: Receipt },
-  { key: "upload", label: "Upload", icon: Upload },
+  // Uploads are done by Super Admins for now - hidden from Organization Admins.
+  { key: "upload", label: "Upload", icon: Upload, superAdminOnly: true },
 ] as const;
 
 export type TravelTab = (typeof TRAVEL_TABS)[number]["key"];
@@ -22,10 +25,11 @@ export type TravelTab = (typeof TRAVEL_TABS)[number]["key"];
 export function TravelSidebarNavigation({ basePath }: { basePath: string }) {
   const { activeTab, setActiveTab } = useAdminTab();
   const pathname = usePathname();
+  const portal = usePortal();
 
   return (
     <SidebarMenu>
-      {TRAVEL_TABS.map((t) => {
+      {TRAVEL_TABS.filter((t) => !("superAdminOnly" in t) || isSuperAdminTier(portal?.tier)).map((t) => {
         const Icon = t.icon;
         const href = t.key === "overview" ? basePath : `${basePath}?tab=${t.key}`;
         return (

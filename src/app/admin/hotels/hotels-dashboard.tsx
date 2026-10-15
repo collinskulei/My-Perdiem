@@ -83,7 +83,7 @@ export function HotelsDashboard({ currentTab }: { currentTab: string }) {
   const client = crossClient ? clients?.find((c) => c.id === clientId) ?? null : null;
   const clientName = portal?.clientName ?? client?.name ?? "";
 
-  const tab = HOTEL_TABS.some((t) => t.key === activeTab) ? activeTab : "overview";
+  const tab = HOTEL_TABS.some((t) => t.key === activeTab && (!("superAdminOnly" in t) || canDelete)) ? activeTab : "overview";
   const basePath = portal ? modulePath(portal.base, "hotels") : "";
   const goTo = (t: string) => {
     setActiveTab(t);
@@ -168,7 +168,7 @@ export function HotelsDashboard({ currentTab }: { currentTab: string }) {
       ) : tab === "hotels" ? (
         <HotelsList payments={shown} clientName={clientName} />
       ) : (
-        <HotelsOverview payments={shown} onUpload={() => goTo("upload")} />
+        <HotelsOverview payments={shown} onUpload={canDelete ? () => goTo("upload") : undefined} />
       )}
     </div>
   );

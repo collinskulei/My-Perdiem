@@ -24,7 +24,7 @@ export function SalaryOverview({ summaries }: { summaries: SalaryRunSummary[] })
   const months = useMemo(() => rollupByPeriod(summaries), [summaries]);
 
   if (months.length === 0) {
-    return <EmptyState message="No salary months on file yet - upload muster rolls from the Upload tab." />;
+    return <EmptyState message="No salary months on file yet." />;
   }
 
   const latest = months[months.length - 1];

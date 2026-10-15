@@ -20,7 +20,7 @@ import { totalsBy, totalsByMonthAndType } from "./travel-shared";
 
 const isFlight = (p: TravelPayment) => /flight/i.test(p.paymentType ?? "");
 
-export function TravelOverview({ payments, onUpload }: { payments: TravelPayment[]; onUpload: () => void }) {
+export function TravelOverview({ payments, onUpload }: { payments: TravelPayment[]; onUpload?: () => void }) {
   const monthRef = useRef<HTMLDivElement>(null);
   const typeRef = useRef<HTMLDivElement>(null);
   const supplierRef = useRef<HTMLDivElement>(null);
@@ -34,10 +34,12 @@ export function TravelOverview({ payments, onUpload }: { payments: TravelPayment
     return (
       <div className="text-center p-10 text-muted-foreground space-y-3">
         <p>No travel payments on file yet.</p>
+        {onUpload && (
         <Button variant="outline" size="sm" onClick={onUpload}>
           <Upload className="mr-2 h-4 w-4" />
           Upload a travel payments file
         </Button>
+        )}
       </div>
     );
   }

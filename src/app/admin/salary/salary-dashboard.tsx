@@ -101,7 +101,7 @@ export function SalaryDashboard({ currentTab }: { currentTab: string }) {
     return employers.length === 1 ? employers[0] : null;
   }, [employers, employerId]);
 
-  const tab = SALARY_TABS.some((t) => t.key === activeTab) && (activeTab !== "setup" || canSetup) ? activeTab : "overview";
+  const tab = SALARY_TABS.some((t) => t.key === activeTab && (!("superAdminOnly" in t) || canSetup)) ? activeTab : "overview";
   const basePath = portal ? modulePath(portal.base, "salary") : "";
   const goTo = (t: string) => {
     setActiveTab(t);
