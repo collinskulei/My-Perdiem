@@ -733,6 +733,32 @@ export const getPerdiemRecipientCount = async (clientId: string | null, filters:
 };
 
 /**
+ * Per month: distinct people paid and amount paid (Total Paid Out rule),
+ * under the Insights filters, from monthFrom ('YYYY-MM') on - see
+ * 0039_monthly_recipients_rpc.sql. Null when the RPC is missing (0039 not
+ * applied yet) so the chart can fall back to its old series.
+ */
+export const getPerdiemMonthlyRecipients = async (
+  clientId: string | null,
+  filters: InsightsFilters,
+  monthFrom: string,
+  client: SupabaseClient = supabase
+): Promise<{ month: string; recipients: number; amount: number }[] | null> => {
+  const { data, error } = await client.rpc('get_perdiem_monthly_recipients', {
+    target_client_id: clientId,
+    p_event_ids: filters.eventIds,
+    p_date_from: filters.dateFrom,
+    p_date_to: filters.dateTo,
+    p_month_from: monthFrom,
+  });
+  if (error) {
+    console.error("Error fetching monthly recipients: ", error);
+    return null;
+  }
+  return ((data ?? []) as any[]).map((m) => ({ month: m.month, recipients: Number(m.recipients), amount: Number(m.amount) }));
+};
+
+/**
  * Insights tab filters, as the RPCs in 0026_insights_stats_rpc.sql take
  * them: eventIds null = no event filter (an empty array matches nothing),
  * dates as inclusive 'YYYY-MM-DD' strings.
@@ -761,6 +787,8 @@ export type InsightsStats = {
   byStatus: { status: string; count: number; amount: number }[];
   byClient: { clientId: string | null; requestCount: number; totalPaid: number }[];
   monthlyByClient: { clientId: string | null; month: string; count: number; amount: number }[];
+  /** Last 6 months: people paid and amount paid; null before 0039. */
+  monthlyRecipients: { month: string; recipients: number; amount: number }[] | null;
   daily: { day: string; count: number }[];
   allowances: { mileage: number; accommodation: number; outOfOffice: number; airTicket: number; groundTransfer: number; transport: number; dsa: number };
   /** Counts per bucket, same order as AMOUNT_BUCKETS in insights/financial.tsx. */
@@ -782,7 +810,11 @@ export type InsightsStats = {
  * invoker`, so RLS scoping applies exactly as it does to getPerDiemRequests().
  */
 export const getInsightsStats = async (filters: InsightsFilters, trendFrom: string, client: SupabaseClient = supabase): Promise<InsightsStats> => {
-  const [{ data, error }, recipientCount, pending] = await Promise.all([
+  const sixMonthsBack = new Date();
+  sixMonthsBack.setDate(1);
+  sixMonthsBack.setMonth(sixMonthsBack.getMonth() - 5);
+  const monthFrom = `${sixMonthsBack.getFullYear()}-${String(sixMonthsBack.getMonth() + 1).padStart(2, '0')}`;
+  const [{ data, error }, recipientCount, pending, monthlyRecipients] = await Promise.all([
     client.rpc('get_insights_stats', {
       p_event_ids: filters.eventIds,
       p_date_from: filters.dateFrom,
@@ -791,6 +823,7 @@ export const getInsightsStats = async (filters: InsightsFilters, trendFrom: stri
     }),
     getPerdiemRecipientCount(null, filters, client),
     getPerdiemPendingStats(null, filters, client),
+    getPerdiemMonthlyRecipients(null, filters, monthFrom, client),
   ]);
   if (error || !data) {
     console.error("Error fetching insights stats: ", error);
@@ -808,6 +841,7 @@ export const getInsightsStats = async (filters: InsightsFilters, trendFrom: stri
     byStatus: d.by_status.map((s: any) => ({ status: s.status, count: Number(s.count), amount: Number(s.amount) })),
     byClient: d.by_client.map((c: any) => ({ clientId: c.client_id, requestCount: Number(c.request_count), totalPaid: Number(c.total_paid) })),
     monthlyByClient: d.monthly_by_client.map((m: any) => ({ clientId: m.client_id, month: m.month, count: Number(m.count), amount: Number(m.amount) })),
+    monthlyRecipients,
     daily: d.daily.map((x: any) => ({ day: x.day, count: Number(x.count) })),
     allowances: {
       mileage: Number(d.allowances.mileage),

@@ -93,7 +93,7 @@ export function ParticipantLookup({ clients, filters = null, clientScoped = fals
           <>
             <div className="flex flex-wrap gap-x-8 gap-y-2">
               <div>
-                <p className="text-sm text-muted-foreground">Matching Requests</p>
+                <p className="text-sm text-muted-foreground">Matching Payments</p>
                 <p className="text-2xl font-bold">{matchCount}</p>
               </div>
               <div>

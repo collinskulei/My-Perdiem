@@ -56,7 +56,7 @@ export function CrossClientSection({ stats, events, participants, clients }: {
     const maxParticipants = maxOf("participantCount");
     const maxEvents = maxOf("eventCount");
     const metrics: { metric: string; get: (r: Rollup) => number }[] = [
-      { metric: "Requests", get: r => (r.requestCount / maxRequests) * 100 },
+      { metric: "Payments", get: r => (r.requestCount / maxRequests) * 100 },
       { metric: "Amount Paid", get: r => (r.totalPaid / maxPaid) * 100 },
       { metric: "Recipients", get: r => (r.participantCount / maxParticipants) * 100 },
       { metric: "Events", get: r => (r.eventCount / maxEvents) * 100 },
@@ -100,7 +100,7 @@ export function CrossClientSection({ stats, events, participants, clients }: {
         description="Compare activity and spend across every client on the platform - unique to Super/Master Admin."
         onDownloadSection={() => downloadSectionAsPdf([
           { ref: tableRef, title: "Per-Client Rollup" },
-          { ref: barRef, title: "Requests per Client" },
+          { ref: barRef, title: "Payments per Client" },
           { ref: radarRef, title: "Client Comparison" },
           { ref: lineRef, title: "Client Activity Over Time" },
         ], "cross-client-insights")}
@@ -119,7 +119,7 @@ export function CrossClientSection({ stats, events, participants, clients }: {
               <TableHeader>
                 <TableRow>
                   <TableHead>Client</TableHead>
-                  <TableHead className="text-right">{sortButton("requestCount", "Requests")}</TableHead>
+                  <TableHead className="text-right">{sortButton("requestCount", "Payments")}</TableHead>
                   <TableHead className="text-right">{sortButton("totalPaid", "Total Paid")}</TableHead>
                   <TableHead className="text-right">{sortButton("participantCount", "Recipients")}</TableHead>
                   <TableHead className="text-right">{sortButton("eventCount", "Events")}</TableHead>
@@ -141,14 +141,14 @@ export function CrossClientSection({ stats, events, participants, clients }: {
       </InsightCard>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <ChartCard title="Requests per Client" chartRef={barRef} filename="requests-per-client">
+        <ChartCard title="Payments per Client" chartRef={barRef} filename="payments-per-client">
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={sortedRollups} layout="vertical" margin={{ left: 24 }}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
               <XAxis type="number" allowDecimals={false} />
               <YAxis type="category" dataKey="name" width={120} />
               <Tooltip {...glassTooltipStyle} />
-              <Bar dataKey="requestCount" name="Requests" radius={[0, 6, 6, 0]}>
+              <Bar dataKey="requestCount" name="Payments" radius={[0, 6, 6, 0]}>
                 {sortedRollups.map((_, i) => <Cell key={i} fill={paletteColor(i)} />)}
               </Bar>
             </BarChart>

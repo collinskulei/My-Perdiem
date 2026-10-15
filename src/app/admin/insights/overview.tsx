@@ -60,11 +60,22 @@ export function OverviewSection({ stats, events, clients, clientScoped = false }
       const monthStart = startOfMonth(subMonths(new Date(), i));
       monthly.set(format(monthStart, "yyyy-MM"), { month: format(monthStart, "MMM yyyy"), count: 0, amount: 0 });
     }
-    for (const m of stats.monthlyByClient) {
-      const bucket = monthly.get(m.month);
-      if (!bucket) continue; // outside the 6-month window
-      bucket.count += m.count;
-      bucket.amount += m.amount;
+    // People paid and amount paid per month (0039); before 0039 is applied,
+    // every record and the sum of every status, as the chart used to show.
+    if (stats.monthlyRecipients) {
+      for (const m of stats.monthlyRecipients) {
+        const bucket = monthly.get(m.month);
+        if (!bucket) continue; // outside the 6-month window
+        bucket.count = m.recipients;
+        bucket.amount = m.amount;
+      }
+    } else {
+      for (const m of stats.monthlyByClient) {
+        const bucket = monthly.get(m.month);
+        if (!bucket) continue;
+        bucket.count += m.count;
+        bucket.amount += m.amount;
+      }
     }
     const composedData = Array.from(monthly.values());
 
@@ -82,6 +93,7 @@ export function OverviewSection({ stats, events, clients, clientScoped = false }
       trendData,
       topClients,
       composedData,
+      composedIsRecipients: stats.monthlyRecipients != null,
       treemapData,
     };
   }, [stats, events, clients]);
@@ -89,7 +101,7 @@ export function OverviewSection({ stats, events, clients, clientScoped = false }
   const smallCardCols = 1 + (data.totalRecipients != null ? 1 : 0) + (clientScoped ? 0 : 1);
 
   if (stats.totals.requestCount === 0) {
-    return <EmptyState message="No per diem data yet - once requests exist, this section fills in automatically." />;
+    return <EmptyState message="No per diem data yet - once payments exist, this section fills in automatically." />;
   }
 
   return (
@@ -99,10 +111,10 @@ export function OverviewSection({ stats, events, clients, clientScoped = false }
         title="Overview"
         description={clientScoped ? "Your organization's activity at a glance." : "Platform-wide activity at a glance, across every client."}
         onDownloadSection={() => downloadSectionAsPdf([
-          { ref: statusRef, title: "Requests by Status" },
-          { ref: trendRef, title: "Requests Trend (90 Days)" },
+          { ref: statusRef, title: "Payments by Status" },
+          { ref: trendRef, title: "Payments Trend (90 Days)" },
           ...(clientScoped ? [] : [{ ref: topClientsRef, title: "Top Clients by Amount Paid" }]),
-          { ref: composedRef, title: "Requests Volume vs Amount Paid" },
+          { ref: composedRef, title: data.composedIsRecipients ? "Recipients vs Amount Paid" : "Payments Volume vs Amount Paid" },
           ...(clientScoped ? [] : [{ ref: treemapRef, title: "Client Share of Total Spend" }]),
         ], "overview-insights")}
       />
@@ -112,7 +124,7 @@ export function OverviewSection({ stats, events, clients, clientScoped = false }
       given half a row each instead of competing for space with the three
       short-integer cards below. */}
       <div className={cn("grid gap-6 grid-cols-1 sm:grid-cols-2", stats.pending && "xl:grid-cols-3")}>
-        <StatCard icon={ClipboardList} label="Total Requests" value={data.totalRequests} delay={0} />
+        <StatCard icon={ClipboardList} label="Total Payments" value={data.totalRequests} delay={0} />
         <StatCard icon={Wallet} label="Total Paid Out" value={data.totalPaidOut} formatter={formatCurrencyWhole} delay={50} />
         {/* Imported payments still owed - not part of Total Paid Out. Hidden
         (null) until 0033_imported_pending_payments.sql is applied. */}
@@ -132,7 +144,7 @@ export function OverviewSection({ stats, events, clients, clientScoped = false }
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <ChartCard title="Requests by Status" chartRef={statusRef} filename="requests-by-status">
+        <ChartCard title="Payments by Status" chartRef={statusRef} filename="payments-by-status">
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie data={data.statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} innerRadius={55} paddingAngle={2} label>
@@ -140,13 +152,13 @@ export function OverviewSection({ stats, events, clients, clientScoped = false }
                   <Cell key={i} fill={STATUS_COLORS[entry.name] ?? paletteColor(i)} />
                 ))}
               </Pie>
-              <Tooltip {...glassTooltipStyle} formatter={(value: number, name: string) => [`${value} requests`, name]} />
+              <Tooltip {...glassTooltipStyle} formatter={(value: number, name: string) => [`${value} payments`, name]} />
               <Legend />
             </PieChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Requests Trend (90 Days)" chartRef={trendRef} filename="requests-trend-90-days">
+        <ChartCard title="Payments Trend (90 Days)" chartRef={trendRef} filename="payments-trend-90-days">
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={data.trendData}>
               <defs>
@@ -159,7 +171,7 @@ export function OverviewSection({ stats, events, clients, clientScoped = false }
               <XAxis dataKey="date" interval={13} />
               <YAxis allowDecimals={false} />
               <Tooltip {...glassTooltipStyle} />
-              <Area type="monotone" dataKey="count" stroke="hsl(var(--primary))" fill="url(#trendGradient)" name="Requests" />
+              <Area type="monotone" dataKey="count" stroke="hsl(var(--primary))" fill="url(#trendGradient)" name="Payments" />
             </AreaChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -168,7 +180,7 @@ export function OverviewSection({ stats, events, clients, clientScoped = false }
       <div className={cn("grid gap-6", !clientScoped && "lg:grid-cols-2")}>
         {!clientScoped && (
         <ChartCard title="Top Clients by Amount Paid" chartRef={topClientsRef} filename="top-clients-by-amount-paid">
-          {data.topClients.length === 0 ? <EmptyState message="No paid requests yet." /> : (
+          {data.topClients.length === 0 ? <EmptyState message="No payments recorded as paid yet." /> : (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={data.topClients} layout="vertical" margin={{ left: 24 }}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
@@ -184,17 +196,21 @@ export function OverviewSection({ stats, events, clients, clientScoped = false }
         </ChartCard>
         )}
 
-        <ChartCard title="Requests Volume vs Amount Paid" chartRef={composedRef} filename="requests-volume-vs-amount">
+        <ChartCard
+          title={data.composedIsRecipients ? "Recipients vs Amount Paid" : "Payments Volume vs Amount Paid"}
+          chartRef={composedRef}
+          filename={data.composedIsRecipients ? "recipients-vs-amount-paid" : "payments-volume-vs-amount"}
+        >
           <ResponsiveContainer width="100%" height={300}>
             <ComposedChart data={data.composedData}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
               <XAxis dataKey="month" />
               <YAxis yAxisId="left" allowDecimals={false} />
               <YAxis yAxisId="right" orientation="right" tickFormatter={(v) => formatCurrency(v)} />
-              <Tooltip {...glassTooltipStyle} formatter={(v: number, name: string) => name === "amount" ? formatCurrency(v) : v} />
+              <Tooltip {...glassTooltipStyle} formatter={(v: number, name: string) => name === "Amount Paid" || name === "Amount" ? formatCurrency(v) : v} />
               <Legend />
-              <Bar yAxisId="left" dataKey="count" name="Requests" fill={paletteColor(0)} radius={[6, 6, 0, 0]} />
-              <Line yAxisId="right" type="monotone" dataKey="amount" name="Amount" stroke="hsl(var(--primary))" strokeWidth={2} />
+              <Bar yAxisId="left" dataKey="count" name={data.composedIsRecipients ? "Recipients" : "Payments"} fill={paletteColor(0)} radius={[6, 6, 0, 0]} />
+              <Line yAxisId="right" type="monotone" dataKey="amount" name={data.composedIsRecipients ? "Amount Paid" : "Amount"} stroke="hsl(var(--primary))" strokeWidth={2} />
             </ComposedChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -202,7 +218,7 @@ export function OverviewSection({ stats, events, clients, clientScoped = false }
 
       {!clientScoped && (
       <ChartCard title="Client Share of Total Spend" chartRef={treemapRef} filename="client-share-of-spend">
-        {data.treemapData.length === 0 ? <EmptyState message="No paid requests yet." /> : (
+        {data.treemapData.length === 0 ? <EmptyState message="No payments recorded as paid yet." /> : (
           <ResponsiveContainer width="100%" height={320}>
             <Treemap data={data.treemapData} dataKey="size" nameKey="name" stroke="hsl(var(--card))">
               {data.treemapData.map((_, i) => <Cell key={i} fill={paletteColor(i)} />)}

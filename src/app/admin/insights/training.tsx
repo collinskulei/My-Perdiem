@@ -173,7 +173,7 @@ export function TrainingSection({ stats, events, venues, clientScoped = false }:
       </div>
 
       <ChartCard title="Training Days vs Amount Paid" chartRef={scatterRef} filename="training-days-vs-amount">
-        {data.scatterData.length === 0 ? <EmptyState message="No matching request/event data yet." /> : (
+        {data.scatterData.length === 0 ? <EmptyState message="No matching payment/event data yet." /> : (
           <ResponsiveContainer width="100%" height={300}>
             <ScatterChart>
               <CartesianGrid strokeDasharray="3 3" opacity={0.2} />

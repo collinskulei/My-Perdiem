@@ -49,7 +49,7 @@ export function AmendmentsSection({ stats, clients, clientScoped = false }: { st
   }, [stats]);
 
   if (stats.amendedRows.length === 0) {
-    return <EmptyState message="No amended requests yet - once a request is corrected or flagged as overpaid, it'll show up here." />;
+    return <EmptyState message="No amended payments yet - once a payment is corrected or flagged as overpaid, it'll show up here." />;
   }
 
   return (
@@ -57,7 +57,7 @@ export function AmendmentsSection({ stats, clients, clientScoped = false }: { st
       <SectionHeader
         icon={FileEdit}
         title="Amendments"
-        description={`Every corrected or overpaid request${clientScoped ? "" : " across all clients"}, and how much of each overpayment is still outstanding.`}
+        description={`Every corrected or overpaid payment${clientScoped ? "" : " across all clients"}, and how much of each overpayment is still outstanding.`}
         onDownloadSection={() => downloadSectionAsPdf([{ ref: tableRef, title: "Amendments" }], "amendments-insights")}
       />
 
@@ -106,7 +106,7 @@ export function AmendmentsSection({ stats, clients, clientScoped = false }: { st
               </TableBody>
             </Table>
           {data.overpaymentCount === 0 && (
-            <p className="text-sm text-muted-foreground">None of the amendments above are overpayments needing recovery - just requests corrected before payment.</p>
+            <p className="text-sm text-muted-foreground">None of the amendments above are overpayments needing recovery - just amounts corrected before payment.</p>
           )}
         </div>
       </InsightCard>

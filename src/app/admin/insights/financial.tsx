@@ -49,7 +49,7 @@ export function FinancialSection({ stats }: { stats: InsightsStats }) {
   }, [stats]);
 
   if (stats.totals.requestCount === 0) {
-    return <EmptyState message="No per diem data yet - once requests exist, this section fills in automatically." />;
+    return <EmptyState message="No per diem data yet - once payments exist, this section fills in automatically." />;
   }
 
   return (
@@ -67,7 +67,7 @@ export function FinancialSection({ stats }: { stats: InsightsStats }) {
       />
 
       <div className="grid gap-6 sm:grid-cols-2">
-        <StatCard icon={TrendingUp} label="Average Per Diem per Request" value={data.avgPerDiem} formatter={formatCurrencyWhole} delay={0} />
+        <StatCard icon={TrendingUp} label="Average Per Diem per Payment" value={data.avgPerDiem} formatter={formatCurrencyWhole} delay={0} />
         <StatCard icon={ArrowRightLeft} label="Total Amendment Delta" value={data.totalAmendmentDelta} formatter={formatCurrencyWhole} delay={50} />
       </div>
 
@@ -105,7 +105,7 @@ export function FinancialSection({ stats }: { stats: InsightsStats }) {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <ChartCard title="Amendment: Original vs Amended Amount" chartRef={scatterRef} filename="amendment-original-vs-amended">
-          {data.scatterData.length === 0 ? <EmptyState message="No amended requests yet." /> : (
+          {data.scatterData.length === 0 ? <EmptyState message="No amended payments yet." /> : (
             <ResponsiveContainer width="100%" height={300}>
               <ScatterChart>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
@@ -126,7 +126,7 @@ export function FinancialSection({ stats }: { stats: InsightsStats }) {
               <XAxis dataKey="range" />
               <YAxis allowDecimals={false} />
               <Tooltip {...glassTooltipStyle} />
-              <Bar dataKey="count" name="Requests" fill={paletteColor(2)} radius={[6, 6, 0, 0]} />
+              <Bar dataKey="count" name="Payments" fill={paletteColor(2)} radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
