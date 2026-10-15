@@ -177,12 +177,18 @@ export function AdminOverviewTab({
           href={link("participants")} onNavigate={go("participants")} delay={next()}
         />
       )}
-      <OverviewCard
-        icon={ClipboardList} label="Per Diem Requests" value={requestStats?.pendingRequests ?? 0}
-        subtitle={requestStats ? `${requestStats.totalRequests.toLocaleString()} total` : undefined}
-        loading={requestsLoading}
-        href={link("requests")} onNavigate={go("requests")} delay={next()}
-      />
+      {/* Organization (Client) Admins don't get the Per Diem Requests,
+      Event Check-ins, Manage or Documents cards - per diems are kept as a
+      record of payments made, not requested in the app. The tabs stay in
+      the sidebar. */}
+      {!isClientAdmin && (
+        <OverviewCard
+          icon={ClipboardList} label="Per Diem Requests" value={requestStats?.pendingRequests ?? 0}
+          subtitle={requestStats ? `${requestStats.totalRequests.toLocaleString()} total` : undefined}
+          loading={requestsLoading}
+          href={link("requests")} onNavigate={go("requests")} delay={next()}
+        />
+      )}
       {/* Organization (Client) Admins see the total number of events;
       everyone else sees upcoming events with the total underneath. */}
       {isClientAdmin ? (
@@ -198,11 +204,13 @@ export function AdminOverviewTab({
           href={link("events")} onNavigate={go("events")} delay={next()}
         />
       )}
-      <OverviewCard
-        icon={ClipboardCheck} label="Event Check-ins" value={stats.totalCheckedIn}
-        subtitle="recipients checked in"
-        href={link("checkins")} onNavigate={go("checkins")} delay={next()}
-      />
+      {!isClientAdmin && (
+        <OverviewCard
+          icon={ClipboardCheck} label="Event Check-ins" value={stats.totalCheckedIn}
+          subtitle="recipients checked in"
+          href={link("checkins")} onNavigate={go("checkins")} delay={next()}
+        />
+      )}
       <OverviewCard
         icon={MapPin} label="Venues" value={venues.length}
         href={link("venues")} onNavigate={go("venues")} delay={next()}
@@ -225,7 +233,7 @@ export function AdminOverviewTab({
         />
         </>
       )}
-      {canManage && !adminItemsOnHome && (
+      {canManage && !adminItemsOnHome && !isClientAdmin && (
         <OverviewCard
           icon={ShieldCheck} label="Manage" value={stats.totalAdmins}
           subtitle="admin accounts"
@@ -236,12 +244,6 @@ export function AdminOverviewTab({
         <OverviewCard
           icon={Building2} label="Clients" value={clients.length}
           href={link("clients")} onNavigate={go("clients")} delay={next()}
-        />
-      )}
-      {isClientAdmin && (
-        <OverviewCard
-          icon={FileStack} label="Documents" value={stats.clientDocuments}
-          href={link("documents")} onNavigate={go("documents")} delay={next()}
         />
       )}
       {isMultiClientAdmin && !adminItemsOnHome && (
