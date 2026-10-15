@@ -11,7 +11,7 @@ import { format, isWithinInterval, parseISO, isPast, endOfDay, subDays, isValid,
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { QRCodeCanvas } from 'qrcode.react';
 import * as XLSX from 'xlsx';
-import { toJpeg } from 'html-to-image';
+import { captureNodeAsJpeg } from './insights/shared';
 
 
 import { Badge } from "@/components/ui/badge";
@@ -3168,7 +3168,7 @@ function AnalyticsTabContent({ requests, clients, loading, clientScoped }: { req
       return;
     }
 
-    toJpeg(ref.current, { cacheBust: true, backgroundColor: 'white' })
+    captureNodeAsJpeg(ref.current)
       .then((dataUrl) => {
         const link = document.createElement('a');
         link.download = `${filename}.jpeg`;

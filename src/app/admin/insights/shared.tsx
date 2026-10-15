@@ -127,12 +127,39 @@ export function StatCard({ icon: Icon, label, value, formatter, delay = 0 }: {
   );
 }
 
-async function captureNodeAsJpeg(node: HTMLElement): Promise<string> {
-  // Reads the actual rendered background instead of hardcoding 'white' (the
-  // old AnalyticsTabContent's approach) - that hardcoding produces
-  // illegible light-on-white exports when captured in dark mode.
-  const backgroundColor = getComputedStyle(node).backgroundColor;
-  return toJpeg(node, { cacheBust: true, backgroundColor, pixelRatio: 2 });
+const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+/**
+ * Runs `capture` with the page in light mode, then restores the viewer's
+ * theme. Downloaded reports are always light (white background, dark
+ * text) so they print well, whatever theme is on screen. The theme is the
+ * `dark` class next-themes puts on <html>; the switch lasts only as long
+ * as the capture.
+ */
+export async function inLightMode<T>(capture: () => Promise<T>): Promise<T> {
+  const root = document.documentElement;
+  const wasDark = root.classList.contains("dark");
+  if (!wasDark) return capture();
+  const prevScheme = root.style.colorScheme;
+  root.classList.remove("dark");
+  root.style.colorScheme = "light";
+  try {
+    // Two frames so styles and charts repaint before the snapshot.
+    await nextFrame();
+    await nextFrame();
+    return await capture();
+  } finally {
+    root.classList.add("dark");
+    root.style.colorScheme = prevScheme;
+  }
+}
+
+/** JPEG of a node on white - call inside inLightMode. */
+const snapshot = (node: HTMLElement) => toJpeg(node, { cacheBust: true, backgroundColor: "#ffffff", pixelRatio: 2 });
+
+/** A light-mode, white-background JPEG of a node, for reports. */
+export function captureNodeAsJpeg(node: HTMLElement): Promise<string> {
+  return inLightMode(() => snapshot(node));
 }
 
 function loadImage(dataUrl: string): Promise<HTMLImageElement> {
@@ -170,9 +197,15 @@ export async function downloadChartAsPdf(ref: RefObject<HTMLElement>, filename: 
 export async function downloadSectionAsPdf(charts: { ref: RefObject<HTMLElement>; title: string }[], filename: string) {
   const doc = new jsPDF({ orientation: "landscape" });
   let renderedAny = false;
-  for (const { ref, title } of charts) {
-    if (!ref.current) continue;
-    const dataUrl = await captureNodeAsJpeg(ref.current);
+  // One switch to light mode for the whole section, not one per chart.
+  const images = await inLightMode(async () => {
+    const out: { dataUrl: string; title: string }[] = [];
+    for (const { ref, title } of charts) {
+      if (ref.current) out.push({ dataUrl: await snapshot(ref.current), title });
+    }
+    return out;
+  });
+  for (const { dataUrl, title } of images) {
     const img = await loadImage(dataUrl);
     if (renderedAny) doc.addPage();
     renderedAny = true;
