@@ -60,7 +60,7 @@ export function StaffEmployerSection({ stats, participants }: { stats: InsightsS
   }, [stats, participants]);
 
   if (stats.totals.requestCount === 0 && participants.length === 0) {
-    return <EmptyState message="No staff/employer data yet - once requests and participants exist, this section fills in automatically." />;
+    return <EmptyState message="No staff/employer data yet - once payments and recipients exist, this section fills in automatically." />;
   }
 
   return (
@@ -119,7 +119,7 @@ export function StaffEmployerSection({ stats, participants }: { stats: InsightsS
                 <XAxis dataKey="name" />
                 <YAxis allowDecimals={false} />
                 <Tooltip {...glassTooltipStyle} />
-                <Bar dataKey="value" name="Participants" fill={paletteColor(1)} radius={[6, 6, 0, 0]} />
+                <Bar dataKey="value" name="Recipients" fill={paletteColor(1)} radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -133,7 +133,7 @@ export function StaffEmployerSection({ stats, participants }: { stats: InsightsS
                 <XAxis dataKey="name" interval={0} angle={-20} textAnchor="end" height={60} />
                 <YAxis allowDecimals={false} />
                 <Tooltip {...glassTooltipStyle} />
-                <Bar dataKey="value" name="Participants" fill={paletteColor(4)} radius={[6, 6, 0, 0]} />
+                <Bar dataKey="value" name="Recipients" fill={paletteColor(4)} radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}

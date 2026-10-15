@@ -110,7 +110,7 @@ function AdminsSection({
     setDemotingId(participant.id);
     try {
       await supabaseDb.setAccessTier(participant.id, "client_user");
-      toast({ title: "Demoted", description: `${participant.name} is now a Participant.` });
+      toast({ title: "Demoted", description: `${participant.name} is now a Recipient.` });
       onChanged();
     } catch (error: any) {
       toast({ title: "Could not demote", description: error.message, variant: "destructive" });

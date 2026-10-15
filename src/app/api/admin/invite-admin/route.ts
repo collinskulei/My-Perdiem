@@ -27,7 +27,7 @@ type InviteBody = {
 const DESIGNATIONS: Record<string, string> = {
   super_admin: 'Super Admin',
   client_admin: 'Organization Admin',
-  client_user: 'Participant',
+  client_user: 'Recipient',
 };
 
 export async function POST(request: Request) {

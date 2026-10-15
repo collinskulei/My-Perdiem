@@ -74,7 +74,7 @@ export function AmendmentsSection({ stats, clients, clientScoped = false }: { st
             <Table containerClassName="max-h-[32rem] border rounded-md" stickyHeader>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Participant</TableHead>
+                  <TableHead>Recipient</TableHead>
                   {!clientScoped && <TableHead>Client</TableHead>}
                   <TableHead>Event</TableHead>
                   <TableHead>Date</TableHead>

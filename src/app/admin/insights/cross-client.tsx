@@ -58,7 +58,7 @@ export function CrossClientSection({ stats, events, participants, clients }: {
     const metrics: { metric: string; get: (r: Rollup) => number }[] = [
       { metric: "Requests", get: r => (r.requestCount / maxRequests) * 100 },
       { metric: "Amount Paid", get: r => (r.totalPaid / maxPaid) * 100 },
-      { metric: "Participants", get: r => (r.participantCount / maxParticipants) * 100 },
+      { metric: "Recipients", get: r => (r.participantCount / maxParticipants) * 100 },
       { metric: "Events", get: r => (r.eventCount / maxEvents) * 100 },
     ];
     return metrics.map(({ metric, get }) => {
@@ -121,7 +121,7 @@ export function CrossClientSection({ stats, events, participants, clients }: {
                   <TableHead>Client</TableHead>
                   <TableHead className="text-right">{sortButton("requestCount", "Requests")}</TableHead>
                   <TableHead className="text-right">{sortButton("totalPaid", "Total Paid")}</TableHead>
-                  <TableHead className="text-right">{sortButton("participantCount", "Participants")}</TableHead>
+                  <TableHead className="text-right">{sortButton("participantCount", "Recipients")}</TableHead>
                   <TableHead className="text-right">{sortButton("eventCount", "Events")}</TableHead>
                 </TableRow>
               </TableHeader>

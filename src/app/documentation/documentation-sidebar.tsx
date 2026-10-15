@@ -55,7 +55,7 @@ const NAV_GROUPS: NavGroup[] = [
     icon: Building2,
     items: [
       { id: "admin-dashboard-overview", label: "The Admin Dashboard" },
-      { id: "managing-participants", label: "Managing Participants" },
+      { id: "managing-recipients", label: "Managing Recipients" },
       { id: "managing-venues", label: "Managing Venues" },
       { id: "managing-events", label: "Creating Events" },
       { id: "approving-requests", label: "Approving Requests" },
@@ -65,7 +65,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: "reports-filtering", label: "Reports & Filtering" },
       { id: "analytics-charts", label: "Analytics Charts" },
       { id: "client-insights", label: "Insights" },
-      { id: "historical-import", label: "Importing Past Records" },
+      { id: "historical-import", label: "Past Payment Records" },
       { id: "documents-onedrive", label: "Sending Documents" },
       { id: "inviting-admins", label: "Inviting Administrators" },
     ],

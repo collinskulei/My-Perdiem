@@ -934,12 +934,12 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
     setIsSaving(true);
     try {
       await dataProvider.updateParticipant(editingParticipant.id, participantFormData);
-      toast({ title: "Success", description: "Participant details updated." });
+      toast({ title: "Success", description: "Recipient details updated." });
       setIsParticipantDialogOpen(false);
       await fetchAllData(); // Refresh data
     } catch (error) {
       console.error("Error updating participant: ", error);
-      toast({ title: "Error", description: "Failed to update participant.", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to update recipient.", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -951,7 +951,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
       return;
     }
     if (!currentAdmin?.clientId) {
-      toast({ title: "Cannot Add Participant", description: "Only Organization Admins can add participants from this dashboard.", variant: "destructive" });
+      toast({ title: "Cannot Add Recipient", description: "Only Organization Admins can add recipients from this dashboard.", variant: "destructive" });
       return;
     }
     setIsAddingParticipant(true);
@@ -969,7 +969,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
       setNewParticipantEmail("");
       await fetchAllData();
     } else {
-      toast({ title: "Could not add participant", description: result.error, variant: "destructive" });
+      toast({ title: "Could not add recipient", description: result.error, variant: "destructive" });
     }
   };
 
@@ -980,12 +980,12 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
     setTogglingDisabledId(null);
     if (result.success) {
       toast({
-        title: nextDisabled ? "Participant Deactivated" : "Participant Reactivated",
+        title: nextDisabled ? "Recipient Deactivated" : "Recipient Reactivated",
         description: `${participant.name} ${nextDisabled ? "can no longer sign in." : "can sign in again."}`,
       });
       await fetchAllData();
     } else {
-      toast({ title: "Could not update participant", description: result.error, variant: "destructive" });
+      toast({ title: "Could not update recipient", description: result.error, variant: "destructive" });
     }
   };
 
@@ -1224,7 +1224,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
         "totalPerdiem", "status", "transactionCode", "flagReason", "participantIdNumber", "notes"
     ];
     const columnHeaders = [
-        "Payment Date", "Participant Name", "Phone Number", "Employer", "Staff Category",
+        "Payment Date", "Recipient Name", "Phone Number", "Employer", "Staff Category",
         "Duty Station", "Designation", "Job Group",
         "Event", "Event Location", "Training Start", "Training End", "Number of Training Days", "Facilitator",
         "Attendance (Days)", "Mileage (Ksh)", "Accommodation (Ksh)", "Allowance (Ksh)",
@@ -1260,7 +1260,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
     const ws = XLSX.utils.aoa_to_sheet(headerData);
 
     // --- Create Data Grid ---
-    const gridHeader = ['Participant Name', 'ID Number', ...dateHeaders, 'Attendance %'];
+    const gridHeader = ['Recipient Name', 'ID Number', ...dateHeaders, 'Attendance %'];
     const gridData = allocatedParticipants.map(participant => {
         const row: (string | number)[] = [
             participant.name,
@@ -1443,7 +1443,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
             setUploadedParticipants(parsedParticipants);
             toast({
                 title: "File Processed",
-                description: `${parsedParticipants.length} participants parsed from the file.`
+                description: `${parsedParticipants.length} recipients parsed from the file.`
             });
         };
         reader.readAsBinaryString(file);
@@ -1540,7 +1540,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
             <CardHeader><CardTitle>Perdiem Requests</CardTitle><CardDescription>Overview of all submitted per diem requests.</CardDescription></CardHeader>
             <CardContent>
                 <Table>
-                    <TableHeader><TableRow><TableHead>Participant</TableHead><TableHead>Event</TableHead><PerdiemDetailColumnHeaders /><TableHead className="text-right whitespace-nowrap">Total Amount</TableHead><TableHead>Status</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead>Recipient</TableHead><TableHead>Event</TableHead><PerdiemDetailColumnHeaders /><TableHead className="text-right whitespace-nowrap">Total Amount</TableHead><TableHead>Status</TableHead><TableHead><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader>
                     <TableBody>
                     {loadingRequests ? <TableSkeletonRows columns={2 + PERDIEM_DETAIL_COLUMN_COUNT + 3} /> : liveRequests.length === 0 ? <TableRow><TableCell colSpan={2 + PERDIEM_DETAIL_COLUMN_COUNT + 3} className="h-24 text-center text-muted-foreground">No per diem requests yet. Historical payment records are under Per Diem Payments.</TableCell></TableRow> : requestsPagination.paged.map(request => (
                         <TableRow key={request.id}>
@@ -1593,7 +1593,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
             </CardHeader>
             <CardContent>
                 <Table>
-                    <TableHeader><TableRow><TableHead>Participant</TableHead><TableHead>Event</TableHead><PerdiemDetailColumnHeaders /><TableHead className="text-right whitespace-nowrap">Total Amount</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead>Recipient</TableHead><TableHead>Event</TableHead><PerdiemDetailColumnHeaders /><TableHead className="text-right whitespace-nowrap">Total Amount</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
                     <TableBody>
                     {loadingRequests ? <TableSkeletonRows columns={2 + PERDIEM_DETAIL_COLUMN_COUNT + 2} /> : historicalPayments.length === 0 ? <TableRow><TableCell colSpan={2 + PERDIEM_DETAIL_COLUMN_COUNT + 2} className="h-24 text-center text-muted-foreground">No historical payment records yet.</TableCell></TableRow> : paymentsPagination.paged.map(payment => (
                         <TableRow key={payment.id}>
@@ -1631,7 +1631,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                         {isEditingPastEvent && (
                             <div className="flex items-start gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
                                 <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                                <span>This event has already happened. Only <strong>Event Type</strong> can be corrected here - every other field is locked to protect dates/venue/participants/payments already tied to this event.</span>
+                                <span>This event has already happened. Only <strong>Event Type</strong> can be corrected here - every other field is locked to protect dates/venue/recipients/payments already tied to this event.</span>
                             </div>
                         )}
                         <div className="flex-1 overflow-y-auto pr-6 -mr-6">
@@ -1795,7 +1795,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
 
                                 <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-4">
                                     <div className="text-left sm:text-right">
-                                        <Label>Assign Participants</Label>
+                                        <Label>Assign Recipients</Label>
                                         <p className="text-xs text-muted-foreground">Total assigned: {totalAssignedCount}</p>
                                     </div>
                                     <div className="col-span-3 space-y-4">
@@ -1810,7 +1810,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                                                     <Input id="bulk-upload" type="file" className="hidden" onChange={handleParticipantFileUpload} accept=".xlsx, .xls, .csv" />
                                                 </Label>
                                             ) : (
-                                               <FileUploadDisplay file={participantFile} onClear={() => { setParticipantFile(null); setUploadedParticipants([]); }} label="Bulk Participants" />
+                                               <FileUploadDisplay file={participantFile} onClear={() => { setParticipantFile(null); setUploadedParticipants([]); }} label="Bulk Recipients" />
                                             )}
                                         </div>
 
@@ -1825,14 +1825,14 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                                                 <PopoverTrigger asChild>
                                                     <Button variant="outline" className="w-full justify-start text-left font-normal">
                                                         <ChevronsUpDown className="mr-2 h-4 w-4" />
-                                                        {eventFormData.allocatedParticipants.length > 0 ? `${eventFormData.allocatedParticipants.length} selected` : "Select registered participants"}
+                                                        {eventFormData.allocatedParticipants.length > 0 ? `${eventFormData.allocatedParticipants.length} selected` : "Select registered recipients"}
                                                     </Button>
                                                 </PopoverTrigger>
                                                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                                                     <Command>
-                                                        <CommandInput placeholder="Search participants..." />
+                                                        <CommandInput placeholder="Search recipients..." />
                                                         <CommandList>
-                                                            <CommandEmpty>No participants found.</CommandEmpty>
+                                                            <CommandEmpty>No recipients found.</CommandEmpty>
                                                             <CommandGroup>
                                                                 <CommandItem
                                                                     onSelect={() => handleSelectAllParticipants(!(eventFormData.allocatedParticipants.length === nonAdminParticipants.length))}
@@ -1990,7 +1990,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                                                     <Table>
                                                         <TableHeader>
                                                             <TableRow>
-                                                                <TableHead>Participant</TableHead>
+                                                                <TableHead>Recipient</TableHead>
                                                                 {eventDays.map(day => (
                                                                     <TableHead key={format(day, 'yyyy-MM-dd')} className="text-center whitespace-nowrap">{format(day, 'MMM d')}</TableHead>
                                                                 ))}
@@ -2090,7 +2090,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                     <TableBody>
                     {loading ? <TableSkeletonRows columns={8} /> : participantsPagination.paged.map(participant => (
                         <TableRow key={participant.id}>
-                        <TableCell><Image alt="Participant avatar" className="aspect-square rounded-full object-cover" height="40" src={participant.avatarUrl} width="40" data-ai-hint="person portrait"/></TableCell>
+                        <TableCell><Image alt="Recipient avatar" className="aspect-square rounded-full object-cover" height="40" src={participant.avatarUrl} width="40" data-ai-hint="person portrait"/></TableCell>
                         <TableCell className="font-medium whitespace-nowrap">{participant.name}</TableCell>
                         <TableCell>{participant.idNumber}</TableCell>
                         <TableCell>{participant.designation}</TableCell>
@@ -2184,7 +2184,6 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                                 <DropdownMenuContent align="end">
                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                     <DropdownMenuItem onSelect={() => handleOpenEditVenue(venue)}>Edit</DropdownMenuItem>
-                                    <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
                                 </DropdownMenuContent>
                                 </DropdownMenu>
                             </TableCell>
@@ -2282,7 +2281,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                                 </Select>
                             </div>
                             <div>
-                                <Label htmlFor="participant-filter">Participant (name or phone)</Label>
+                                <Label htmlFor="participant-filter">Recipient (name or phone)</Label>
                                 <Input
                                     id="participant-filter"
                                     placeholder="Search by name or phone..."
@@ -2398,7 +2397,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
                     {filters.participant.trim() !== '' && (
                         <div className="p-4 border rounded-lg bg-muted/30 flex flex-wrap items-center gap-x-8 gap-y-2">
                             <div>
-                                <p className="text-sm text-muted-foreground">Matching requests for &quot;{filters.participant}&quot;</p>
+                                <p className="text-sm text-muted-foreground">Matching payments for &quot;{filters.participant}&quot;</p>
                                 <p className="text-2xl font-bold">{filteredReportData.length}</p>
                             </div>
                             <div>
@@ -2481,7 +2480,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
             </Card>
         </TabsContent>
         <TabsContent value="analytics">
-            <AnalyticsTabContent requests={perdiemRequests} clients={clients} loading={loadingRequests} />
+            <AnalyticsTabContent requests={perdiemRequests} clients={clients} loading={loadingRequests} clientScoped={!isMultiClientAdmin} />
         </TabsContent>
         {canSeeInsights && (
           <TabsContent value="insights">
@@ -2544,7 +2543,7 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
     <Dialog open={isParticipantDialogOpen} onOpenChange={setIsParticipantDialogOpen}>
         <DialogContent className="sm:max-w-2xl flex flex-col max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle>Edit Participant</DialogTitle>
+            <DialogTitle>Edit Recipient</DialogTitle>
             <DialogDescription>Update the details for {editingParticipant?.name}.</DialogDescription>
           </DialogHeader>
            <div className="flex-1 overflow-y-auto pr-6 -mr-6 space-y-6">
@@ -2819,7 +2818,7 @@ function ReportTabContent({ title, data, loading, onDownload, isPaidReport = fal
                                         <Checkbox checked={allPagedSelected} onCheckedChange={toggleSelectAllOnPage} disabled={selectablePaged.length === 0} aria-label="Select all on this page" />
                                     </TableHead>
                                 )}
-                                <TableHead>Participant</TableHead>
+                                <TableHead>Recipient</TableHead>
                                 <TableHead>Event</TableHead>
                                 <PerdiemDetailColumnHeaders />
                                 {isPaidReport ? (
@@ -3022,7 +3021,7 @@ function PendingReportTabContent({ data, loading, onDownload, onMarkPaid, events
                                         <Checkbox checked={allPagedSelected} onCheckedChange={toggleSelectAllOnPage} disabled={paged.length === 0} aria-label="Select all on this page" />
                                     </TableHead>
                                 )}
-                                <TableHead>Participant</TableHead>
+                                <TableHead>Recipient</TableHead>
                                 <TableHead>ID Number</TableHead>
                                 <TableHead>Event</TableHead>
                                 <PerdiemDetailColumnHeaders />
@@ -3102,7 +3101,7 @@ function AmendedReportTabContent({ title, data, loading, onRecordRecovery, event
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Participant</TableHead>
+                                <TableHead>Recipient</TableHead>
                                 <TableHead>Event</TableHead>
                                 <PerdiemDetailColumnHeaders />
                                 <TableHead>Reason for Amendment</TableHead>
@@ -3160,7 +3159,7 @@ function AmendedReportTabContent({ title, data, loading, onRecordRecovery, event
 }
 
 
-function AnalyticsTabContent({ requests, clients, loading }: { requests: PerdiemRequest[], clients: Client[], loading: boolean }) {
+function AnalyticsTabContent({ requests, clients, loading, clientScoped }: { requests: PerdiemRequest[], clients: Client[], loading: boolean, clientScoped: boolean }) {
   const pieChartRef = useRef<HTMLDivElement>(null);
   const barChartRef = useRef<HTMLDivElement>(null);
   
@@ -3266,7 +3265,7 @@ function AnalyticsTabContent({ requests, clients, loading }: { requests: Perdiem
         <p className="text-muted-foreground">A high-level view of per diem request trends.</p>
       </div>
 
-      <ParticipantLookup clients={clients} />
+      <ParticipantLookup clients={clients} clientScoped={clientScoped} />
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card>
@@ -3411,7 +3410,7 @@ function SuccessDialog({ isOpen, onClose, event }: { isOpen: boolean; onClose: (
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle className="text-center">Event QR Code</DialogTitle>
-                    <DialogDescription className="text-center">Share this QR code with participants for easy check-in.</DialogDescription>
+                    <DialogDescription className="text-center">Share this QR code with recipients for easy check-in.</DialogDescription>
                 </DialogHeader>
                 <div className="flex flex-col items-center justify-center gap-4 py-4">
                     <div ref={qrCodeRef} className="p-4 bg-white rounded-lg inline-block">

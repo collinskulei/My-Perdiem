@@ -16,7 +16,7 @@ export const ACCESS_TIER_LABELS: Record<AccessTier, string> = {
   master_admin: 'Master Admin',
   super_admin: 'Super Admin',
   client_admin: 'Organization Admin',
-  client_user: 'Participant',
+  client_user: 'Recipient',
 };
 
 /**

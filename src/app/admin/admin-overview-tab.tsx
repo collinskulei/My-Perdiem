@@ -200,7 +200,7 @@ export function AdminOverviewTab({
       )}
       <OverviewCard
         icon={ClipboardCheck} label="Event Check-ins" value={stats.totalCheckedIn}
-        subtitle="participants checked in"
+        subtitle="recipients checked in"
         href={link("checkins")} onNavigate={go("checkins")} delay={next()}
       />
       <OverviewCard

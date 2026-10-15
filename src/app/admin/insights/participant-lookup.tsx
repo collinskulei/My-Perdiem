@@ -70,25 +70,25 @@ export function ParticipantLookup({ clients, filters = null, clientScoped = fals
       <div className="p-6 space-y-4">
         <div className="flex items-center gap-2">
           <UserSearch className="h-5 w-5 text-primary" />
-          <h3 className="text-lg font-semibold">Participant Lookup</h3>
+          <h3 className="text-lg font-semibold">Recipient Lookup</h3>
         </div>
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder={clientScoped ? "Search any participant by name or phone..." : "Search any participant by name or phone, across every client..."}
+            placeholder={clientScoped ? "Search any recipient by name or phone..." : "Search any recipient by name or phone, across every client..."}
             className="pl-10"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
         {query.trim() === "" ? (
-          <p className="text-sm text-muted-foreground">Search a participant to see their total paid and every payment record{clientScoped ? "" : ", across all clients"}.</p>
+          <p className="text-sm text-muted-foreground">Search a recipient to see their total paid and every payment record{clientScoped ? "" : ", across all clients"}.</p>
         ) : failed ? (
           <p className="text-sm text-destructive">Search failed - please try again.</p>
         ) : !result || (searching && matchCount === 0) ? (
           <p className="text-sm text-muted-foreground">Searching...</p>
         ) : matchCount === 0 ? (
-          <p className="text-sm text-muted-foreground">No matching participant found.</p>
+          <p className="text-sm text-muted-foreground">No matching recipient found.</p>
         ) : (
           <>
             <div className="flex flex-wrap gap-x-8 gap-y-2">
