@@ -109,6 +109,7 @@ import { AdminClientsOverview } from "./admin-clients-overview";
 import { AdminDocumentsTab } from "./admin-documents-tab";
 import { AdminSubmissionsTab } from "./admin-submissions-tab";
 import { AdminInsightsTab } from "./admin-insights";
+import { AdminBankBalanceTab } from "./admin-bank-balance-tab";
 import { AdminOverviewTab } from "./admin-overview-tab";
 import { usePortal } from "./portal-context";
 import { isHomeAdminTab } from "./home-sidebar-navigation";
@@ -172,6 +173,7 @@ const TAB_LABELS: Record<string, string> = {
   clients: "Clients",
   documents: "Documents",
   submissions: "Submissions",
+  bank: "Bank Balance",
 };
 
 const STAFF_CATEGORIES = [
@@ -2501,6 +2503,16 @@ export function AdminDashboard({ currentTab, basePath = "/admin" }: { currentTab
               clients={clients}
               loading={loading}
               clientScoped={!isMultiClientAdmin}
+            />
+          </TabsContent>
+        )}
+        {canSeeInsights && (
+          <TabsContent value="bank">
+            <AdminBankBalanceTab
+              clients={clients}
+              currentAdmin={currentAdmin}
+              isMultiClientAdmin={isMultiClientAdmin}
+              fixedClientId={portal?.kind === 'client' ? portal.clientId : null}
             />
           </TabsContent>
         )}

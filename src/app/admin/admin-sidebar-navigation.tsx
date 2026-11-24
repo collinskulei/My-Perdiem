@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   Building2,
   FileStack,
+  Landmark,
 } from "lucide-react";
 
 import {
@@ -289,6 +290,18 @@ export function AdminSidebarNavigation({ basePath = "/admin" }: { basePath?: str
             <SidebarMenuButton isActive={isLinkActive('/profile', null)}>
               <User />
               Profile
+            </SidebarMenuButton>
+          </Link>
+        </SidebarMenuItem>
+      )}
+
+      {/* Bank Balance - last item in the menu. */}
+      {canSeeInsights && (
+        <SidebarMenuItem>
+          <Link href={`${basePath}?tab=bank`} onClick={() => setActiveTab('bank')}>
+            <SidebarMenuButton isActive={isLinkActive(basePath, 'bank')} data-tour="tab-bank">
+              <Landmark />
+              Bank Balance
             </SidebarMenuButton>
           </Link>
         </SidebarMenuItem>

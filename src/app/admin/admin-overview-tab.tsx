@@ -23,13 +23,14 @@ import Link from "next/link";
 import { isPast, endOfDay, parseISO } from "date-fns";
 import {
   ClipboardList, Wallet, CalendarDays, ClipboardCheck, Users, MapPin,
-  FileText, BarChart, Sparkles, ShieldCheck, Building2, FileStack, Hourglass,
+  FileText, BarChart, Sparkles, ShieldCheck, Building2, FileStack, Hourglass, Landmark,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import type { AppEvent, Participant, Venue, Client, Document, AccessTier } from "@/lib/data";
 import { formatCurrencyWhole } from "@/lib/utils";
 import * as supabaseDb from "@/lib/supabase/database";
 import type { PerdiemOverviewStats } from "@/lib/supabase/database";
+import { getBankBalances, type BankBalance } from "@/lib/supabase/bank";
 import { InsightCard, useCountUp, FIT_TEXT_STYLE, FIT_CONTAINER_STYLE } from "./insights/shared";
 import { CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -106,6 +107,31 @@ export function AdminOverviewTab({
     return () => { cancelled = true; };
   }, []);
 
+  // Bank Balance card (0040). A client portal (or an Organization Admin)
+  // sees that client's balance; Super/Master portals see all clients'
+  // balances added together. null = not loaded / migration not applied.
+  const portalForBank = usePortal();
+  const bankClientId = portalForBank?.kind === "client"
+    ? portalForBank.clientId
+    : currentAdmin?.accessTier === "client_admin" ? currentAdmin.clientId : null;
+  const canSeeBank = isMultiClientAdmin || currentAdmin?.accessTier === "client_admin";
+  const [bank, setBank] = useState<BankBalance[] | null>(null);
+  useEffect(() => {
+    if (!canSeeBank) return;
+    let cancelled = false;
+    getBankBalances(bankClientId).then((b) => { if (!cancelled) setBank(b); });
+    return () => { cancelled = true; };
+  }, [canSeeBank, bankClientId]);
+  const bankTotal = bank?.reduce((acc, b) => acc + b.balance, 0) ?? 0;
+  const bankNegative = bank?.filter((b) => b.balance < 0).length ?? 0;
+  const bankSubtitle = !bank || bank.length === 0
+    ? "no top-ups yet"
+    : bankNegative > 0
+      ? (bank.length === 1 ? "below zero - check payments" : `${bankNegative} of ${bank.length} clients below zero`)
+      : bank.length === 1
+        ? `after pending: ${formatCurrencyWhole(bank[0].balance - bank[0].pendingAmount)}`
+        : `across ${bank.length} clients`;
+
   const stats = useMemo(() => {
     const upcomingEvents = events.filter(isEventUpcoming).length;
     const totalCheckedIn = events.reduce((sum, e) => sum + Object.keys(e.checkedInParticipants ?? {}).length, 0);
@@ -163,6 +189,15 @@ export function AdminOverviewTab({
           icon={Hourglass} label="Pending Payments" value={requestStats.pendingPayments.amount} formatter={formatCurrencyWhole}
           subtitle={`${requestStats.pendingPayments.count.toLocaleString()} awaiting payment`}
           href={link("reports")} onNavigate={go("reports")} delay={next()}
+        />
+      )}
+      {/* Hidden until 0040_perdiem_bank_balance.sql is applied (bank null),
+      and for an Organization Admin until a top-up exists. */}
+      {canSeeBank && bank !== null && (isMultiClientAdmin || bank.length > 0) && (
+        <OverviewCard
+          icon={Landmark} label="Bank Balance" value={bankTotal} formatter={formatCurrencyWhole}
+          subtitle={bankSubtitle}
+          href={link("bank")} onNavigate={go("bank")} delay={next()}
         />
       )}
       {/* People actually paid (distinct by phone, else name), not participant
